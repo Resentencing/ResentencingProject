@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Database AI Interaction{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Database AI Interaction</h1>
+    <p>Use this interface to query the database and interact with the AI assistant.</p>
+
+    <textarea id="userQuery" placeholder="Enter your question here..." rows="5" style="width: 100%;"></textarea>
+    <button id="sendQueryButton">Send Query</button>
+
+    <div id="chatContainer">
+        <div id="aiResponse"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    document.getElementById('sendQueryButton').addEventListener('click', () => {
+        const userQuery = document.getElementById('userQuery').value.trim();
+        if (!userQuery) {
+            alert("Please enter a query.");
+            return;
+        }
+
+        const aiResponseDiv = document.getElementById('aiResponse');
+
+        // Show a loading indicator
+        aiResponseDiv.innerHTML += `<p><strong>You:</strong> ${userQuery}</p>`;
+        aiResponseDiv.innerHTML += `<p><em>Loading response...</em></p>`;
+
+        fetch('/query_ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: userQuery })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.response) {
+                aiResponseDiv.innerHTML += `<p><strong>ChatGPT:</strong></p>`;
+                aiResponseDiv.innerHTML += `<div class="chat-message">${marked.parse(data.response)}</div>`;
+            } else {
+                aiResponseDiv.innerHTML += `<p style="color: red;">Error: ${data.error}</p>`;
+            }
+            aiResponseDiv.scrollTop = aiResponseDiv.scrollHeight;
+        })
+        .catch(error => {
+            console.error('Error querying AI:', error);
+            aiResponseDiv.innerHTML += `<p style="color: red;">An error occurred: ${error.message}</p>`;
+        });
+    });
+</script>
+
+<style>
+    #chatContainer {
+        border: 1px solid #ccc;
+        padding: 10px;
+        max-height: 400px;
+        overflow-y: auto;
+        background-color: #f9f9f9;
+    }
+    .chat-message {
+        background: #e6f7ff;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+</style>
+
+{% endblock %}

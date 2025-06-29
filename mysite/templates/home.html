@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Home - OCR WebApp{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Welcome to the OCR WebApp</h1>
+    <p>This web application simplifies converting PDF documents into searchable and editable formats using Optical Character Recognition (OCR) technology.</p>
+    <p>The application is built using Flask, leveraging libraries such as PyMuPDF and pytesseract for processing PDF files and performing OCR.</p>
+
+    <div class="box">
+        <h2>Process PDF Files</h2>
+        <input type="file" id="fileInput" multiple accept=".pdf">
+        <ul id="fileList"></ul>
+        <div class="processing-area">
+            <div id="loadingIndicator" class="loading" style="visibility: hidden;">Processing...</div>
+            <button id="processButton">Process PDFs</button>
+        </div>
+        <button id="downloadButton">Download All Processed Files</button>
+        <button id="clearButton">Clear Files</button>
+        <progress id="progressBar" value="0" max="100" style="width:100%;"></progress>
+        <audio id="successSound" src="{{ url_for('static', filename='audio/success.mp3') }}" preload="auto"></audio>
+    </div>
+
+    <div class="box">
+        <h2>Upload Corrected Files to Database</h2>
+        <button id="uploadDatabaseButton">Upload to Database</button>
+    </div>
+
+    <div class="box">
+        <h2>Upload Excel Files</h2>
+        <input type="file" id="excelFileInput" multiple accept=".xlsx,.xls,.csv">
+        <ul id="excelFileList"></ul>
+        <button id="uploadExcelButton">Upload Excel Files</button>
+        <button id="clearExcelButton">Clear Excel Files</button>
+    </div>
+
+    <div class="box">
+        <h2>Database and AI Interaction</h2>
+        <a href="{{ url_for('database_ai') }}" class="button">Go to AI Interaction Page</a>
+    </div>
+</div>
+{% endblock %}
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>

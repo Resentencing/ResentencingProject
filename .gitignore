@@ -1,0 +1,11 @@
+# Critical Security Files
+mysite/dbconnector.py
+frontend/flask_app.py
+
+# Additional Security
+*.env
+__pycache__/
+*.pyc
+logs/
+uploads/
+processed/

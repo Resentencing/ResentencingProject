@@ -1,7 +1,3 @@
-# Critical Security Files
-mysite/dbconnector.py
-frontend/flask_app.py
-
 # Additional Security
 *.env
 __pycache__/

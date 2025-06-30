@@ -21,12 +21,13 @@ import re
 import json
 import decimal
 import datetime
+# from mysite.dbconnector_ssh import connect_to_database as connect_to_database_ssh
 
 # Maintain a queue of files to process
 processing_queue = []
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv()
 
 # Initialize OpenAI client
 client = OpenAI()

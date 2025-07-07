@@ -3,22 +3,25 @@ import json
 import os
 import logging
 import math  # Needed to check for NaN
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Database Configuration
+# Database Configuration from environment variables
 database_config = {
-    "host": "RSCAP.mysql.pythonanywhere-services.com",
-    "user": "RSCAP",
-    "password": "TANGLEWOOD",
-    "database": "RSCAP$RSCAPTester",
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME"),
 }
 
 def connect_to_database():
     """
-    Establishes a connection to the MySQL database using credentials defined in `database_config` above. Consider moving these credentials into environmental variables.
-
+    Establishes a connection to the MySQL database using credentials from environment variables.
     Returns:
         connection (MySQLConnection): A live connection to the database, or None if connection fails.
     """
@@ -109,7 +112,7 @@ def upload_to_database(connection, pdf_folder, text_folder, metadata_file):
                 metadata[key] = sanitize_value(metadata[key])
 
             pdf_filename = metadata["filename"]
-            archive_base_path = "/home/RSCAP/shared/archive_directory"
+            archive_base_path = os.getenv("ARCHIVE_DIR", "/home/RSCAP/shared/archive_directory")
             pdf_path = os.path.join(archive_base_path, pdf_filename)
 
             # Insert PDF (if not exists)

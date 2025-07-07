@@ -1,7 +1,48 @@
-# Additional Security
-*.env
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment
+.env
+.env.*
+.venv/
+venv/
+ENV/
+env/
+Pipfile.lock
+poetry.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and outputs
 logs/
+*.log
+
+# Uploads and processed data
 uploads/
 processed/
+backup.zip
+
+# SSH and cache
+.ssh/
+.cache/
+*.cache
+*.bak
+
+# Misc
+*.swp
+*.swo
+*.tmp
+*.bak
+*.old
+
+
+

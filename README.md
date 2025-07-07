@@ -1,8 +1,85 @@
 # Resentencing Project
 
-A Flask-based web application for processing and analyzing resentencing documents with AI-powered database queries.
+## Quick Setup
 
-## Features
+1. **Clone the repository**
+   ```sh
+   git clone <repository-url>
+   cd ResentencingProject
+   ```
+
+2. **Create and activate a virtual environment**
+   - On Windows (PowerShell):
+     ```powershell
+     python -m venv .venv
+     .\.venv\Scripts\Activate.ps1
+     ```
+   - On macOS/Linux:
+     ```bash
+     python3 -m venv .venv
+     source .venv/bin/activate
+     ```
+
+3. **Install dependencies**
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+4. **Copy the environment template and edit your secrets**
+   - On Windows (PowerShell):
+     ```powershell
+     Copy-Item env.template .env
+     ```
+   - On macOS/Linux:
+     ```bash
+     cp env.template .env
+     ```
+   - Then open `.env` and fill in your credentials.
+
+5. **Run the backend**
+   ```powershell
+   cd mysite
+   $env:FLASK_APP = "OCRWebApp.py"
+   $env:FLASK_ENV = "development"
+   flask run
+   ```
+
+6. **Run the frontend (if needed)**
+   ```powershell
+   cd ../frontend
+   python flask_app.py
+   ```
+
+## Database Testing with Jupyter Notebook
+
+A Jupyter notebook is provided for interactive database access and testing:
+
+- **File:** `mysite/test_db_connection.ipynb`
+- **Purpose:** Connect to the project database and run/test SQL queries interactively, without modifying the main app.
+- **How to use:**
+  1. Activate your virtual environment (see Quick Setup).
+  2. Install Jupyter if needed:
+     ```sh
+     pip install notebook
+     ```
+  3. Start Jupyter:
+     ```sh
+     jupyter notebook
+     ```
+  4. Open `mysite/test_db_connection.ipynb` in your browser.
+  5. Run the cells to connect and test queries on the database.
+
+This is useful for team members who want to safely experiment with database queries or troubleshoot connection issues.
+
+---
+
+**Note:**
+- Always activate your `.venv` before running any Python or Flask commands.
+- Never commit your `.env` or `.venv` folders to git.
+
+# Features
+
+A Flask-based web application for processing and analyzing resentencing documents with AI-powered database queries.
 
 - **PDF Processing**: Upload and process PDF documents with OCR
 - **Database Integration**: Store and query case metadata (when running on PythonAnywhere)

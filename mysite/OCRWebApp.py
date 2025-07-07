@@ -15,25 +15,29 @@ import extracttext
 import tagextraction
 from dbconnector import database_config, connect_to_database
 import secrets
-from openai import OpenAI, AuthenticationError, RateLimitError, APIConnectionError, BadRequestError
+from openai import OpenAI
 from dotenv import load_dotenv
 import re
 import json
 import decimal
 import datetime
+import pymysql
 # from mysite.dbconnector_ssh import connect_to_database as connect_to_database_ssh
 
-# Maintain a queue of files to process
-processing_queue = []
-
-# Load environment variables from .env file
-# load_dotenv()
+# Load environment variables
+load_dotenv()
 
 # Initialize OpenAI client
 client = OpenAI()
 
+# Maintain a queue of files to process
+processing_queue = []
+
 # Set up logging for easier debugging
 logging.basicConfig(level=logging.DEBUG)
+
+# Debug the actual key value
+api_key = os.getenv("OPENAI_API_KEY")
 
 # Ensure environment variables and API key setup
 os.environ['PATH'] = '/home/RSCAP/.virtualenvs/myvirtualenv/bin:' + os.environ['PATH']
@@ -58,7 +62,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
 # Temp Password
-PASSWORD = 'password'
+PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -410,6 +414,9 @@ def query_ai():
         logging.error(f"Unexpected error: {e}")
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
 
+
+
+
 @app.route('/upload_excel', methods=['POST'])
 def upload_excel_files():
     """
@@ -620,12 +627,11 @@ def file_viewer():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
-    import pymysql
     connection = pymysql.connect(
-        host="RSCAP.mysql.pythonanywhere-services.com",
-        user="RSCAP",
-        password=os.environ.get("MYSQL_PASSWORD"),
-        database="RSCAP$RSCAPTester"
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME')
     )
     try:
         with connection.cursor() as cursor:

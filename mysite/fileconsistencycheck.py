@@ -21,15 +21,19 @@ Dependencies:
 import os
 import pymysql
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # --- CONFIGURATION ---
-DB_HOST = 'RSCAP.mysql.pythonanywhere-services.com'
-DB_USER = 'RSCAP'
-DB_PASSWORD = 'fosvYz-bykci9-juzwek'
-DB_NAME = 'RSCAP$RSCAPTester'
-TABLE_NAME = 'pdfs'
-ARCHIVE_DIR = '/home/RSCAP/shared/archive_directory'
-LOG_DIR = '/home/RSCAP/mysite/logs'
+DB_HOST = os.getenv('DB_HOST')
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_NAME = os.getenv('DB_NAME')
+TABLE_NAME = os.getenv('PDFS_TABLE', 'pdfs')
+ARCHIVE_DIR = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
+LOG_DIR = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
 LOG_FILENAME = f"MissedEntriesCheck_{datetime.now().strftime('%Y-%m-%d')}.log"
 LOG_PATH = os.path.join(LOG_DIR, LOG_FILENAME)
 

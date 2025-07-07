@@ -7,6 +7,11 @@ from io import BytesIO
 import os
 import logging
 import hashlib
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 
 app = Flask(__name__)
 
@@ -18,13 +23,14 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Database Configuration
+# Database Configuration - use environment variables with fallback to hardcoded values
 database_config = {
-    "host": "RSCAP.mysql.pythonanywhere-services.com",
-    "user": "RSCAP",
-    "password": "TANGLEWOOD",
-    "database": "RSCAP$RSCAPTester",
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME"),
 }
+
 
 @app.route('/about')
 def about():

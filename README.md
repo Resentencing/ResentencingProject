@@ -163,7 +163,7 @@ ResentencingProject/
    - `judge` (varchar(255))
    - `county` (varchar(255))
    - `address` (text)
-   - `convict_name` (varchar(255))
+   - `_______` (varchar(255))
    - `cdcr_number` (varchar(50))
    - `case_number` (varchar(50))
    - `sentence_date` (varchar(50))

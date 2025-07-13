@@ -42,8 +42,18 @@ document.addEventListener('DOMContentLoaded', function () {
             alert("Please select files first.");
             return;
         }
-        loadingIndicator.style.visibility = 'visible';
+        
+        const button = document.getElementById('processButton');
+        const originalText = button.textContent;
+        
+        // Disable button and show processing state
+        button.disabled = true;
+        button.textContent = 'Processing...';
+        button.style.opacity = '0.6';
+        
+        // Show progress bar
         progressBar.value = 0;
+        progressBar.style.visibility = 'visible';
 
         const formData = new FormData();
         selectedFiles.forEach(file => {
@@ -60,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 progressBar.value = 100;
                 document.getElementById('successSound').play(); // Play sound on success
             }
-            loadingIndicator.style.visibility = 'hidden';
             selectedFiles = [];
             fileList.innerHTML = '';
 
@@ -68,7 +77,17 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(error => {
             console.error('Error processing files:', error);
             alert('Error processing files: ' + error.message);
-            loadingIndicator.style.visibility = 'hidden';
+        })
+        .finally(() => {
+            // ALWAYS reset button state - this ensures button comes back
+            button.disabled = false;
+            button.textContent = originalText;
+            button.style.opacity = '1';
+            
+            // Hide progress bar after a short delay
+            setTimeout(() => {
+                progressBar.style.visibility = 'hidden';
+            }, 2000);
         });
     });
 
@@ -128,6 +147,19 @@ document.addEventListener('DOMContentLoaded', function () {
     // Upload corrected files to database
     document.getElementById('uploadDatabaseButton')?.addEventListener('click', () => {
         console.log("Uploading to database...");
+        
+        const button = document.getElementById('uploadDatabaseButton');
+        const originalText = button.textContent;
+        
+        // Show loading state
+        button.disabled = true;
+        button.textContent = 'Uploading...';
+        button.style.opacity = '0.6';
+        
+        // Show timeout warning after 60 seconds
+        const timeoutWarning = setTimeout(() => {
+            alert('Still processing — large file batches may take several minutes. Please wait...');
+        }, 60000);
 
         fetch('/upload_to_database', {
             method: 'POST',
@@ -137,6 +169,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return response.json();
         })
         .then(data => {
+            clearTimeout(timeoutWarning);
+            
             if (data.error) {
                 console.error(`Error from server: ${data.error}`);
                 alert(`Error uploading to database: ${data.error}`);
@@ -145,8 +179,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         })
         .catch(error => {
+            clearTimeout(timeoutWarning);
             console.error('Error uploading to database:', error);
             alert(`Error uploading to database: ${error.message}`);
+        })
+        .finally(() => {
+            // Reset button state
+            button.disabled = false;
+            button.textContent = originalText;
+            button.style.opacity = '1';
         });
     });
 
@@ -155,6 +196,14 @@ document.addEventListener('DOMContentLoaded', function () {
             alert("Please select Excel files first.");
             return;
         }
+
+        const button = document.getElementById('uploadExcelButton');
+        const originalText = button.textContent;
+        
+        // Disable button and show uploading state
+        button.disabled = true;
+        button.textContent = 'Uploading...';
+        button.style.opacity = '0.6';
 
         const formData = new FormData();
         selectedExcelFiles.forEach(file => {
@@ -179,6 +228,12 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(error => {
             console.error('Error uploading Excel files:', error);
             alert('Error uploading Excel files: ' + error.message);
+        })
+        .finally(() => {
+            // ALWAYS reset button state - this ensures button comes back
+            button.disabled = false;
+            button.textContent = originalText;
+            button.style.opacity = '1';
         });
     });
 

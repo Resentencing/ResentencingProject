@@ -30,6 +30,9 @@ load_dotenv()
 # Initialize OpenAI client
 client = OpenAI()
 
+# TEMPORARY: Disable database connections for UI testing
+DATABASE_DISABLED = False
+
 # Maintain a queue of files to process
 processing_queue = []
 

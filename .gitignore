@@ -1,4 +1,4 @@
-# Python
+# Python bytecode
 __pycache__/
 *.pyc
 *.pyo
@@ -8,7 +8,7 @@ __pycache__/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# Environment
+# Environment and dependency management
 .env
 .env.*
 .venv/
@@ -18,31 +18,27 @@ env/
 Pipfile.lock
 poetry.lock
 
-# OS files
+# IDE and OS-specific files
 .DS_Store
 Thumbs.db
-
-# Logs and outputs
-logs/
-*.log
-
-# Uploads and processed data
-uploads/
-processed/
-backup.zip
-
-# SSH and cache
-.ssh/
-.cache/
-*.cache
-*.bak
-
-# Misc
 *.swp
 *.swo
 *.tmp
 *.bak
 *.old
 
+# Logs
+logs/
+*.log
 
+# Project-specific: uploads, processed data, OCR outputs
+uploads/
+processed/
+backup.zip
+mysite/OCRextractions/
+shared/archive_directory/*.pdf
 
+# SSH and pip cache
+.ssh/
+.cache/
+*.cache

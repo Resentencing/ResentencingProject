@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Missing Metadata{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>⚠️ Files Missing Metadata</h2>
+    <p>These files exist in the database but are missing metadata information.</p>
+    
+    {% if files %}
+    <div class="alert alert-warning">
+        <strong>{{ files|length }} files</strong> are missing metadata and need attention.
+    </div>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>File Path</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td>{{ file.filename }}</td>
+                <td><code>{{ file.file_path }}</code></td>
+                <td>
+                    <a href="{{ url_for('download_file', filename=file.filename) }}" class="btn btn-sm btn-primary">Download</a>
+                    <button class="btn btn-sm btn-warning" onclick="refreshMetadata({{ file.id }})">Refresh Metadata</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-success">
+        <strong>Great!</strong> All files have metadata. No issues found.
+    </div>
+    {% endif %}
+    
+    <div class="mt-3">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+        <a href="{{ url_for('file_viewer') }}" class="btn btn-primary">View All Files</a>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.table th,
+.table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    margin: 2px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.btn-primary { background: #007bff; color: white; }
+.btn-warning { background: #ffc107; color: #212529; }
+.btn-secondary { background: #6c757d; color: white; }
+
+.btn:hover {
+    opacity: 0.8;
+}
+
+code {
+    background: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 12px;
+}
+</style>
+
+<script>
+function refreshMetadata(fileId) {
+    if (confirm('This will attempt to re-extract metadata from the file. Continue?')) {
+        // TODO: Implement metadata refresh functionality
+        alert('Metadata refresh functionality will be implemented soon.');
+    }
+}
+</script>
+{% endblock %} 

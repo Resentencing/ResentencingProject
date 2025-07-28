@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Recent Uploads{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>🆕 Recent Uploads</h2>
+    <p>Showing the 20 most recently uploaded files.</p>
+    
+    {% if files %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Case Number</th>
+                <th>CDCR Number</th>
+                <th>Date Stamped</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td>{{ file.filename }}</td>
+                <td>{{ file.case_number or 'N/A' }}</td>
+                <td>{{ file.cdcr_number or 'N/A' }}</td>
+                <td>{{ file.date_stamped or 'N/A' }}</td>
+                <td>
+                    <a href="{{ url_for('download_file', filename=file.filename) }}" class="btn btn-sm btn-primary">Download</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">
+        <strong>No recent uploads found.</strong>
+    </div>
+    {% endif %}
+    
+    <div class="mt-3">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+        <a href="{{ url_for('file_viewer') }}" class="btn btn-primary">View All Files</a>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.table th,
+.table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    margin: 2px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.btn-primary { background: #007bff; color: white; }
+.btn-secondary { background: #6c757d; color: white; }
+
+.btn:hover {
+    opacity: 0.8;
+}
+</style>
+{% endblock %} 

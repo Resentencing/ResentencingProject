@@ -24,7 +24,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv("/home/RSCAP/.env")
 
 # --- CONFIGURATION ---
 DB_HOST = os.getenv('DB_HOST')

@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Refresh Metadata{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>🔄 Refresh Metadata</h2>
+    <p>These files were auto-recovered with basic information and need full metadata extraction.</p>
+    
+    {% if files %}
+    <div class="alert alert-warning">
+        <strong>{{ files|length }} files</strong> need metadata refresh.
+    </div>
+    
+    <div class="refresh-actions">
+        <button id="refreshAllBtn" class="btn btn-primary">🔄 Refresh All Metadata</button>
+        <div id="refreshStatus" class="mt-3"></div>
+    </div>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>File Path</th>
+                <th>Current Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td>{{ file.filename }}</td>
+                <td><code>{{ file.file_path }}</code></td>
+                <td>
+                    <span class="badge badge-warning">{{ file.notes }}</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-success">
+        <strong>Great!</strong> All files have complete metadata. No refresh needed.
+    </div>
+    {% endif %}
+    
+    <div class="mt-3">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+        <a href="{{ url_for('missing_metadata') }}" class="btn btn-info">View Missing Metadata</a>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.refresh-actions {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.table th,
+.table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    margin: 2px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-primary { background: #007bff; color: white; }
+.btn-secondary { background: #6c757d; color: white; }
+.btn-info { background: #17a2b8; color: white; }
+
+.btn:hover {
+    opacity: 0.8;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+code {
+    background: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+#refreshStatus {
+    padding: 10px;
+    border-radius: 4px;
+    display: none;
+}
+
+#refreshStatus.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+#refreshStatus.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+#refreshStatus.loading {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+</style>
+
+<script>
+document.getElementById('refreshAllBtn').addEventListener('click', function() {
+    const btn = this;
+    const statusDiv = document.getElementById('refreshStatus');
+    
+    // Disable button and show loading
+    btn.disabled = true;
+    btn.textContent = '🔄 Refreshing...';
+    statusDiv.className = 'loading';
+    statusDiv.style.display = 'block';
+    statusDiv.textContent = 'Refreshing metadata for all files...';
+    
+    // Make POST request to refresh metadata
+    fetch('/refresh_metadata', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.className = 'success';
+            statusDiv.textContent = data.message;
+            // Reload page after 2 seconds to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            statusDiv.className = 'error';
+            statusDiv.textContent = data.message;
+        }
+    })
+    .catch(error => {
+        statusDiv.className = 'error';
+        statusDiv.textContent = 'Error: ' + error.message;
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.textContent = '🔄 Refresh All Metadata';
+    });
+});
+</script>
+{% endblock %} 

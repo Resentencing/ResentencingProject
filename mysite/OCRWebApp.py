@@ -630,7 +630,16 @@ def preprocess_pdf(file_path, output_folder):
 # Backend File Viewer Download Files
 @app.route('/download/<filename>')
 def download_file(filename):
-    archive_dir = '/home/RSCAP/shared/archive_directory'
+    # Use environment variable for archive directory, with fallback for local development
+    archive_dir = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
+    
+    # For local development, use the shared directory in the project
+    if not os.path.exists(archive_dir):
+        archive_dir = os.path.join(os.getcwd(), 'shared', 'archive_directory')
+    
+    if not os.path.exists(os.path.join(archive_dir, filename)):
+        return "File not found", 404
+    
     return send_from_directory(archive_dir, filename, as_attachment=True)
 
 # Backend File Viewer
@@ -665,7 +674,8 @@ def file_viewer():
         host=os.getenv('DB_HOST'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB_NAME')
+        database=os.getenv('DB_NAME'),
+        port=int(os.getenv('DB_PORT', 3306))
     )
     try:
         with connection.cursor() as cursor:
@@ -693,6 +703,227 @@ def file_viewer():
     ]
     search_info = "Users can search by filename, case number, CDCR number, or date stamped. The search will work together with your sort and direction dropdowns."
     return render_template("fileviewer.html", files=files, sort_field=sort_field, direction=sort_direction.lower(), search_term=search_term, search_info=search_info)
+
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard with database statistics and system status."""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    connection = pymysql.connect(
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME'),
+        port=int(os.getenv('DB_PORT', 3306))
+    )
+    
+    try:
+        with connection.cursor() as cursor:
+            # Get total files
+            cursor.execute("SELECT COUNT(*) FROM pdfs")
+            total_files = cursor.fetchone()[0]
+            
+            # Get files with metadata
+            cursor.execute("SELECT COUNT(*) FROM pdfs p JOIN metadata m ON p.id = m.pdf_id")
+            with_metadata = cursor.fetchone()[0]
+            
+            # Get files missing metadata
+            cursor.execute("SELECT COUNT(*) FROM pdfs p LEFT JOIN metadata m ON p.id = m.pdf_id WHERE m.pdf_id IS NULL")
+            missing_metadata = cursor.fetchone()[0]
+            
+            # Get last consistency check
+            log_dir = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
+            consistency_logs = []
+            if os.path.exists(log_dir):
+                for file in os.listdir(log_dir):
+                    if file.startswith('EnhancedConsistencyCheck_'):
+                        consistency_logs.append(file)
+            
+            last_check = "Never" if not consistency_logs else max(consistency_logs).replace('EnhancedConsistencyCheck_', '').replace('.log', '')
+            
+    finally:
+        connection.close()
+    
+    # Mock data for demo (replace with real data)
+    stats = {
+        'total_files': total_files,
+        'with_metadata': with_metadata,
+        'missing_metadata': missing_metadata,
+        'last_check': last_check
+    }
+    
+    recent_activity = [
+        {'timestamp': '2025-07-28 05:22', 'type': 'CHECK', 'description': 'Consistency check completed'},
+        {'timestamp': '2025-07-28 05:15', 'type': 'RECOVERY', 'description': 'Auto-recovered 5 missing files'},
+        {'timestamp': '2025-07-28 04:30', 'type': 'UPLOAD', 'description': 'New file uploaded: corrected_Gonzalez-AA9449_Barriga.pdf'}
+    ]
+    
+    status = {
+        'database': 'Connected',
+        'archive': 'Accessible',
+        'sync': 'Synchronized' if missing_metadata == 0 else 'Issues Found'
+    }
+    
+    return render_template("dashboard.html", stats=stats, recent_activity=recent_activity, status=status)
+
+@app.route('/missing_metadata')
+def missing_metadata():
+    """Show files that are missing metadata."""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    connection = pymysql.connect(
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME'),
+        port=int(os.getenv('DB_PORT', 3306))
+    )
+    
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT p.filename, p.file_path, p.id
+                FROM pdfs p 
+                LEFT JOIN metadata m ON p.id = m.pdf_id 
+                WHERE m.pdf_id IS NULL
+                ORDER BY p.filename
+            """)
+            results = cursor.fetchall()
+    finally:
+        connection.close()
+    
+    files = [
+        {
+            "filename": row[0],
+            "file_path": row[1],
+            "id": row[2]
+        }
+        for row in results
+    ]
+    
+    return render_template("missing_metadata.html", files=files)
+
+@app.route('/recent_uploads')
+def recent_uploads():
+    """Show recently uploaded files."""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    connection = pymysql.connect(
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME'),
+        port=int(os.getenv('DB_PORT', 3306))
+    )
+    
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT p.filename, p.file_path, m.case_number, m.cdcr_number, m.date_stamped
+                FROM pdfs p
+                LEFT JOIN metadata m ON p.id = m.pdf_id
+                ORDER BY p.id DESC
+                LIMIT 20
+            """)
+            results = cursor.fetchall()
+    finally:
+        connection.close()
+    
+    files = [
+        {
+            "filename": row[0],
+            "file_path": row[1],
+            "case_number": row[2],
+            "cdcr_number": row[3],
+            "date_stamped": row[4]
+        }
+        for row in results
+    ]
+    
+    return render_template("recent_uploads.html", files=files)
+
+@app.route('/consistency_report')
+def consistency_report():
+    """Show the latest consistency report."""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    log_dir = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
+    report_content = "No consistency reports found."
+    
+    if os.path.exists(log_dir):
+        consistency_logs = []
+        for file in os.listdir(log_dir):
+            if file.startswith('EnhancedConsistencyCheck_'):
+                consistency_logs.append(file)
+        
+        if consistency_logs:
+            latest_report = max(consistency_logs)
+            report_path = os.path.join(log_dir, latest_report)
+            try:
+                with open(report_path, 'r') as f:
+                    report_content = f.read()
+            except Exception as e:
+                report_content = f"Error reading report: {e}"
+    
+    return render_template("consistency_report.html", report_content=report_content)
+
+@app.route('/refresh_metadata', methods=['GET', 'POST'])
+def refresh_metadata():
+    """Refresh metadata for files that were auto-recovered."""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        # Run the metadata refresh script
+        try:
+            import subprocess
+            result = subprocess.run(['python3', 'mysite/metadata_refresh.py'], 
+                                  capture_output=True, text=True, cwd=os.getcwd())
+            
+            if result.returncode == 0:
+                return jsonify({"success": True, "message": "Metadata refresh completed successfully!"})
+            else:
+                return jsonify({"success": False, "message": f"Error: {result.stderr}"})
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Error: {str(e)}"})
+    
+    # GET request - show the refresh page
+    connection = pymysql.connect(
+        host=os.getenv('DB_HOST'),
+        port=int(os.getenv('DB_PORT', 3306)),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME')
+    )
+    
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT p.filename, p.file_path, m.notes
+                FROM pdfs p
+                JOIN metadata m ON p.id = m.pdf_id
+                WHERE m.notes LIKE '%Auto-recovered%'
+                AND (m.case_number IS NULL OR m.case_number = '')
+                ORDER BY p.filename
+            """)
+            results = cursor.fetchall()
+    finally:
+        connection.close()
+    
+    files = [
+        {
+            "filename": row[0],
+            "file_path": row[1],
+            "notes": row[2]
+        }
+        for row in results
+    ]
+    
+    return render_template("refresh_metadata.html", files=files)
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,30 +1,45 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>File Viewer</title>
-    <style>
-        table { border-collapse: collapse; width: 100%; }
-        th, td { padding: 8px 12px; border: 1px solid #ddd; }
-        th { background-color: #f0f0f0; }
-    </style>
-</head>
-<body>
-    <h2>Archived Files</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Filename</th>
-                <th>Download</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for file in files %}
-            <tr>
-                <td>{{ file.filename }}</td>
-                <td><a href=\"{{ file.path }}\" target=\"_blank\">Download</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}File Viewer{% endblock %}
+
+{% block content %}
+<h2>Files in Database</h2>
+<p style="font-size: 0.95em; color: #555; margin-bottom: 0.5em;">{{ search_info }}</p>
+<form method="get" id="sortForm">
+    <label for="sort">Sort by:</label>
+    <select name="sort" id="sort" onchange="document.getElementById('sortForm').submit();">
+        <option value="filename" {% if sort_field == 'filename' %}selected{% endif %}>File Name</option>
+        <option value="case_number" {% if sort_field == 'case_number' %}selected{% endif %}>Case Number</option>
+        <option value="cdcr_number" {% if sort_field == 'cdcr_number' %}selected{% endif %}>CDCR Number</option>
+        <option value="date_stamped" {% if sort_field == 'date_stamped' %}selected{% endif %}>Date Stamped</option>
+    </select>
+    <select name="direction" id="direction" onchange="document.getElementById('sortForm').submit();">
+        <option value="desc" {% if direction == 'desc' %}selected{% endif %}>Descending</option>
+        <option value="asc" {% if direction == 'asc' %}selected{% endif %}>Ascending</option>
+    </select>
+    <input type="text" name="search" placeholder="Search..." value="{{ search_term|default('') }}">
+    <button type="submit">Search</button>
+</form>
+<table>
+    <thead>
+        <tr>
+            <th>Filename</th>
+            <th>Case Number</th>
+            <th>CDCR Number</th>
+            <th>Date Stamped</th>
+            <th>Download</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for file in files %}
+        <tr>
+            <td>{{ file.filename }}</td>
+            <td>{{ file.case_number }}</td>
+            <td>{{ file.cdcr_number }}</td>
+            <td>{{ file.date_stamped }}</td>
+            <td><a href="{{ url_for('download_file', filename=file.filename) }}">Download</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

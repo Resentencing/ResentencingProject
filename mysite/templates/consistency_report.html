@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Consistency Report{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>🔍 Consistency Report</h2>
+    <p>Latest file consistency check results.</p>
+    
+    <div class="report-container">
+        <pre class="report-content">{{ report_content }}</pre>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+        <a href="{{ url_for('file_viewer') }}" class="btn btn-primary">View All Files</a>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.report-container {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 20px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+}
+
+.report-content {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    margin: 2px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary { background: #007bff; color: white; }
+.btn-secondary { background: #6c757d; color: white; }
+
+.btn:hover {
+    opacity: 0.8;
+}
+</style>
+{% endblock %} 

@@ -423,8 +423,6 @@ def query_ai():
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
 
 
-
-
 @app.route('/upload_excel', methods=['POST'])
 def upload_excel_files():
     """
@@ -629,11 +627,39 @@ def preprocess_pdf(file_path, output_folder):
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-# TESTING BACKEND FILE VIEWER
+# Backend File Viewer Download Files
+@app.route('/download/<filename>')
+def download_file(filename):
+    archive_dir = '/home/RSCAP/shared/archive_directory'
+    return send_from_directory(archive_dir, filename, as_attachment=True)
+
+# Backend File Viewer
 @app.route('/fileviewer')
 def file_viewer():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
+
+    sort_field = request.args.get('sort', 'filename')
+    direction = request.args.get('direction', 'desc').lower()
+    search_term = request.args.get('search', '').strip()
+    allowed_fields = {
+        'filename': 'pdfs.filename',
+        'case_number': 'metadata.case_number',
+        'cdcr_number': 'metadata.cdcr_number',
+        'date_stamped': 'metadata.date_stamped'
+    }
+    sort_column = allowed_fields.get(sort_field, 'pdfs.filename')
+    sort_direction = 'ASC' if direction == 'asc' else 'DESC'
+
+    where_clause = ""
+    params = []
+    if search_term:
+        where_clause = ("WHERE pdfs.filename LIKE %s "
+                        "OR metadata.case_number LIKE %s "
+                        "OR metadata.cdcr_number LIKE %s "
+                        "OR metadata.date_stamped LIKE %s")
+        like_term = f"%{search_term}%"
+        params = [like_term, like_term, like_term, like_term]
 
     connection = pymysql.connect(
         host=os.getenv('DB_HOST'),
@@ -643,13 +669,30 @@ def file_viewer():
     )
     try:
         with connection.cursor() as cursor:
-            cursor.execute("SELECT filename FROM pdfs ORDER BY id DESC")
+            query = f"""
+                SELECT pdfs.filename, pdfs.file_path, metadata.case_number, metadata.cdcr_number, metadata.date_stamped
+                FROM pdfs
+                LEFT JOIN metadata ON pdfs.id = metadata.pdf_id
+                {where_clause}
+                ORDER BY {sort_column} {sort_direction}
+            """
+            cursor.execute(query, params)
             results = cursor.fetchall()
     finally:
         connection.close()
 
-    files = [{"filename": row[0], "path": f"/shared/archive_directory/{row[0]}"} for row in results]
-    return render_template("fileviewer.html", files=files)
+    files = [
+        {
+            "filename": row[0],
+            "file_path": row[1],
+            "case_number": row[2],
+            "cdcr_number": row[3],
+            "date_stamped": row[4]
+        }
+        for row in results
+    ]
+    search_info = "Users can search by filename, case number, CDCR number, or date stamped. The search will work together with your sort and direction dropdowns."
+    return render_template("fileviewer.html", files=files, sort_field=sort_field, direction=sort_direction.lower(), search_term=search_term, search_info=search_info)
 
 if __name__ == '__main__':
     app.run(debug=True)

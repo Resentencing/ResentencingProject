@@ -11,6 +11,7 @@
         <ul>
             <li><a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a></li>
             <li><a href="{{ url_for('database_ai') }}" class="{% if request.endpoint == 'database_ai' %}active{% endif %}">AI Interaction</a></li>
+            <li><a href="{{ url_for('file_viewer') }}" class="{% if request.endpoint == 'file_viewer' %}active{% endif %}">File Viewer</a></li>
         </ul>
     </nav>
     <div class="container">
@@ -19,3 +20,4 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
+

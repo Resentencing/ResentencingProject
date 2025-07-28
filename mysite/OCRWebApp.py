@@ -22,6 +22,11 @@ import json
 import decimal
 import datetime
 import pymysql
+
+
+Image.MAX_IMAGE_PIXELS = None
+
+
 # from mysite.dbconnector_ssh import connect_to_database as connect_to_database_ssh
 
 # Load environment variables

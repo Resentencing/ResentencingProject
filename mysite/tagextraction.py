@@ -12,10 +12,9 @@ def extract_metadata_from_text_files(input_folder, output_file):
     months = ["January", "February", "March", "April", "May", "June", "July", "August",
               "September", "October", "November", "December"]
 
-
     RandE_excel=None
     openwb=None
-    for f in os.listdir("./Excel/"):
+    for f in os.listdir("/home/RSCAP/mysite/Excel"):
         if "Race_Data" in f:
             RandE_excel=pd.read_excel("./Excel/"+f)
         else:

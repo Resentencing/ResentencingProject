@@ -261,7 +261,7 @@ DB_NAME = 'RSCAP$RSCAPTester'
 ## 📋 **Automated Processes**
 
 ### **Daily Consistency Check**
-- **Script:** `enhanced_consistency_check.py`
+- **Script:** `fileconsistencycheck.py`
 - **Purpose:** Validates database-archive synchronization
 - **Schedule:** Daily at 9:01 AM
 - **Output:** Log file in `/home/RSCAP/mysite/logs/`
@@ -297,7 +297,7 @@ python3 test_db_connection.py
 python3 check_schema.py
 
 # Run consistency check
-python3 mysite/enhanced_consistency_check.py
+python3 mysite/fileconsistencycheck.py
 ```
 
 ---
@@ -307,7 +307,7 @@ python3 mysite/enhanced_consistency_check.py
 - `mysite/OCRWebApp.py` - Main application with database routes
 - `mysite/dbconnector.py` - Database connection and upload functions
 - `mysite/fileconsistencycheck.py` - Basic consistency checking
-- `mysite/enhanced_consistency_check.py` - Enhanced consistency checking
+- `mysite/fileconsistencycheck.py` - Enhanced consistency checking with email alerts
 - `mysite/file_recovery_auto.py` - Automated file recovery
 - `mysite/metadata_refresh.py` - Metadata refresh system
 

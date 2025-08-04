@@ -53,16 +53,12 @@ def create_scheduled_tasks_guide():
 To set up automated data management, add these tasks in your PythonAnywhere Tasks tab:
 
 1. DAILY CONSISTENCY CHECK (2:00 AM UTC)
-   Command: python3 /home/RSCAP/mysite/enhanced_consistency_check.py
+   Command: python3 /home/RSCAP/mysite/fileconsistencycheck.py
    Schedule: Daily at 02:00 UTC
 
 2. AUTOMATED FILE RECOVERY (2:15 AM UTC)
    Command: python3 /home/RSCAP/mysite/file_recovery_auto.py
    Schedule: Daily at 02:15 UTC
-
-3. BASIC CONSISTENCY CHECK (Backup - 3:00 AM UTC)
-   Command: python3 /home/RSCAP/mysite/fileconsistencycheck.py
-   Schedule: Daily at 03:00 UTC
 
 === Email Configuration (Optional) ===
 
@@ -80,18 +76,15 @@ ALERT_EMAIL=caitlin@example.com
 Test the scripts manually first:
 
 1. Test consistency check:
-   python3 /home/RSCAP/mysite/enhanced_consistency_check.py
+   python3 /home/RSCAP/mysite/fileconsistencycheck.py
 
 2. Test file recovery:
    python3 /home/RSCAP/mysite/file_recovery_auto.py
 
-3. Test basic consistency check:
-   python3 /home/RSCAP/mysite/fileconsistencycheck.py
-
 === Log Files ===
 
 Check logs in: /home/RSCAP/mysite/logs/
-- EnhancedConsistencyCheck_*.log
+- FileConsistencyCheck_*.log
 - AutoFileRecovery_*.log
 - MissedEntriesCheck_*.log
 

@@ -16,7 +16,7 @@ The system addresses these key issues:
 ## 🏗️ System Components
 
 ### 1. File Consistency Check
-**Files**: `fileconsistencycheck.py`, `enhanced_consistency_check.py`
+**Files**: `fileconsistencycheck.py`
 
 **Features**:
 - Compares database records with actual archive files
@@ -105,7 +105,7 @@ Configure these tasks in PythonAnywhere:
 
 **Daily Consistency Check (2:00 AM UTC)**
 ```bash
-python3 /home/RSCAP/mysite/enhanced_consistency_check.py
+python3 /home/RSCAP/mysite/fileconsistencycheck.py
 ```
 
 **Automated File Recovery (2:15 AM UTC)**
@@ -123,8 +123,7 @@ python3 /home/RSCAP/mysite/fileconsistencycheck.py
 ```
 mysite/
 ├── OCRWebApp.py                    # Main Flask app (updated)
-├── fileconsistencycheck.py         # Basic consistency check
-├── enhanced_consistency_check.py   # Enhanced check with email alerts
+├── fileconsistencycheck.py         # Enhanced consistency check with email alerts
 ├── file_recovery.py               # Interactive recovery
 ├── file_recovery_auto.py          # Automated recovery
 ├── setup_pythonanywhere.py        # Setup script
@@ -145,7 +144,7 @@ mysite/
 ### Manual Testing
 ```bash
 # Test consistency check
-python3 /home/RSCAP/mysite/enhanced_consistency_check.py
+python3 /home/RSCAP/mysite/fileconsistencycheck.py
 
 # Test file recovery
 python3 /home/RSCAP/mysite/file_recovery_auto.py
@@ -210,7 +209,7 @@ python3 /home/RSCAP/mysite/setup_pythonanywhere.py
 ### Manual Recovery
 ```bash
 # Check system status
-python3 /home/RSCAP/mysite/enhanced_consistency_check.py
+python3 /home/RSCAP/mysite/fileconsistencycheck.py
 
 # Recover missing files
 python3 /home/RSCAP/mysite/file_recovery_auto.py

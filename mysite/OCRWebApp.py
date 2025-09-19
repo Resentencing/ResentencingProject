@@ -728,28 +728,33 @@ def dashboard():
             cursor.execute("SELECT COUNT(*) FROM pdfs p JOIN metadata m ON p.id = m.pdf_id")
             with_metadata = cursor.fetchone()[0]
             
-            # Get files missing metadata
+            # Get files missing metadata (no metadata entry at all)
             cursor.execute("SELECT COUNT(*) FROM pdfs p LEFT JOIN metadata m ON p.id = m.pdf_id WHERE m.pdf_id IS NULL")
             missing_metadata = cursor.fetchone()[0]
+            
+            # Get files needing metadata refresh (auto-recovered with incomplete metadata)
+            cursor.execute("SELECT COUNT(*) FROM pdfs p JOIN metadata m ON p.id = m.pdf_id WHERE m.notes LIKE '%Auto-recovered%' AND (m.case_number IS NULL OR m.case_number = '')")
+            needs_refresh = cursor.fetchone()[0]
             
             # Get last consistency check
             log_dir = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
             consistency_logs = []
             if os.path.exists(log_dir):
                 for file in os.listdir(log_dir):
-                    if file.startswith('EnhancedConsistencyCheck_'):
+                    if file.startswith('FileConsistencyCheck_'):
                         consistency_logs.append(file)
             
-            last_check = "Never" if not consistency_logs else max(consistency_logs).replace('EnhancedConsistencyCheck_', '').replace('.log', '')
+            last_check = "Never" if not consistency_logs else max(consistency_logs).replace('FileConsistencyCheck_', '').replace('.log', '')
             
     finally:
         connection.close()
     
-    # Mock data for demo (replace with real data)
+    # Dashboard statistics
     stats = {
         'total_files': total_files,
         'with_metadata': with_metadata,
-        'missing_metadata': missing_metadata,
+        'missing_metadata': missing_metadata + needs_refresh,  # Include both types of issues
+        'needs_refresh': needs_refresh,
         'last_check': last_check
     }
     
@@ -857,7 +862,7 @@ def consistency_report():
     if os.path.exists(log_dir):
         consistency_logs = []
         for file in os.listdir(log_dir):
-            if file.startswith('EnhancedConsistencyCheck_'):
+            if file.startswith('FileConsistencyCheck_'):
                 consistency_logs.append(file)
         
         if consistency_logs:
@@ -871,6 +876,81 @@ def consistency_report():
     
     return render_template("consistency_report.html", report_content=report_content)
 
+@app.route('/run_consistency_check', methods=['POST'])
+def run_consistency_check():
+    """Run a consistency check and generate a report."""
+    if not session.get('logged_in'):
+        return jsonify({"error": "User not logged in"}), 401
+    
+    try:
+        import subprocess
+        result = subprocess.run(['python3', 'fileconsistencycheck.py'], 
+                              capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)))
+        
+        if result.returncode == 0:
+            return jsonify({"success": True, "message": "Consistency check completed successfully!"})
+        else:
+            return jsonify({"success": False, "message": f"Error: {result.stderr}"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+@app.route('/dashboard_stats')
+def dashboard_stats():
+    """Get dashboard statistics for the admin dashboard."""
+    if not session.get('logged_in'):
+        return jsonify({"error": "User not logged in"}), 401
+    
+    connection = pymysql.connect(
+        host=os.getenv('DB_HOST'),
+        port=int(os.getenv('DB_PORT', 3306)),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME')
+    )
+    
+    try:
+        with connection.cursor() as cursor:
+            # Count files missing metadata (no metadata entry at all)
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM pdfs p 
+                LEFT JOIN metadata m ON p.id = m.pdf_id 
+                WHERE m.pdf_id IS NULL
+            """)
+            missing_metadata_count = cursor.fetchone()[0]
+            
+            # Count files needing metadata refresh (auto-recovered with incomplete metadata)
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM pdfs p
+                JOIN metadata m ON p.id = m.pdf_id
+                WHERE m.notes LIKE '%Auto-recovered%'
+                AND (m.case_number IS NULL OR m.case_number = '')
+            """)
+            needs_refresh_count = cursor.fetchone()[0]
+            
+            # Get last consistency check time
+            log_dir = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
+            last_check = "Never"
+            if os.path.exists(log_dir):
+                consistency_logs = [f for f in os.listdir(log_dir) if f.startswith('FileConsistencyCheck_')]
+                if consistency_logs:
+                    latest_log = max(consistency_logs)
+                    # Extract timestamp from filename
+                    try:
+                        timestamp_str = latest_log.replace('FileConsistencyCheck_', '').replace('.log', '')
+                        last_check = timestamp_str
+                    except:
+                        last_check = "Recently"
+            
+            return jsonify({
+                "missing_metadata_count": missing_metadata_count,
+                "needs_refresh_count": needs_refresh_count,
+                "last_consistency_check": last_check
+            })
+    finally:
+        connection.close()
+
 @app.route('/refresh_metadata', methods=['GET', 'POST'])
 def refresh_metadata():
     """Refresh metadata for files that were auto-recovered."""
@@ -881,8 +961,8 @@ def refresh_metadata():
         # Run the metadata refresh script
         try:
             import subprocess
-            result = subprocess.run(['python3', 'mysite/metadata_refresh.py'], 
-                                  capture_output=True, text=True, cwd=os.getcwd())
+            result = subprocess.run(['python3', 'metadata_refresh.py'], 
+                                  capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)))
             
             if result.returncode == 0:
                 return jsonify({"success": True, "message": "Metadata refresh completed successfully!"})

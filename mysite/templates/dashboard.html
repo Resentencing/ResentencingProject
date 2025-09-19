@@ -19,6 +19,9 @@
         <div class="stat-card">
             <h3>⚠️ Missing Metadata</h3>
             <p class="stat-number">{{ stats.missing_metadata }}</p>
+            {% if stats.needs_refresh > 0 %}
+            <p class="stat-detail">({{ stats.needs_refresh }} need refresh)</p>
+            {% endif %}
         </div>
         <div class="stat-card">
             <h3>🔄 Last Check</h3>
@@ -108,6 +111,13 @@
     font-weight: bold;
     margin: 0;
     color: #333;
+}
+
+.stat-detail {
+    font-size: 0.8em;
+    color: #666;
+    margin: 5px 0 0 0;
+    font-style: italic;
 }
 
 .actions-section {

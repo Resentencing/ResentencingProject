@@ -27,7 +27,7 @@ DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 ARCHIVE_DIR = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
-LOG_DIR = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
+LOG_DIR = os.getenv('LOG_DIR', './logs')
 
 def get_files_needing_refresh():
     """Get files that have basic metadata (auto-recovered) and need full metadata."""
@@ -222,6 +222,9 @@ def run_metadata_refresh():
     # Log the refresh
     log_filename = f"MetadataRefresh_{datetime.now().strftime('%Y-%m-%d')}.log"
     log_path = os.path.join(LOG_DIR, log_filename)
+    
+    # Ensure log directory exists
+    os.makedirs(LOG_DIR, exist_ok=True)
     
     with open(log_path, 'a') as log:
         log.write(f"=== Metadata Refresh Log ===\n")

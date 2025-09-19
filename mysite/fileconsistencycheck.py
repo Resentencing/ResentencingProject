@@ -28,7 +28,7 @@ DB_USER = os.getenv('DB_USER')
 DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 ARCHIVE_DIR = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
-LOG_DIR = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
+LOG_DIR = os.getenv('LOG_DIR', './logs')
 
 # Email configuration (optional)
 EMAIL_ENABLED = os.getenv('EMAIL_ENABLED', 'false').lower() == 'true'
@@ -136,6 +136,9 @@ def run_consistency_check():
     # Save detailed report
     report_filename = f"FileConsistencyCheck_{timestamp.strftime('%Y-%m-%d_%H-%M-%S')}.log"
     report_path = os.path.join(LOG_DIR, report_filename)
+    
+    # Ensure log directory exists
+    os.makedirs(LOG_DIR, exist_ok=True)
     
     with open(report_path, 'w') as report:
         report.write('\n'.join(report_lines))

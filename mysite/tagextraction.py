@@ -99,31 +99,51 @@ def extract_metadata_from_text_files(input_folder, output_file):
                 print("cannot find the CDCR # " + outputdict["CDCR NO"])
                 missedentry.write(json.dumps(outputdict,indent=3,default=str)) #current fix for datetime objects may need to change later is default=str
             else:
-                outputdict["COHORT"]=series.iat[0,0]
-                outputdict["PID NO"]=series.iat[0,3]
-                outputdict["INSTITUTION"]=series.iat[0,4]
-                outputdict["COUNTY"]=series.iat[0,5].replace("*","")
-                outputdict["OLD RELEASE DATE"]=series.iat[0,7]
-                outputdict["DOCUMENTS PRINTED DATE"]=series.iat[0,8]
-                outputdict["LETTER CREATION DATE"]=series.iat[0,9]
-                outputdict["SECRETARY SEND DATE"]=series.iat[0,10]
-                outputdict["SEC DECISION"]=series.iat[0,11]
-                outputdict["COURT MAIL DATE"]=series.iat[0,12]
-                outputdict["COURT RESPONSE DATE"]=series.iat[0,13]
-                outputdict["RESENTENCING HEARING DATE"]=series.iat[0,14]
-                outputdict["ACTION TAKEN"]=series.iat[0,15]
-                outputdict["DAYS REDUCED"]=series.iat[0,16]
-                outputdict["YEARS REDUCED"]=series.iat[0,17]
-                outputdict["COST SAVINGS"]=series.iat[0,18]
-                outputdict["NOTES"]=series.iat[0,19]
-                outputdict["COMPLETION DATE"]=series.iat[0,20]
-                outputdict["POST RELEASE"]=series.iat[0,21]
-                outputdict["ISL DSL"]=series.iat[0,22]
-                outputdict["PAROLE ELIGIBILITY DATE"]=series.iat[0,23]
-                if(not RandE_entry.empty):
-                    outputdict["RACE"] = RandE_entry.iloc[0,2]
-                    outputdict["ETHNICITY"] = RandE_entry.iloc[0,3]
-                jsonarray.append(outputdict)
+                # Check if this Excel entry has multiple case numbers
+                excel_case_numbers = str(series.iat[0,6]) if pd.notna(series.iat[0,6]) else ""  # Case # column
+                
+                # Parse multiple case numbers if they exist (separated by " and ")
+                if " and " in excel_case_numbers:
+                    case_number_list = [case.strip() for case in excel_case_numbers.split(" and ")]
+                    print(f"Found multiple case numbers for CDC {outputdict['CDCR NO']}: {case_number_list}")
+                else:
+                    case_number_list = [excel_case_numbers] if excel_case_numbers else [outputdict["CASE NO"]]
+                
+                # Create a separate metadata entry for each case number
+                for case_num in case_number_list:
+                    # Create a copy of the base metadata
+                    case_outputdict = outputdict.copy()
+                    case_outputdict["CASE NO"] = case_num
+                    
+                    # Add Excel metadata
+                    case_outputdict["COHORT"]=series.iat[0,0]
+                    case_outputdict["PID NO"]=series.iat[0,3]
+                    case_outputdict["INSTITUTION"]=series.iat[0,4]
+                    case_outputdict["COUNTY"]=series.iat[0,5].replace("*","")
+                    case_outputdict["OLD RELEASE DATE"]=series.iat[0,7]
+                    case_outputdict["DOCUMENTS PRINTED DATE"]=series.iat[0,8]
+                    case_outputdict["LETTER CREATION DATE"]=series.iat[0,9]
+                    case_outputdict["SECRETARY SEND DATE"]=series.iat[0,10]
+                    case_outputdict["SEC DECISION"]=series.iat[0,11]
+                    case_outputdict["COURT MAIL DATE"]=series.iat[0,12]
+                    case_outputdict["COURT RESPONSE DATE"]=series.iat[0,13]
+                    case_outputdict["RESENTENCING HEARING DATE"]=series.iat[0,14]
+                    case_outputdict["ACTION TAKEN"]=series.iat[0,15]
+                    case_outputdict["DAYS REDUCED"]=series.iat[0,16]
+                    case_outputdict["YEARS REDUCED"]=series.iat[0,17]
+                    case_outputdict["COST SAVINGS"]=series.iat[0,18]
+                    case_outputdict["NOTES"]=series.iat[0,19]
+                    case_outputdict["COMPLETION DATE"]=series.iat[0,20]
+                    case_outputdict["POST RELEASE"]=series.iat[0,21]
+                    case_outputdict["ISL DSL"]=series.iat[0,22]
+                    case_outputdict["PAROLE ELIGIBILITY DATE"]=series.iat[0,23]
+                    
+                    if(not RandE_entry.empty):
+                        case_outputdict["RACE"] = RandE_entry.iloc[0,2]
+                        case_outputdict["ETHNICITY"] = RandE_entry.iloc[0,3]
+                    
+                    jsonarray.append(case_outputdict)
+                    print(f"Added metadata entry for case number: {case_num}")
         except:
             print("Could not find related tags in the letter writing.  logging...")
             missedentry.write(json.dumps(outputdict,indent=3,default=str))

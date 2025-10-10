@@ -1,4 +1,5 @@
-from flask import Flask, render_template, Response, request, url_for, send_file, abort
+from flask import Flask, render_template, Response, request, url_for, send_file, abort, jsonify
+from flask_cors import CORS
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -14,6 +15,13 @@ load_dotenv()
 
 
 app = Flask(__name__)
+
+# Enable CORS for frontend -> backend communication (v1 for testing)
+CORS(app, resources={
+    r"/query_ai": {
+        "origins": ["null", "http://localhost:8000", "http://127.0.0.1:8000"]
+    }
+})
 
 # Cache directory for faster visualization loading
 CACHE_DIR = 'static/cache'
@@ -31,6 +39,21 @@ database_config = {
     "database": os.getenv("DB_NAME"),
 }
 
+# ----------------------------------------------------------------------------- #
+# --------- Temp Test Functions For Frontend -> Backend Communication --------- #
+
+@app.route("/ping", methods=["GET"])
+def ping():
+    return jsonify({"ok": True}), 200
+
+@app.route("/query_ai", methods=["POST"])
+def query_ai():
+    data = request.get_json(silent=True) or {}
+    q = (data.get("query") or "").strip()
+    return jsonify({"response": f"echo: {q or '[empty query]'}"}), 200
+
+# ----------------------------------------------------------------------------- #
+# ----------------------------------------------------------------------------- #
 
 @app.route('/about')
 def about():

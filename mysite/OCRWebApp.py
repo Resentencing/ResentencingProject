@@ -65,36 +65,37 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['OUTPUT_FOLDER'] = 'processed'
 app.config['EXTRACTIONS']='OCRextractions'
 
-API_KEY = "samplekey12345678910657492756739205756382095866392028576820920101010101"
+PROXY_API_KEY = os.getenv("API_KEY", "")
+
+if not PROXY_API_KEY:
+    # Fail closed if not configured.
+    logging.error("API_KEY environment variable is NOT set. "
+                  "All X-API-Key checks will fail until it's configured.")
 
 def _api_key_ok() -> bool:
     """
-    Validates the incoming request by checking the 'X-API-Key' header against the fixed API_KEY.
-    Uses constant-time comparison to avoid timing attacks.
-    Returns:
-        bool: True if header matches API_KEY, False otherwise.
+    Validates the incoming request by checking the 'X-API-Key' header against the
+    environment-provided PROXY_API_KEY using constant-time comparison.
     """
-    incoming = request.headers.get("X-API-Key", "")
-    return secrets.compare_digest(incoming, API_KEY)
+    incoming = (request.headers.get("X-API-Key") or "").strip()
+    expected = PROXY_API_KEY
+    # If not configured, reject.
+    if not expected or not incoming:
+        return False
+    return secrets.compare_digest(incoming, expected)
 
 def authorized() -> bool:
     """
-    Determines if the current request is authorized.
     Authorization passes if EITHER:
-      - the user is logged in on PythonAnywhere (session['logged_in'] is True), OR
-      - the request provides a valid 'X-API-Key' header.
-    Returns:
-        bool: True if the request is authorized, False otherwise.
+      - the user has a logged-in session (admin UI on PythonAnywhere), OR
+      - the request presents a valid 'X-API-Key' shared secret from the Netlify Function.
     """
     return bool(session.get("logged_in")) or _api_key_ok()
 
 def require_auth_json():
     """
-    Short-circuits unauthorized requests for JSON APIs.
-    If the request is not authorized, returns a (401, JSON) response.
-    If authorized, returns None so the route can continue.
-    Returns:
-        (Response | None): 401 JSON response if unauthorized, else None.
+    Short-circuits unauthorized requests for JSON APIs with 401.
+    Routes can call this and return early if it returns a response.
     """
     if not authorized():
         return jsonify({"error": "Unauthorized"}), 401

@@ -68,7 +68,7 @@ app.config['EXTRACTIONS']='OCRextractions'
 PROXY_API_KEY = os.getenv("API_KEY", "")
 
 if not PROXY_API_KEY:
-    # Fail closed if not configured.
+    # Fail if not configured.
     logging.error("API_KEY environment variable is NOT set. "
                   "All X-API-Key checks will fail until it's configured.")
 

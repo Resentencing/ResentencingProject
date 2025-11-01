@@ -79,7 +79,7 @@ def _api_key_ok() -> bool:
     """
     incoming = (request.headers.get("X-API-Key") or "").strip()
     expected = PROXY_API_KEY
-    # If not configured, reject.
+    # If either is missing, reject.
     if not expected or not incoming:
         return False
     return secrets.compare_digest(incoming, expected)

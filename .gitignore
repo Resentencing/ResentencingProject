@@ -55,5 +55,21 @@ OCRextractions_pdfminer/
 .cache/
 *.cache
 
+# System/user-specific files (should exist on filesystem but not in git)
+.bash_history
+.bashrc
+.profile
+.python_history
+.pythonstartup.py
+.gitconfig
+.my.cnf
+.mysql_history
+.viminfo
+.vimrc
+.wget-hsts
+.local/
+.ipython/
+.virtualenvs/
+
 # Personal documentation (not for repository)
 Documentation/

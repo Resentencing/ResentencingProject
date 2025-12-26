@@ -17,6 +17,7 @@ ENV/
 env/
 Pipfile.lock
 poetry.lock
+.pyuserbase/
 
 # IDE and OS-specific files
 .DS_Store
@@ -31,6 +32,12 @@ Thumbs.db
 logs/
 *.log
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
 # Project-specific: uploads, processed data, OCR outputs
 uploads/
 processed/
@@ -38,7 +45,15 @@ backup.zip
 mysite/OCRextractions/
 shared/archive_directory/*.pdf
 
+# Local error checking folders (not for repository)
+MISSING PRA/
+OCRextractions/
+OCRextractions_pdfminer/
+
 # SSH and pip cache
 .ssh/
 .cache/
 *.cache
+
+# Personal documentation (not for repository)
+Documentation/

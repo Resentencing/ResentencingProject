@@ -20,6 +20,9 @@ app = Flask(__name__)
 CORS(app, resources={
     r"/query_ai": {
         "origins": ["null", "http://localhost:8000", "http://127.0.0.1:8000"]
+    },
+    r"/api/stats": {
+        "origins": ["*"]  # Allow frontend from any origin to fetch stats JSON
     }
 })
 
@@ -228,6 +231,26 @@ def visualize():
         return Response("An error occurred while generating the visualization.", status=500)
 
 
+@app.route('/api/stats')
+def api_stats():
+    """
+    Return JSON data for frontend visualizations
+    Same datasets as /visualize: years_reduced, sentence_type, parole_eligibility.
+    """
+    dataset_type = request.args.get('dataset', 'years_reduced')
+    try:
+        df = fetch_data_from_db(dataset_type)
+        if df.empty:
+            return jsonify({"dataset": dataset_type, "data": []}), 200
+        # pandas to_json handles NaN, datetime, etc. for clean JSON
+        import json
+        data = json.loads(df.to_json(orient='records', date_format='iso'))
+        return jsonify({"dataset": dataset_type, "data": data}), 200
+    except Exception as e:
+        logging.error(f"Error fetching stats for {dataset_type}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 def fetch_data_from_db(dataset_type):
     """
     Fetches relevant data from the database for the specified dataset type.
@@ -268,4 +291,4 @@ def generate_cache_filename(dataset_type):
     return f"{hash_object.hexdigest()}.png"
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5001, host='0.0.0.0')

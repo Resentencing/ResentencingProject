@@ -653,7 +653,7 @@ def preprocess_pdf(file_path, output_folder):
             logging.error(f"Error during OCR processing of {corrected_pdf_path}: {e}")
 
         # === Archive the final corrected PDF if it doesn't already exist ===
-        archive_dir = '/home/RSCAP/shared/archive_directory'
+        archive_dir = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
         os.makedirs(archive_dir, exist_ok=True)
 
         archive_path = os.path.join(archive_dir, os.path.basename(corrected_pdf_path))

@@ -1,8 +1,13 @@
 """
 Shared pytest fixtures and configuration for backend tests.
 """
-import pytest
 import os
+
+# OCRWebApp aborts import without these; api tests import OCRWebApp at module load time.
+os.environ.setdefault("OPENAI_API_KEY", "test_key_for_pytest")
+os.environ.setdefault("API_KEY", "test_api_key_for_pytest")
+
+import pytest
 import tempfile
 import shutil
 import json

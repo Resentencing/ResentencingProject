@@ -41,6 +41,7 @@ htmlcov/
 # Project-specific: uploads, processed data, OCR outputs
 uploads/
 processed/
+mysite/dropbox_sync_state.json
 backup.zip
 mysite/OCRextractions/
 shared/archive_directory/*.pdf

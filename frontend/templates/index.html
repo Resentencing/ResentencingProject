@@ -249,12 +249,17 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 <script type="module" src="/static/wp-content/plugins/gutenberg/build-module/block-library/navigation/view.min.js?ver=7b370e821516feba4955" id="@wordpress/block-library/navigation/view-js-module"></script>
 <link rel="modulepreload" href="/static/wp-content/plugins/gutenberg/build-module/interactivity/index.min.js?ver=c7a47746be66cc96bcc6" id="@wordpress/interactivity-js-modulepreload">
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rad-scales-theme.css') }}">
+
 </head>
 
-<body class="home blog wp-embed-responsive">
+<body class="home blog wp-embed-responsive rad-app">
 
 <div class="wp-site-blocks">
-<header class="wp-block-template-part">
+<header class="wp-block-template-part rad-site-header">
 <div class="wp-block-group alignwide has-base-background-color has-background has-global-padding is-layout-constrained wp-block-group-is-layout-constrained" style="padding-top:20px;padding-bottom:20px">
 
 	<div class="wp-block-group alignwide is-content-justification-space-between is-layout-flex wp-container-core-group-is-layout-4 wp-block-group-is-layout-flex">
@@ -271,29 +276,19 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 
 
 
-<div class="wp-block-group is-content-justification-left is-layout-flex wp-container-core-group-is-layout-3 wp-block-group-is-layout-flex" style="position: absolute; top: 20px; right: 20px; display: flex; justify-content: flex-end; align-items: flex-start;">
-    <div class="wp-block-navigation__responsive-container" id="modal-1" data-wp-class--has-modal-open="state.isMenuOpen" data-wp-class--is-menu-open="state.isMenuOpen" data-wp-watch="callbacks.initMenu" data-wp-on--keydown="actions.handleMenuKeydown" data-wp-on-async--focusout="actions.handleMenuFocusout" tabindex="-1">
-        <div class="wp-block-navigation__responsive-close" tabindex="-1">
-            <div class="wp-block-navigation__responsive-dialog" data-wp-bind--aria-modal="state.ariaModal" data-wp-bind--aria-label="state.ariaLabel" data-wp-bind--role="state.roleAttribute">
-                <div class="wp-block-navigation__responsive-container-content" data-wp-watch="callbacks.focusFirstElement" id="modal-1-content">
-                    <ul class="wp-block-navigation__container is-responsive items-justified-right wp-block-navigation" style="display: flex; gap: 30px;">
-                        <ul class="wp-block-page-list">
-                            <!-- About Us button -->
-                            <li class="wp-block-pages-list__item wp-block-navigation-item open-on-hover-click" style="margin-right: 30px;">
-                                <a class="wp-block-pages-list__item__link wp-block-navigation-item__content" href="/about">About Us</a>
-                            </li>
-                            <!-- Archives button -->
-                            <li class="wp-block-pages-list__item wp-block-navigation-item open-on-hover-click">
-                                <a class="wp-block-pages-list__item__link wp-block-navigation-item__content" href="/archive">Archives</a>
-                            </li>
-                        </ul>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="wp-block-group is-content-justification-left is-layout-flex wp-container-core-group-is-layout-3 wp-block-group-is-layout-flex rad-header-nav-wrap">
+    <nav class="rad-primary-nav" aria-label="Primary navigation">
+      <ul class="rad-primary-nav__list">
+        <li><a href="/" class="rad-primary-nav__link" aria-current="page">Home</a></li>
+        <li><a href="/about" class="rad-primary-nav__link">About Us</a></li>
+        <li><a href="/archive" class="rad-primary-nav__link">Archives</a></li>
+      </ul>
+    </nav>
 </div>
 
+	</div>
+
+</div>
 
 </header>
 
@@ -302,8 +297,10 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 
 
 
-<div class="wp-block-group alignfull has-global-padding is-layout-constrained wp-container-core-group-is-layout-7 wp-block-group-is-layout-constrained" style="padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--50)">
+<div class="wp-block-group alignfull is-layout-constrained wp-container-core-group-is-layout-7 wp-block-group-is-layout-constrained rad-hero rad-halftone">
 
+
+	<div class="rad-band-inner rad-hero__copy">
 
 	<div class="wp-block-group has-global-padding is-layout-constrained wp-container-core-group-is-layout-6 wp-block-group-is-layout-constrained">
 
@@ -333,17 +330,18 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 
 	</div>
 
-
-
-	<div style="height:var(--wp--preset--spacing--30)" aria-hidden="true" class="wp-block-spacer">
 	</div>
 
-		<h1 class="wp-block-heading has-text-align-center has-x-large-font-size">Data Visualisation Tool</h1>
+</div>
 
+<section class="rad-data-section" aria-labelledby="rad-data-heading">
+	<div class="rad-data-section-inner">
 
-<div style="height:var(--wp--preset--spacing--30)" aria-hidden="true" class="wp-block-spacer"></div>
+		<h1 id="rad-data-heading" class="wp-block-heading has-text-align-center has-x-large-font-size rad-data-heading">Data Visualisation Tool</h1>
 
-<div id="data-visualization-container" style="text-align: center; margin-top: 20px;">
+		<div style="height:var(--wp--preset--spacing--30)" aria-hidden="true" class="wp-block-spacer"></div>
+
+<div id="data-visualization-container" class="rad-chart-card" style="text-align: center; margin-top: 20px;">
     <!-- Buttons for Selecting Visualization Type -->
     <div style="margin-bottom: 10px;">
         <button class="visualization-button active" data-dataset="years_reduced">Years Reduced by County</button>
@@ -359,12 +357,15 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
     </div>
 </div>
 
+	</div>
+</section>
+
 <!-- Include the script -->
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
 
 
-<div class="wp-block-group alignfull has-global-padding is-layout-constrained wp-container-core-group-is-layout-12 wp-block-group-is-layout-constrained" style="margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--50)">
+<div class="wp-block-group alignfull has-global-padding is-layout-constrained wp-container-core-group-is-layout-12 wp-block-group-is-layout-constrained rad-about-panel rad-halftone" style="margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--50);padding-right:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50);padding-left:var(--wp--preset--spacing--50)">
 
 	<div class="wp-block-group alignwide has-global-padding is-layout-constrained wp-container-core-group-is-layout-11 wp-block-group-is-layout-constrained">
 
@@ -436,8 +437,8 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 </main>
 
 
-<footer class="wp-block-template-part">
-  <div class="wp-block-group has-global-padding is-layout-constrained wp-block-group-is-layout-constrained" style="padding-top:var(--wp--preset--spacing--50);padding-bottom:var(--wp--preset--spacing--50)">
+<footer class="wp-block-template-part rad-site-footer rad-halftone">
+  <div class="wp-block-group has-global-padding is-layout-constrained wp-block-group-is-layout-constrained rad-footer-inner-wrap">
 
     <div class="wp-block-columns alignwide is-layout-flex wp-container-core-columns-is-layout-12 wp-block-columns-is-layout-flex">
 
@@ -453,21 +454,20 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
     </div>
 
     <!-- Footer Links Section -->
-    <div class="wp-block-group alignwide is-layout-flow wp-block-group-is-layout-flow" style="padding-top:var(--wp--preset--spacing--50);padding-bottom:0; display: flex; justify-content: flex-end; text-align: right;">
+    <div class="wp-block-group alignwide is-layout-flow wp-block-group-is-layout-flow rad-footer-links-row">
 
       <!-- Privacy Section -->
-      <div class="wp-block-group is-vertical is-layout-flex wp-container-core-group-is-layout-36 wp-block-group-is-layout-flex" style="align-items: flex-end; width: auto;">
-        <h2 class="wp-block-heading has-medium-font-size has-body-font-family" style="font-style:normal;font-weight:700; text-transform: uppercase; text-align: right; margin-bottom: 10px;">Privacy</h2>
+      <div class="wp-block-group is-vertical is-layout-flex wp-container-core-group-is-layout-36 wp-block-group-is-layout-flex rad-footer-links-col">
+        <h2 class="wp-block-heading has-medium-font-size has-body-font-family rad-footer-heading">Privacy</h2>
 
-        <!-- Links below the Privacy header, aligned to the right -->
-        <nav class="wp-block-navigation is-layout-flex wp-container-core-navigation-is-layout-2 wp-block-navigation-is-layout-flex" aria-label="Privacy" style="width: 100%; display: flex; flex-direction: column; align-items: flex-end;">
-          <ul class="wp-block-navigation__container has-small-font-size is-vertical wp-block-navigation" style="list-style-type: none; padding: 0; margin: 0;">
-            <li class="wp-block-navigation-item wp-block-navigation-link" style="margin-bottom: 5px;">
+        <nav class="wp-block-navigation is-layout-flex wp-container-core-navigation-is-layout-2 wp-block-navigation-is-layout-flex rad-footer-nav" aria-label="Privacy">
+          <ul class="wp-block-navigation__container has-small-font-size is-vertical wp-block-navigation rad-footer-nav-list">
+            <li class="wp-block-navigation-item wp-block-navigation-link">
               <a class="wp-block-navigation-item__content" href="/templates/privacy">
                 <span class="wp-block-navigation-item__label">Privacy Policy</span>
               </a>
             </li>
-            <li class="wp-block-navigation-item wp-block-navigation-link" style="margin-bottom: 5px;">
+            <li class="wp-block-navigation-item wp-block-navigation-link">
               <a class="wp-block-navigation-item__content" href="/templates/terms">
                 <span class="wp-block-navigation-item__label">Terms and Conditions</span>
               </a>

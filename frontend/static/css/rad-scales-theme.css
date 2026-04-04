@@ -1,0 +1,774 @@
+/**
+ * RAD — unified typography & layout (all pages). Overrides WP export noise.
+ * body.rad-app required on <body>.
+ */
+
+:root {
+  --rf-ink: #111827;
+  --rf-ink-soft: #1f2937;
+  --rf-muted: #6b7280;
+  --rf-muted-light: #9ca3af;
+  --rf-border: #e5e7eb;
+  --rf-border-strong: #d1d5db;
+  --rf-surface: #ffffff;
+  --rf-surface-subtle: #ffffff;
+  --rf-surface-muted: #ffffff;
+  --rf-accent: #1e3a5f;
+  --rf-accent-hover: #152a45;
+  --rf-font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --rf-font-sans: "Source Sans 3", system-ui, -apple-system, sans-serif;
+  --rf-max: 72rem;
+  --rf-prose: 42rem;
+  --rf-pad-x: clamp(1.25rem, 4vw, 2rem);
+  --rf-pad-y: clamp(4rem, 9vw, 6.5rem);
+  --rf-radius: 6px;
+  --rf-radius-lg: 10px;
+  --rf-shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --rf-shadow-md: 0 8px 30px rgba(17, 24, 39, 0.06);
+  --rf-h1: clamp(2.125rem, 4.2vw, 2.875rem);
+  --rf-h2: clamp(1.5rem, 2.8vw, 1.875rem);
+  --rf-h3: 1.1875rem;
+  --rf-body: 1.0625rem;
+  --rf-lead: 1.125rem;
+}
+
+/* --- Base (all RAD pages) --- */
+body.rad-app {
+  font-family: var(--rf-font-sans);
+  background: var(--rf-surface);
+  color: var(--rf-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  line-height: 1.6;
+  margin: 0;
+}
+
+body.rad-app .wp-site-blocks {
+  overflow-x: clip;
+}
+
+body.rad-app main.wp-block-group {
+  max-width: none !important;
+  width: 100%;
+}
+
+/* Kill WP asterisk decoration site-wide */
+body.rad-app .is-style-asterisk::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* --- Site header: white bar, always-visible primary nav --- */
+body.rad-app .wp-site-blocks > header.wp-block-template-part,
+body.rad-app header.rad-site-header {
+  background: var(--rf-surface) !important;
+  border-bottom: 1px solid var(--rf-border);
+  position: relative;
+  z-index: 100;
+}
+
+body.rad-app .wp-site-blocks > header .wp-block-group.has-base-background-color,
+body.rad-app .rad-site-header .wp-block-group.has-base-background-color {
+  background: transparent !important;
+  max-width: none !important;
+  padding-top: 1.125rem !important;
+  padding-bottom: 1.125rem !important;
+}
+
+body.rad-app .wp-site-blocks > header .wp-block-group.alignwide.is-layout-flex,
+body.rad-app .rad-site-header .wp-block-group.alignwide.is-layout-flex {
+  max-width: var(--rf-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--rf-pad-x) !important;
+  padding-right: var(--rf-pad-x) !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 1rem 1.5rem !important;
+}
+
+body.rad-app .rad-header-nav-wrap {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  margin-left: auto !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+}
+
+body.rad-app .wp-site-blocks > header .wp-block-site-title a,
+body.rad-app .rad-site-header .wp-block-site-title a {
+  color: var(--rf-ink) !important;
+  font-family: var(--rf-font-sans) !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none !important;
+}
+
+body.rad-app .wp-site-blocks > header .wp-block-site-title a:hover,
+body.rad-app .rad-site-header .wp-block-site-title a:hover {
+  color: var(--rf-accent) !important;
+}
+
+/* Plain HTML nav (replaces WP responsive / overlay menu that hid links) */
+.rad-primary-nav__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem 1.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rad-primary-nav__link {
+  display: inline-block;
+  font-family: var(--rf-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--rf-ink-soft);
+  padding: 0.4rem 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.rad-primary-nav__link:hover {
+  color: var(--rf-accent);
+  border-bottom-color: var(--rf-accent);
+}
+
+.rad-primary-nav__link[aria-current="page"] {
+  color: var(--rf-accent);
+  font-weight: 600;
+  border-bottom-color: var(--rf-accent);
+}
+
+/* --- Inner pages: post title + prose --- */
+body.rad-app .wp-block-post-title {
+  font-family: var(--rf-font-serif) !important;
+  font-weight: 600 !important;
+  font-size: var(--rf-h1) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--rf-ink) !important;
+  text-align: center !important;
+  margin: 0 auto 0.5rem !important;
+  max-width: var(--rf-prose) !important;
+}
+
+body.rad-app main .wp-block-group.is-layout-constrained:has(.wp-block-post-title) {
+  max-width: var(--rf-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--rf-pad-x) !important;
+  padding-right: var(--rf-pad-x) !important;
+}
+
+body.rad-app .wp-block-post-content,
+body.rad-app .entry-content {
+  max-width: var(--rf-prose) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--rf-pad-x) !important;
+  padding-right: var(--rf-pad-x) !important;
+  padding-bottom: clamp(3rem, 8vw, 5rem) !important;
+}
+
+body.rad-app .wp-block-post-content p,
+body.rad-app .entry-content p {
+  font-size: var(--rf-body) !important;
+  line-height: 1.7 !important;
+  color: var(--rf-muted) !important;
+  margin: 0 0 1.25rem !important;
+}
+
+body.rad-app .wp-block-post-content h2,
+body.rad-app .wp-block-post-content h3,
+body.rad-app .wp-block-post-content h4,
+body.rad-app .entry-content h2,
+body.rad-app .entry-content h3,
+body.rad-app .entry-content h4 {
+  font-family: var(--rf-font-serif) !important;
+  font-weight: 600 !important;
+  color: var(--rf-ink) !important;
+  line-height: 1.3 !important;
+  margin: 2rem 0 0.65rem !important;
+}
+
+body.rad-app .wp-block-post-content h2,
+body.rad-app .entry-content h2 {
+  font-size: var(--rf-h2) !important;
+  letter-spacing: -0.02em !important;
+}
+
+body.rad-app .wp-block-post-content h3,
+body.rad-app .entry-content h3 {
+  font-size: var(--rf-h3) !important;
+  letter-spacing: -0.01em !important;
+}
+
+body.rad-app .wp-block-post-content ul,
+body.rad-app .wp-block-post-content ol,
+body.rad-app .entry-content ul,
+body.rad-app .entry-content ol {
+  margin: 0 0 1.35rem !important;
+  padding-left: 1.35rem !important;
+}
+
+body.rad-app .wp-block-post-content li,
+body.rad-app .entry-content li {
+  margin-bottom: 0.55rem !important;
+  color: var(--rf-muted) !important;
+  line-height: 1.65 !important;
+  font-size: var(--rf-body) !important;
+}
+
+body.rad-app .wp-block-post-content strong,
+body.rad-app .entry-content strong {
+  color: var(--rf-ink) !important;
+  font-weight: 600 !important;
+}
+
+/* Body links only — not header/footer chrome */
+body.rad-app main a:where(:not(.wp-element-button)):not(.visualization-button):not(.wp-block-navigation-item__content),
+body.rad-app .wp-block-post-content a,
+body.rad-app .entry-content a {
+  color: var(--rf-accent);
+}
+
+body.rad-app main a:where(:not(.wp-element-button)):not(.visualization-button):not(.wp-block-navigation-item__content):hover,
+body.rad-app .wp-block-post-content a:hover,
+body.rad-app .entry-content a:hover {
+  color: var(--rf-accent-hover);
+}
+
+body.rad-app .rad-hero a {
+  color: var(--rf-accent) !important;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+body.rad-app .rad-hero a:hover {
+  color: var(--rf-accent-hover) !important;
+}
+
+/* --- Homepage sections --- */
+.rad-hero,
+.rad-data-section,
+.rad-about-panel,
+.rad-site-footer {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.rad-band-inner,
+.rad-data-section-inner {
+  max-width: var(--rf-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--rf-pad-x);
+  padding-right: var(--rf-pad-x);
+  box-sizing: border-box;
+}
+
+.rad-hero.rad-halftone::before,
+.rad-about-panel.rad-halftone::before,
+.rad-site-footer.rad-halftone::before {
+  display: none !important;
+}
+
+.rad-halftone {
+  position: relative;
+}
+
+.rad-halftone > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero */
+.rad-hero.rad-halftone {
+  background: var(--rf-surface) !important;
+  margin: 0 !important;
+  padding: var(--rf-pad-y) 0 !important;
+  border-bottom: 1px solid var(--rf-border);
+}
+
+.rad-hero .rad-band-inner {
+  text-align: left;
+}
+
+.rad-hero .wp-block-group.is-layout-constrained {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.rad-hero .wp-block-group.is-layout-constrained::before {
+  display: none !important;
+}
+
+.rad-hero .wp-block-group.is-layout-constrained > * {
+  max-width: var(--rf-prose) !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+.rad-hero h1.wp-block-heading,
+body.rad-app .rad-hero h1.wp-block-heading.has-x-large-font-size {
+  font-family: var(--rf-font-serif) !important;
+  font-weight: 600 !important;
+  font-size: var(--rf-h1) !important;
+  line-height: 1.12 !important;
+  color: var(--rf-ink) !important;
+  letter-spacing: -0.035em !important;
+  margin: 0 0 1.25rem !important;
+  text-align: left !important;
+}
+
+.rad-hero p,
+body.rad-app .rad-hero p.has-text-align-center {
+  color: var(--rf-muted) !important;
+  font-size: var(--rf-lead) !important;
+  line-height: 1.65 !important;
+  font-weight: 400 !important;
+  margin: 0 0 1rem !important;
+  text-align: left !important;
+}
+
+/* Data */
+.rad-data-section {
+  background: var(--rf-surface);
+  padding: var(--rf-pad-y) 0;
+  margin: 0;
+  border-bottom: 1px solid var(--rf-border);
+}
+
+.rad-data-section-inner {
+  text-align: left;
+}
+
+.rad-data-heading,
+body.rad-app .rad-data-heading.has-x-large-font-size {
+  background: transparent !important;
+  font-family: var(--rf-font-serif) !important;
+  font-weight: 600 !important;
+  font-size: var(--rf-h2) !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.25 !important;
+  color: var(--rf-ink) !important;
+  margin: 0 0 1.5rem !important;
+  padding: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.rad-chart-card {
+  background: var(--rf-surface);
+  border-radius: var(--rf-radius-lg);
+  border: 1px solid var(--rf-border);
+  padding: clamp(1.5rem, 4vw, 2rem);
+  box-shadow: var(--rf-shadow-md);
+  margin: 0;
+  max-width: 100%;
+  text-align: center;
+}
+
+.rad-chart-card > div:first-of-type {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem !important;
+}
+
+.rad-chart-card .visualization-button {
+  font-family: var(--rf-font-sans);
+  font-weight: 500;
+  font-size: 0.8125rem;
+  padding: 0.55rem 1.1rem;
+  margin: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--rf-border-strong);
+  background: var(--rf-surface);
+  color: var(--rf-ink-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rad-chart-card .visualization-button:hover {
+  border-color: var(--rf-muted-light);
+  box-shadow: var(--rf-shadow-sm);
+}
+
+.rad-chart-card .visualization-button.active {
+  background: var(--rf-accent);
+  color: #fff;
+  border-color: var(--rf-accent);
+  box-shadow: none;
+}
+
+.rad-chart-card #loadingMessage {
+  font-family: var(--rf-font-sans);
+  font-weight: 500;
+  font-size: 0.9375rem !important;
+  color: var(--rf-muted) !important;
+}
+
+.rad-chart-card #visualizationImage {
+  border-radius: var(--rf-radius);
+  border: 1px solid var(--rf-border);
+  box-shadow: var(--rf-shadow-sm);
+  background: var(--rf-surface);
+}
+
+/* About (home) */
+.rad-about-panel.rad-halftone {
+  background: var(--rf-surface) !important;
+  padding: var(--rf-pad-y) 0 !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--rf-border);
+}
+
+.rad-about-panel > .wp-block-group.alignwide {
+  max-width: var(--rf-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--rf-pad-x) !important;
+  padding-right: var(--rf-pad-x) !important;
+}
+
+.rad-about-panel .wp-block-group.is-layout-constrained {
+  max-width: none !important;
+}
+
+.rad-about-panel > .wp-block-group.alignwide.is-layout-constrained > * {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.rad-about-panel .wp-block-group.is-vertical.is-layout-flex {
+  align-items: flex-start !important;
+}
+
+.rad-about-panel h2.wp-block-heading,
+body.rad-app .rad-about-panel h2.has-text-align-center {
+  font-family: var(--rf-font-serif) !important;
+  font-weight: 600 !important;
+  font-size: var(--rf-h2) !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.25 !important;
+  color: var(--rf-ink) !important;
+  margin: 0 0 0.5rem !important;
+  text-align: left !important;
+}
+
+.rad-about-panel .wp-block-group.is-vertical > p.has-text-align-center {
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: var(--rf-muted) !important;
+  margin: 0 0 0.25rem !important;
+  text-align: left !important;
+}
+
+.rad-about-panel h3.wp-block-heading {
+  font-family: var(--rf-font-sans) !important;
+  font-weight: 600 !important;
+  font-size: var(--rf-h3) !important;
+  color: var(--rf-ink) !important;
+  margin: 0 0 1rem !important;
+  letter-spacing: -0.01em !important;
+}
+
+.rad-about-panel p,
+.rad-about-panel li {
+  color: var(--rf-muted) !important;
+  font-size: var(--rf-body) !important;
+  line-height: 1.7 !important;
+}
+
+.rad-about-panel ul.wp-block-list {
+  margin: 0 !important;
+  padding-left: 1.25rem !important;
+}
+
+.rad-about-panel li {
+  margin-bottom: 0.65rem !important;
+}
+
+.rad-about-panel .wp-block-columns.alignwide {
+  max-width: none !important;
+  gap: clamp(2rem, 5vw, 3rem) !important;
+  align-items: center !important;
+}
+
+@media (min-width: 782px) {
+  .rad-about-panel .wp-block-columns {
+    flex-wrap: nowrap !important;
+  }
+
+  .rad-about-panel .wp-block-column:first-child {
+    flex-basis: 50% !important;
+    flex-grow: 1 !important;
+  }
+
+  .rad-about-panel .wp-block-column:last-child {
+    flex-basis: 50% !important;
+    flex-grow: 1 !important;
+  }
+}
+
+.rad-about-panel .wp-block-column:first-child {
+  text-align: left !important;
+}
+
+.rad-about-panel .wp-block-image img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: var(--rf-radius-lg);
+  border: 1px solid var(--rf-border);
+  box-shadow: var(--rf-shadow-md);
+}
+
+/* Footer — white band, structured grid */
+.rad-site-footer.rad-halftone {
+  background: var(--rf-surface) !important;
+  border-top: 1px solid var(--rf-border);
+  padding: clamp(2.75rem, 6vw, 4rem) 0 !important;
+  margin-top: 0;
+}
+
+.rad-site-footer .wp-block-group.has-global-padding {
+  max-width: var(--rf-max) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: var(--rf-pad-x) !important;
+  padding-right: var(--rf-pad-x) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.rad-site-footer .wp-block-group,
+.rad-site-footer .wp-block-columns,
+.rad-site-footer .wp-block-column {
+  background: transparent !important;
+}
+
+.rad-site-footer .wp-block-columns.alignwide {
+  max-width: none !important;
+}
+
+.rad-site-footer > .wp-block-group.has-global-padding {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (min-width: 700px) {
+  .rad-site-footer > .wp-block-group.has-global-padding {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 3rem;
+  }
+
+  .rad-site-footer > .wp-block-group.has-global-padding > .wp-block-columns {
+    flex: 0 0 auto;
+  }
+
+  .rad-site-footer > .wp-block-group.has-global-padding > .wp-block-group.alignwide {
+    flex: 0 0 auto;
+    margin-left: auto;
+    text-align: right;
+  }
+}
+
+.rad-site-footer .wp-block-site-title a {
+  color: var(--rf-ink) !important;
+  font-family: var(--rf-font-sans) !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none !important;
+}
+
+.rad-site-footer .wp-block-site-title a:hover {
+  color: var(--rf-accent) !important;
+}
+
+.rad-site-footer h2 {
+  color: var(--rf-muted) !important;
+  font-weight: 600 !important;
+  font-size: 0.6875rem !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase;
+  margin: 0 0 0.75rem !important;
+}
+
+.rad-site-footer .wp-block-navigation-item__label {
+  font-size: 0.9375rem !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--rf-ink-soft) !important;
+}
+
+.rad-site-footer .wp-block-navigation-item__content {
+  text-decoration: none !important;
+}
+
+.rad-site-footer a {
+  color: var(--rf-ink-soft) !important;
+  text-decoration: none;
+}
+
+.rad-site-footer a:hover {
+  color: var(--rf-accent) !important;
+  text-decoration: underline;
+}
+
+.rad-site-footer .rad-footer-inner-wrap {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.rad-site-footer .rad-footer-links-row {
+  padding-top: 1.5rem !important;
+  padding-bottom: 0 !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  text-align: right !important;
+}
+
+.rad-site-footer .rad-footer-links-col {
+  align-items: flex-end !important;
+  width: auto !important;
+}
+
+.rad-site-footer .rad-footer-heading {
+  font-style: normal !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  text-align: right !important;
+  margin-bottom: 0.65rem !important;
+}
+
+.rad-site-footer .rad-footer-nav {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+}
+
+.rad-site-footer .rad-footer-nav-list {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.rad-site-footer .rad-footer-nav-list > li {
+  margin-bottom: 0.4rem !important;
+}
+
+.rad-site-footer .rad-footer-nav-list > li:last-child {
+  margin-bottom: 0 !important;
+}
+
+@media (max-width: 699px) {
+  .rad-site-footer .rad-footer-links-row {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
+  .rad-site-footer .rad-footer-links-col {
+    align-items: flex-start !important;
+  }
+
+  .rad-site-footer .rad-footer-heading,
+  .rad-site-footer .rad-footer-nav {
+    text-align: left !important;
+    align-items: flex-start !important;
+  }
+}
+
+/* Focus */
+body.rad-app a:focus-visible,
+body.rad-app .visualization-button:focus-visible {
+  outline: 2px solid var(--rf-accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.rad-app .wp-site-blocks > header .wp-block-navigation a {
+    transition: none;
+  }
+}
+
+/* --- Standalone results page --- */
+body.rad-app.rad-results {
+  background: var(--rf-surface);
+  padding: var(--rf-pad-x);
+}
+
+body.rad-app.rad-results h1 {
+  font-family: var(--rf-font-serif);
+  font-weight: 600;
+  font-size: var(--rf-h2);
+  color: var(--rf-ink);
+  margin: 0 0 1.5rem;
+}
+
+body.rad-app.rad-results table {
+  width: 100%;
+  max-width: var(--rf-max);
+  margin: 0 auto;
+  border-collapse: collapse;
+  background: var(--rf-surface);
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius);
+  overflow: hidden;
+  font-size: 0.9375rem;
+}
+
+body.rad-app.rad-results th,
+body.rad-app.rad-results td {
+  border: 1px solid var(--rf-border);
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+}
+
+body.rad-app.rad-results th {
+  background: var(--rf-surface-muted);
+  font-weight: 600;
+  color: var(--rf-ink);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+body.rad-app.rad-results tr:nth-child(even) td {
+  background: var(--rf-surface-subtle);
+}

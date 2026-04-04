@@ -236,11 +236,15 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 <link rel="icon" href="https://s0.wp.com/i/webclip.png" sizes="192x192">
 <link rel="apple-touch-icon" href="https://s0.wp.com/i/webclip.png">
 <meta name="msapplication-TileImage" content="https://s0.wp.com/i/webclip.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rad-scales-theme.css') }}">
 </head>
 
 
 
-<body class="page-template-default page page-id-1 wp-embed-responsive">
+<body class="page-template-default page page-id-1 wp-embed-responsive rad-app">
 
 
 
@@ -262,22 +266,18 @@ window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/15
 
 
 
-		<div class="wp-block-group is-content-justification-left is-layout-flex wp-container-core-group-is-layout-3 wp-block-group-is-layout-flex">
-    <nav class="is-responsive items-justified-right wp-block-navigation is-horizontal is-content-justification-right is-layout-flex wp-container-core-navigation-is-layout-1 wp-block-navigation-is-layout-flex" data-wp-interactive="core/navigation" data-wp-context='{"overlayOpenedBy":{"click":false,"hover":false,"focus":false},"type":"overlay","roleAttribute":"","ariaLabel":"Menu"}'>
-        <div class="wp-block-navigation__responsive-container" id="modal-1" data-wp-class--has-modal-open="state.isMenuOpen" data-wp-class--is-menu-open="state.isMenuOpen" data-wp-watch="callbacks.initMenu" data-wp-on--keydown="actions.handleMenuKeydown" data-wp-on-async--focusout="actions.handleMenuFocusout" tabindex="-1">
-            <div class="wp-block-navigation__responsive-dialog" data-wp-bind--aria-modal="state.ariaModal" data-wp-bind--aria-label="state.ariaLabel" data-wp-bind--role="state.roleAttribute">
-                <div class="wp-block-navigation__responsive-container-content" data-wp-watch="callbacks.focusFirstElement" id="modal-1-content">
-                    <ul class="wp-block-navigation__container is-responsive items-justified-right wp-block-navigation">
-                        <ul class="wp-block-page-list">
-                            <li class="wp-block-pages-list__item current-menu-item wp-block-navigation-item open-on-hover-click">
-                                <a class="wp-block-pages-list__item__link wp-block-navigation-item__content" href="/" aria-current="page">Home</a>
-                            </li>
-                        </ul>
-                    </ul>
-                </div>
-            </div>
-        </div>
+		<div class="wp-block-group is-content-justification-left is-layout-flex wp-container-core-group-is-layout-3 wp-block-group-is-layout-flex rad-header-nav-wrap">
+    <nav class="rad-primary-nav" aria-label="Primary navigation">
+      <ul class="rad-primary-nav__list">
+        <li><a href="/" class="rad-primary-nav__link">Home</a></li>
+        <li><a href="/about" class="rad-primary-nav__link">About Us</a></li>
+        <li><a href="/archive" class="rad-primary-nav__link" aria-current="page">Archives</a></li>
+      </ul>
     </nav>
+</div>
+
+	</div>
+
 </div>
 
 </header>

@@ -74,3 +74,6 @@ OCRextractions_pdfminer/
 
 # Personal documentation (not for repository)
 Documentation/
+
+# Local-only poster / personal site (do not commit)
+LynnLocal/

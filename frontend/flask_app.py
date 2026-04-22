@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, url_for, send_file, abort, jsonify
+from flask import Flask, render_template, Response, request, url_for, send_file, abort, jsonify, session, redirect
 from flask_cors import CORS
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -8,13 +8,22 @@ from io import BytesIO
 import os
 import logging
 import hashlib
+import hmac
+import time
+import secrets
+import zipfile
+import datetime
+import json
+import httpx
 from dotenv import load_dotenv
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 # Load environment variables
 load_dotenv()
 
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
 # Enable CORS for frontend -> backend communication (v1 for testing)
 CORS(app, resources={
@@ -40,7 +49,185 @@ database_config = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
     "database": os.getenv("DB_NAME"),
+    "port": int(os.getenv("DB_PORT", "3306")),
 }
+
+ACCESS_HANDOFF_SECRET = os.getenv("ACCESS_HANDOFF_SECRET", "")
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
+BACKEND_API_KEY = os.getenv("BACKEND_API_KEY") or os.getenv("API_KEY", "")
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "ResentenceDecarcerate@gmail.com")
+GITHUB_REPO_URL = os.getenv("GITHUB_REPO_URL", "").strip()
+ACCESS_REQUEST_URL = os.getenv("ACCESS_REQUEST_URL", "").strip()
+DOWNLOAD_LINK_MAX_AGE_SEC = int(os.getenv("DOWNLOAD_LINK_MAX_AGE_SEC", "900"))
+DEFAULT_DOWNLOADS_PER_HOUR = int(os.getenv("DOWNLOADS_PER_HOUR", "10"))
+DEFAULT_DOWNLOADS_PER_DAY = int(os.getenv("DOWNLOADS_PER_DAY", "50"))
+DEFAULT_ZIPS_PER_DAY = int(os.getenv("ZIPS_PER_DAY", "3"))
+ENFORCE_MAGIC_LINK_EXPIRY = os.getenv("ENFORCE_MAGIC_LINK_EXPIRY", "false").lower() == "true"
+ROLE_LIMITS_JSON = os.getenv("ROLE_LIMITS_JSON", "{}")
+
+try:
+    ROLE_LIMITS = json.loads(ROLE_LIMITS_JSON)
+except json.JSONDecodeError:
+    logging.warning("ROLE_LIMITS_JSON is invalid JSON; ignoring role overrides")
+    ROLE_LIMITS = {}
+
+AUDIT_LOG_PATH = os.path.join(os.path.dirname(__file__), "audit.log")
+RATE_STATE = {}
+
+BROWSE_FIELDS = {
+    "county": "County",
+    "cohort": "Cohort",
+    "institution": "Institution",
+    "judge": "Judge",
+    "action_taken": "Action Taken",
+    "ethnicity": "Ethnicity",
+}
+
+LOOKUP_FIELDS = {
+    "case_number": "Case Number",
+    "cdcr_number": "CDCR Number",
+    "convict_name": "Name",
+    "county": "County",
+    "cohort": "Cohort",
+    "institution": "Institution",
+    "judge": "Judge",
+    "action_taken": "Action Taken",
+    "ethnicity": "Ethnicity",
+    "race": "Race",
+    "isl_dsl": "ISL/DSL",
+    "sec_decision": "Secretary Decision",
+    "sentence_date": "Sentence Date",
+}
+
+
+def _serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(app.secret_key, salt="frontend-download-token")
+
+
+def _audit(event: str, email: str, detail: str = ""):
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs(os.path.dirname(AUDIT_LOG_PATH), exist_ok=True)
+    with open(AUDIT_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(f"{timestamp}\t{event}\t{email or 'anonymous'}\t{detail}\n")
+
+
+def _session_email() -> str:
+    return (session.get("access_email") or "").strip().lower()
+
+
+def _require_access():
+    if not _session_email():
+        return redirect(url_for("access_gate"))
+    return None
+
+
+def _to_int(value: str, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _is_true(value: str) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _session_limits() -> dict:
+    email = _session_email()
+    limits = {
+        "downloads_per_hour": DEFAULT_DOWNLOADS_PER_HOUR,
+        "downloads_per_day": DEFAULT_DOWNLOADS_PER_DAY,
+        "zips_per_day": DEFAULT_ZIPS_PER_DAY,
+        "unlimited": False,
+    }
+
+    role = (session.get("access_role") or "default").strip().lower()
+    role_cfg = ROLE_LIMITS.get(role, {}) if isinstance(ROLE_LIMITS, dict) else {}
+    if isinstance(role_cfg, dict):
+        limits["downloads_per_hour"] = _to_int(role_cfg.get("downloads_per_hour"), limits["downloads_per_hour"])
+        limits["downloads_per_day"] = _to_int(role_cfg.get("downloads_per_day"), limits["downloads_per_day"])
+        limits["zips_per_day"] = _to_int(role_cfg.get("zips_per_day"), limits["zips_per_day"])
+        limits["unlimited"] = bool(role_cfg.get("unlimited", limits["unlimited"]))
+
+    if "downloads_per_hour" in session:
+        limits["downloads_per_hour"] = _to_int(session.get("downloads_per_hour"), limits["downloads_per_hour"])
+    if "downloads_per_day" in session:
+        limits["downloads_per_day"] = _to_int(session.get("downloads_per_day"), limits["downloads_per_day"])
+    if "zips_per_day" in session:
+        limits["zips_per_day"] = _to_int(session.get("zips_per_day"), limits["zips_per_day"])
+    if "unlimited_access" in session:
+        limits["unlimited"] = bool(session.get("unlimited_access"))
+
+    if email.endswith(".gov"):
+        limits["unlimited"] = True
+
+    return limits
+
+
+def _rate_key() -> str:
+    key = session.get("access_session_id")
+    if not key:
+        key = secrets.token_hex(16)
+        session["access_session_id"] = key
+    return key
+
+
+def _check_and_increment_limit(kind: str):
+    limits = _session_limits()
+    if limits["unlimited"]:
+        return None
+
+    now = time.time()
+    key = _rate_key()
+    bucket = RATE_STATE.setdefault(key, {"downloads": [], "zips": []})
+
+    bucket["downloads"] = [t for t in bucket["downloads"] if now - t < 86400]
+    bucket["zips"] = [t for t in bucket["zips"] if now - t < 86400]
+
+    if kind == "download":
+        recent_hour = [t for t in bucket["downloads"] if now - t < 3600]
+        if len(recent_hour) >= limits["downloads_per_hour"]:
+            return f"Download limit reached ({limits['downloads_per_hour']}/hour). Contact {CONTACT_EMAIL} for additional access."
+        if len(bucket["downloads"]) >= limits["downloads_per_day"]:
+            return f"Daily download limit reached ({limits['downloads_per_day']}/day). Contact {CONTACT_EMAIL} for additional access."
+        bucket["downloads"].append(now)
+        return None
+
+    if kind == "zip":
+        if len(bucket["zips"]) >= limits["zips_per_day"]:
+            return f"Daily ZIP limit reached ({limits['zips_per_day']}/day). Contact {CONTACT_EMAIL} for additional access."
+        bucket["zips"].append(now)
+        return None
+
+    return "Unknown rate limit action."
+
+
+def _make_download_token(file_id: int, email: str) -> str:
+    return _serializer().dumps({"file_id": file_id, "email": email})
+
+
+def _make_zip_token(field: str, value: str, email: str) -> str:
+    return _serializer().dumps({"lookup_field": field, "lookup_value": value, "email": email})
+
+
+def _resolve_file_path(raw_path: str) -> str:
+    raw = (raw_path or "").strip()
+    if not raw:
+        return ""
+
+    candidates = [
+        raw,
+        os.path.join(os.getcwd(), raw),
+        os.path.join(os.path.dirname(__file__), raw),
+        os.path.join(os.path.dirname(__file__), "..", raw),
+        os.path.join(os.path.dirname(__file__), "static", raw),
+    ]
+
+    for c in candidates:
+        normalized = os.path.normpath(c)
+        if os.path.exists(normalized):
+            return normalized
+    return ""
 
 # ----------------------------------------------------------------------------- #
 # --------- Temp Test Functions For Frontend -> Backend Communication --------- #
@@ -51,12 +238,356 @@ def ping():
 
 @app.route("/query_ai", methods=["POST"])
 def query_ai():
+    access_redirect = _require_access()
+    if access_redirect:
+        return jsonify({"error": "Unauthorized"}), 401
+
     data = request.get_json(silent=True) or {}
     q = (data.get("query") or "").strip()
-    return jsonify({"response": f"echo: {q or '[empty query]'}"}), 200
+    if not q:
+        return jsonify({"error": "Query is required"}), 400
+
+    _audit("ai_query", _session_email(), f"query={q[:300]}")
+
+    # Forward to backend AI if configured. Fall back to local echo in dev.
+    headers = {"Content-Type": "application/json"}
+    if BACKEND_API_KEY:
+        headers["X-API-Key"] = BACKEND_API_KEY
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(f"{BACKEND_BASE_URL}/query_ai", headers=headers, json={"query": q})
+            if resp.status_code == 200:
+                payload = resp.json()
+                # Normalized output shape for frontend.
+                answer = payload.get("response") or payload.get("answer") or payload.get("result") or str(payload)
+                return jsonify({"response": answer}), 200
+            logging.warning("Backend AI call failed with status %s: %s", resp.status_code, resp.text[:300])
+    except Exception as exc:
+        logging.warning("Backend AI unavailable, using local fallback: %s", exc)
+
+    return jsonify({"response": f"[local fallback] {q}"}), 200
 
 # ----------------------------------------------------------------------------- #
 # ----------------------------------------------------------------------------- #
+
+
+@app.route("/access")
+def access_gate():
+    return render_template("access.html", contact_email=CONTACT_EMAIL)
+
+
+@app.route("/access/session")
+def access_session():
+    email = (request.args.get("e") or "").strip().lower()
+    exp = (request.args.get("exp") or "").strip()
+    sig = (request.args.get("sig") or "").strip()
+    role = (request.args.get("role") or "default").strip().lower()
+    dl_hour = (request.args.get("dl_hour") or "").strip()
+    dl_day = (request.args.get("dl_day") or "").strip()
+    zip_day = (request.args.get("zip_day") or "").strip()
+    unlimited = _is_true(request.args.get("unlimited"))
+
+    if not email:
+        return "Missing email in access link.", 400
+
+    if ACCESS_HANDOFF_SECRET:
+        legacy_payload = f"{email}|{exp}"
+        extended_payload = f"{email}|{exp}|{role}|{dl_hour}|{dl_day}|{zip_day}|{int(unlimited)}"
+        expected_legacy = hmac.new(ACCESS_HANDOFF_SECRET.encode("utf-8"), legacy_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        expected_extended = hmac.new(ACCESS_HANDOFF_SECRET.encode("utf-8"), extended_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not sig or sig not in {expected_legacy, expected_extended}:
+            return "Invalid or missing signature.", 403
+
+    if ENFORCE_MAGIC_LINK_EXPIRY and exp:
+        try:
+            if int(exp) < int(time.time()):
+                return "This access link has expired.", 403
+        except ValueError:
+            return "Invalid expiration timestamp.", 400
+
+    session["access_email"] = email
+    session["access_role"] = role
+    session["access_session_id"] = secrets.token_hex(16)
+    if dl_hour:
+        session["downloads_per_hour"] = _to_int(dl_hour, DEFAULT_DOWNLOADS_PER_HOUR)
+    if dl_day:
+        session["downloads_per_day"] = _to_int(dl_day, DEFAULT_DOWNLOADS_PER_DAY)
+    if zip_day:
+        session["zips_per_day"] = _to_int(zip_day, DEFAULT_ZIPS_PER_DAY)
+    session["unlimited_access"] = bool(unlimited)
+
+    _audit("access_session", email, f"role={role} unlimited={session['unlimited_access']}")
+    return redirect(url_for("tool_hub"))
+
+
+@app.route("/access/logout")
+def access_logout():
+    email = _session_email()
+    session.clear()
+    _audit("logout", email, "session cleared")
+    return redirect(url_for("access_gate"))
+
+
+def _browse_search(field: str, term: str):
+    if field not in BROWSE_FIELDS:
+        raise ValueError("Invalid browse field")
+
+    conn = mysql.connector.connect(**database_config)
+    cursor = conn.cursor(dictionary=True)
+    like_term = f"%{term}%"
+
+    query = f"""
+        SELECT
+            m.{field} AS group_value,
+            COUNT(*) AS letter_count,
+            COUNT(DISTINCT COALESCE(NULLIF(m.cdcr_number, ''), NULLIF(m.case_number, ''), NULLIF(m.convict_name, ''), CAST(m.pdf_id AS CHAR))) AS people_count
+        FROM metadata m
+        WHERE m.{field} IS NOT NULL AND m.{field} <> '' AND m.{field} LIKE %s
+        GROUP BY m.{field}
+        ORDER BY letter_count DESC
+        LIMIT 250
+    """
+    cursor.execute(query, (like_term,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return rows
+
+
+def _lookup_search(field: str, term: str):
+    if field not in LOOKUP_FIELDS:
+        raise ValueError("Invalid lookup field")
+
+    conn = mysql.connector.connect(**database_config)
+    cursor = conn.cursor(dictionary=True)
+    like_term = f"%{term}%"
+    query = f"""
+        SELECT
+            p.id AS pdf_id,
+            p.filename,
+            p.file_path,
+            m.convict_name,
+            m.cdcr_number,
+            m.case_number,
+            m.judge,
+            m.institution,
+            m.county,
+            m.sentence_date,
+            m.action_taken,
+            m.ethnicity,
+            m.race,
+            m.cohort,
+            m.notes
+        FROM metadata m
+        JOIN pdfs p ON p.id = m.pdf_id
+        WHERE m.{field} IS NOT NULL
+          AND m.{field} LIKE %s
+        ORDER BY m.convict_name, p.filename
+        LIMIT 500
+    """
+    cursor.execute(query, (like_term,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return rows
+
+
+def _person_identifier(row: dict):
+    for field in ("cdcr_number", "case_number", "convict_name"):
+        value = (row.get(field) or "").strip()
+        if value:
+            return field, value
+    return "pdf_id", str(row.get("pdf_id"))
+
+
+@app.route("/toolhub", methods=["GET", "POST"])
+def tool_hub():
+    access_redirect = _require_access()
+    if access_redirect:
+        return access_redirect
+
+    unified_fields = dict(LOOKUP_FIELDS)
+    for key, label in BROWSE_FIELDS.items():
+        unified_fields[key] = label
+
+    search_field = request.values.get("search_field", "county")
+    search_term = (request.values.get("search_term") or "").strip()
+    aggregate_results = []
+    detail_results = []
+    error_message = ""
+
+    if request.method == "POST" and search_term:
+        try:
+            if search_field not in unified_fields:
+                raise ValueError("Invalid search field")
+
+            if search_field in BROWSE_FIELDS:
+                aggregate_results = _browse_search(search_field, search_term)
+            else:
+                # For non-aggregate-first fields, still provide grouped context.
+                conn = mysql.connector.connect(**database_config)
+                cursor = conn.cursor(dictionary=True)
+                like_term = f"%{search_term}%"
+                query = f"""
+                    SELECT
+                        m.{search_field} AS group_value,
+                        COUNT(*) AS letter_count,
+                        COUNT(DISTINCT COALESCE(NULLIF(m.cdcr_number, ''), NULLIF(m.case_number, ''), NULLIF(m.convict_name, ''), CAST(m.pdf_id AS CHAR))) AS people_count
+                    FROM metadata m
+                    WHERE m.{search_field} IS NOT NULL AND m.{search_field} <> '' AND m.{search_field} LIKE %s
+                    GROUP BY m.{search_field}
+                    ORDER BY letter_count DESC
+                    LIMIT 100
+                """
+                cursor.execute(query, (like_term,))
+                aggregate_results = cursor.fetchall()
+                cursor.close()
+                conn.close()
+
+            detail_results = _lookup_search(search_field, search_term)
+            for row in detail_results:
+                row["download_token"] = _make_download_token(row["pdf_id"], _session_email())
+                person_field, person_value = _person_identifier(row)
+                row["zip_token"] = _make_zip_token(person_field, person_value, _session_email())
+
+            _audit(
+                "toolhub_search",
+                _session_email(),
+                f"field={search_field} term={search_term} aggregate={len(aggregate_results)} detail={len(detail_results)}",
+            )
+        except Exception as exc:
+            logging.exception("Tool hub search failed")
+            error_message = f"Search failed: {exc}"
+
+    limits = _session_limits()
+    return render_template(
+        "tool_hub.html",
+        unified_fields=unified_fields,
+        search_field=search_field,
+        search_term=search_term,
+        aggregate_results=aggregate_results,
+        detail_results=detail_results,
+        error_message=error_message,
+        contact_email=CONTACT_EMAIL,
+        access_email=_session_email(),
+        access_role=session.get("access_role", "default"),
+        limits=limits,
+        backend_base_url=BACKEND_BASE_URL,
+    )
+
+
+@app.route("/tool-hub", methods=["GET", "POST"])
+def tool_hub_alias():
+    return tool_hub()
+
+
+@app.route("/download/signed/<token>")
+def download_signed(token):
+    access_redirect = _require_access()
+    if access_redirect:
+        return access_redirect
+
+    try:
+        payload = _serializer().loads(token, max_age=DOWNLOAD_LINK_MAX_AGE_SEC)
+    except SignatureExpired:
+        return "This download link expired. Re-run your lookup search and try again.", 403
+    except BadSignature:
+        return "Invalid download link.", 403
+
+    email = _session_email()
+    if payload.get("email") != email:
+        return "This download link is not valid for your session.", 403
+
+    limit_message = _check_and_increment_limit("download")
+    if limit_message:
+        return limit_message, 429
+
+    file_id = payload.get("file_id")
+    conn = mysql.connector.connect(**database_config)
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, filename, file_path FROM pdfs WHERE id = %s", (file_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not row:
+        return "File not found.", 404
+
+    resolved_path = _resolve_file_path(row["file_path"])
+    if not resolved_path:
+        return f"File path does not exist on this server: {row['file_path']}", 404
+
+    _audit("download", email, f"file_id={file_id} name={row['filename']}")
+    return send_file(resolved_path, as_attachment=True, download_name=row["filename"])
+
+
+@app.route("/download/person_zip/<token>")
+def download_person_zip(token):
+    access_redirect = _require_access()
+    if access_redirect:
+        return access_redirect
+
+    try:
+        payload = _serializer().loads(token, max_age=DOWNLOAD_LINK_MAX_AGE_SEC)
+    except SignatureExpired:
+        return "This ZIP link expired. Re-run your lookup search and try again.", 403
+    except BadSignature:
+        return "Invalid ZIP link.", 403
+
+    email = _session_email()
+    if payload.get("email") != email:
+        return "This ZIP link is not valid for your session.", 403
+
+    limit_message = _check_and_increment_limit("zip")
+    if limit_message:
+        return limit_message, 429
+
+    lookup_field = payload.get("lookup_field")
+    lookup_value = payload.get("lookup_value")
+    if lookup_field not in {"cdcr_number", "case_number", "convict_name", "pdf_id"}:
+        return "Invalid ZIP request.", 400
+
+    conn = mysql.connector.connect(**database_config)
+    cursor = conn.cursor(dictionary=True)
+    if lookup_field == "pdf_id":
+        cursor.execute("""
+            SELECT p.id, p.filename, p.file_path
+            FROM pdfs p
+            WHERE p.id = %s
+        """, (lookup_value,))
+    else:
+        cursor.execute(f"""
+            SELECT p.id, p.filename, p.file_path
+            FROM metadata m
+            JOIN pdfs p ON p.id = m.pdf_id
+            WHERE m.{lookup_field} = %s
+            ORDER BY p.filename
+        """, (lookup_value,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if not rows:
+        return "No files found for this person.", 404
+
+    archive = BytesIO()
+    added = 0
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+        for row in rows:
+            resolved_path = _resolve_file_path(row["file_path"])
+            if resolved_path and os.path.exists(resolved_path):
+                zf.write(resolved_path, arcname=row["filename"])
+                added += 1
+
+    if added == 0:
+        return "No downloadable files were found on this server for this ZIP request.", 404
+
+    archive.seek(0)
+    safe_value = str(lookup_value).replace(" ", "_")
+    zip_name = f"{lookup_field}_{safe_value}_letters.zip"
+    _audit("zip_download", email, f"field={lookup_field} value={lookup_value} files={added}")
+    return send_file(archive, mimetype="application/zip", as_attachment=True, download_name=zip_name)
 
 @app.route('/about')
 def about():
@@ -65,20 +596,32 @@ def about():
     """
     return render_template('about.html')
 
-@app.route('/archive')
-def archive():
+def _render_archive_legacy():
     """
-    Renders the archive search page without search results.
+    Legacy archive page renderer retained for reference/testing.
     """
     return render_template('archive.html')
 
-@app.route('/archive_search', methods=['POST'])
-def archive_search():
-    """
-    Handles search requests from the archive page.
 
-    Extracts user input from a form, queries the database for matching metadata entries,
-    and renders the archive page with the filtered results.
+@app.route('/archive')
+def archive():
+    """
+    Archive is disconnected from primary navigation.
+    Route now forwards users to Tool Hub.
+    """
+    return redirect(url_for("tool_hub"))
+
+
+@app.route('/archive_legacy')
+def archive_legacy():
+    """
+    Explicit legacy route to keep old archive implementation accessible.
+    """
+    return _render_archive_legacy()
+
+def _archive_search_legacy():
+    """
+    Legacy archive search handler retained for reference/testing.
     """
     search_term = request.form.get("search_term")
     search_field = request.form.get("search_field")
@@ -100,6 +643,22 @@ def archive_search():
     conn.close()
 
     return render_template('archive.html', results=results)
+
+
+@app.route('/archive_search', methods=['POST'])
+def archive_search():
+    """
+    Archive search endpoint is disconnected from main UX and forwards to Tool Hub.
+    """
+    return redirect(url_for("tool_hub"))
+
+
+@app.route('/archive_search_legacy', methods=['POST'])
+def archive_search_legacy():
+    """
+    Explicit legacy endpoint to keep old archive search behavior available.
+    """
+    return _archive_search_legacy()
 
 @app.route('/download/<int:file_id>')
 def download_file(file_id):
@@ -156,7 +715,12 @@ def home():
     """
     Renders the homepage.
     """
-    return render_template('index.html')
+    return render_template(
+        'index.html',
+        contact_email=CONTACT_EMAIL,
+        github_repo_url=GITHUB_REPO_URL,
+        access_request_url=ACCESS_REQUEST_URL,
+    )
 
 @app.route('/visualize')
 def visualize():

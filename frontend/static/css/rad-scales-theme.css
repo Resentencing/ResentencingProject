@@ -249,7 +249,7 @@ body.rad-app .entry-content a:hover {
   color: var(--rf-accent-hover);
 }
 
-body.rad-app .rad-hero a {
+body.rad-app .rad-hero a:not(.rad-button) {
   color: var(--rf-accent) !important;
   font-weight: 500;
   text-decoration: underline;
@@ -257,7 +257,7 @@ body.rad-app .rad-hero a {
   text-underline-offset: 0.15em;
 }
 
-body.rad-app .rad-hero a:hover {
+body.rad-app .rad-hero a:not(.rad-button):hover {
   color: var(--rf-accent-hover) !important;
 }
 
@@ -347,6 +347,48 @@ body.rad-app .rad-hero p.has-text-align-center {
   font-weight: 400 !important;
   margin: 0 0 1rem !important;
   text-align: left !important;
+}
+
+.rad-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}
+
+.rad-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rf-border-strong);
+  background: var(--rf-surface);
+  color: var(--rf-ink-soft);
+  border-radius: 9999px;
+  padding: 0.52rem 1.1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none !important;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.rad-button:hover {
+  border-color: var(--rf-accent);
+  color: var(--rf-accent) !important;
+  text-decoration: none !important;
+}
+
+.rad-button--primary {
+  background: var(--rf-accent);
+  color: #fff !important;
+  border-color: var(--rf-accent);
+}
+
+.rad-button--primary:hover {
+  background: var(--rf-accent-hover);
+  border-color: var(--rf-accent-hover);
+  color: #fff !important;
 }
 
 /* Data */
@@ -439,6 +481,46 @@ body.rad-app .rad-data-heading.has-x-large-font-size {
   background: var(--rf-surface);
 }
 
+.rad-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.rad-stat-card {
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius);
+  background: #f8fafc;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+}
+
+.rad-stat-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rf-muted);
+  margin-bottom: 0.25rem;
+}
+
+.rad-stat-value {
+  font-family: var(--rf-font-serif);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--rf-ink);
+}
+
+.rad-chart-canvas-wrap {
+  width: 100%;
+  min-height: 360px;
+}
+
+.rad-chart-canvas-wrap canvas {
+  width: 100% !important;
+  height: 360px !important;
+}
+
 /* About (home) */
 .rad-about-panel.rad-halftone {
   background: var(--rf-surface) !important;
@@ -491,6 +573,39 @@ body.rad-app .rad-about-panel h2.has-text-align-center {
   text-align: left !important;
 }
 
+.rad-access-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.rad-access-card {
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius-lg);
+  background: var(--rf-surface);
+  padding: 1rem 1rem 0.9rem;
+}
+
+.rad-access-card h3 {
+  margin: 0 0 0.45rem !important;
+  font-size: 1rem !important;
+}
+
+.rad-access-card p {
+  margin: 0 !important;
+}
+
+.rad-meta-panel {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--rf-border);
+  padding-top: 0.9rem;
+}
+
+.rad-meta-panel p {
+  margin: 0 !important;
+}
+
 .rad-about-panel h3.wp-block-heading {
   font-family: var(--rf-font-sans) !important;
   font-weight: 600 !important;
@@ -535,6 +650,16 @@ body.rad-app .rad-about-panel h2.has-text-align-center {
   .rad-about-panel .wp-block-column:last-child {
     flex-basis: 50% !important;
     flex-grow: 1 !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .rad-access-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rad-stat-grid {
+    grid-template-columns: 1fr;
   }
 }
 

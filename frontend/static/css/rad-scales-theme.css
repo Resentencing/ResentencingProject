@@ -467,6 +467,47 @@ body.rad-app .rad-data-heading.has-x-large-font-size {
   box-shadow: none;
 }
 
+.rad-chart-card .poster-focus-mode {
+  justify-content: center !important;
+}
+
+.rad-chart-card .poster-focus-mode .visualization-button:not(.active):not(.poster-exit-btn) {
+  display: none;
+}
+
+.rad-chart-card .visualization-button.poster-exit-btn {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+.rad-chart-card .visualization-button.poster-exit-btn:hover {
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.rad-poster-badges {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin: 0.15rem 0 0.85rem;
+}
+
+.rad-poster-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #dbe3f0;
+  background: #f8fbff;
+  color: #1f2937;
+  border-radius: 9999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 .rad-chart-card #loadingMessage {
   font-family: var(--rf-font-sans);
   font-weight: 500;
@@ -519,6 +560,59 @@ body.rad-app .rad-data-heading.has-x-large-font-size {
 .rad-chart-canvas-wrap canvas {
   width: 100% !important;
   height: 360px !important;
+}
+
+.rad-tool-note {
+  margin-bottom: 0.9rem !important;
+}
+
+.rad-prof-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.7rem;
+  align-items: end;
+  margin-bottom: 0.9rem;
+}
+
+.rad-prof-control {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.rad-prof-control label {
+  font-size: 0.75rem;
+  color: var(--rf-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.28rem;
+}
+
+.rad-prof-control select {
+  border: 1px solid var(--rf-border-strong);
+  border-radius: var(--rf-radius);
+  padding: 0.5rem 0.55rem;
+  font-size: 0.9rem;
+  background: #fff;
+  color: var(--rf-ink-soft);
+}
+
+.rad-prof-control select[multiple] {
+  min-height: 5.8rem;
+}
+
+.rad-prof-control-btn {
+  justify-content: flex-end;
+}
+
+.rad-prof-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  text-align: left;
+  color: var(--rf-muted);
+  font-size: 0.86rem;
+  margin-bottom: 0.65rem;
 }
 
 /* About (home) */
@@ -659,6 +753,10 @@ body.rad-app .rad-about-panel h2.has-text-align-center {
   }
 
   .rad-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rad-prof-controls {
     grid-template-columns: 1fr;
   }
 }

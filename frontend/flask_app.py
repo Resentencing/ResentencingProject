@@ -73,6 +73,7 @@ except json.JSONDecodeError:
 
 AUDIT_LOG_PATH = os.path.join(os.path.dirname(__file__), "audit.log")
 RATE_STATE = {}
+_METADATA_COLUMNS_CACHE = None
 
 BROWSE_FIELDS = {
     "county": "County",
@@ -228,6 +229,65 @@ def _resolve_file_path(raw_path: str) -> str:
         if os.path.exists(normalized):
             return normalized
     return ""
+
+
+def _metadata_columns():
+    global _METADATA_COLUMNS_CACHE
+    if _METADATA_COLUMNS_CACHE is not None:
+        return _METADATA_COLUMNS_CACHE
+
+    conn = mysql.connector.connect(**database_config)
+    cursor = conn.cursor()
+    cursor.execute("SHOW COLUMNS FROM metadata")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # rows shape: Field, Type, Null, Key, Default, Extra
+    columns = [r[0] for r in rows if r and r[0]]
+    _METADATA_COLUMNS_CACHE = columns
+    return columns
+
+
+def _labelize_column(column_name: str) -> str:
+    return column_name.replace("_", " ").strip().title()
+
+
+def _prof_bucket_parts(field: str, mode: str):
+    resolved_mode = "year" if mode == "year" else "raw"
+    if mode == "auto" and "date" in field.lower():
+        resolved_mode = "year"
+
+    if resolved_mode == "year":
+        expr = f"YEAR(`{field}`)"
+        valid_clause = f"`{field}` IS NOT NULL AND `{field}` <> '' AND YEAR(`{field}`) IS NOT NULL"
+    else:
+        expr = f"CAST(`{field}` AS CHAR(255))"
+        valid_clause = f"`{field}` IS NOT NULL AND TRIM(CAST(`{field}` AS CHAR(255))) <> ''"
+    return expr, valid_clause, resolved_mode
+
+
+def _parse_prof_filters(raw_filters: str, allowed_fields: set):
+    if not raw_filters:
+        return {}
+    try:
+        parsed = json.loads(raw_filters)
+    except json.JSONDecodeError:
+        return {}
+
+    if not isinstance(parsed, dict):
+        return {}
+
+    filters = {}
+    for field, values in parsed.items():
+        if field not in allowed_fields:
+            continue
+        if not isinstance(values, list):
+            continue
+        cleaned = [str(v).strip() for v in values if str(v).strip()]
+        if cleaned:
+            filters[field] = cleaned
+    return filters
 
 # ----------------------------------------------------------------------------- #
 # --------- Temp Test Functions For Frontend -> Backend Communication --------- #
@@ -728,6 +788,7 @@ def visualize():
     Generates or serves cached data visualizations based on the selected dataset type.
 
     Dataset types supported:
+        - 'letters_by_county': Bar chart of letter counts by county.
         - 'years_reduced': Bar chart of years reduced by county.
         - 'sentence_type': Pie chart of ISL/DSL sentence types.
         - 'parole_eligibility': Histogram of parole eligibility years.
@@ -760,7 +821,14 @@ def visualize():
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.set_facecolor('#F9F9F9')
 
-        if dataset_type == 'years_reduced':
+        if dataset_type == 'letters_by_county':
+            county_counts = df.groupby('county').size().reset_index(name='letter_count').sort_values('letter_count', ascending=False).head(20)
+            sns.barplot(data=county_counts, x='letter_count', y='county', ax=ax)
+            ax.set_title('Letters by County')
+            ax.set_xlabel('Letters')
+            ax.set_ylabel('County')
+
+        elif dataset_type == 'years_reduced':
             sns.barplot(data=df, x='county', y='years_reduced', estimator=sum, ax=ax)
             ax.set_title('Years Reduced by County')
             plt.xticks(rotation=45)
@@ -799,7 +867,15 @@ def visualize():
 def api_stats():
     """
     Return JSON data for frontend visualizations
-    Same datasets as /visualize: years_reduced, sentence_type, parole_eligibility.
+    Supported datasets:
+      - letters_by_county
+      - years_reduced
+      - sentence_type
+      - parole_eligibility
+      - action_taken
+      - race_distribution
+      - ethnicity_distribution
+      - isl_dsl_outcome
     """
     dataset_type = request.args.get('dataset', 'years_reduced')
     try:
@@ -815,24 +891,546 @@ def api_stats():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/public_summary')
+def api_public_summary():
+    """
+    Return Priority-1 public summary metrics for the homepage dashboard.
+    """
+    try:
+        conn = mysql.connector.connect(**database_config)
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT
+                COUNT(*) AS total_letters,
+                COUNT(
+                    DISTINCT COALESCE(
+                        NULLIF(TRIM(cdcr_number), ''),
+                        NULLIF(TRIM(case_number), ''),
+                        NULLIF(TRIM(convict_name), ''),
+                        CAST(pdf_id AS CHAR)
+                    )
+                ) AS total_individuals,
+                COUNT(DISTINCT NULLIF(TRIM(county), '')) AS total_counties
+            FROM metadata
+        """)
+        row = cursor.fetchone() or {}
+        cursor.close()
+        conn.close()
+        return jsonify({
+            "total_letters": int(row.get("total_letters") or 0),
+            "total_individuals": int(row.get("total_individuals") or 0),
+            "total_counties": int(row.get("total_counties") or 0),
+        }), 200
+    except Exception as e:
+        logging.error(f"Error fetching public summary metrics: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/poster_view')
+def api_poster_view():
+    """
+    Return a poster-ready impact summary that highlights pipeline drop-off and
+    outcome impact at a glance.
+    """
+    try:
+        conn = mysql.connector.connect(**database_config)
+        cursor = conn.cursor(dictionary=True)
+
+        success_case_expr = """
+            CASE
+                WHEN LOWER(COALESCE(action_taken, '')) LIKE '%resentenced%'
+                  OR LOWER(COALESCE(action_taken, '')) LIKE '%released%'
+                  OR LOWER(COALESCE(action_taken, '')) LIKE '%grant%'
+                  OR LOWER(COALESCE(action_taken, '')) LIKE '%approved%'
+                  OR LOWER(COALESCE(action_taken, '')) LIKE '%recalled%'
+                THEN 1 ELSE 0
+            END
+        """
+
+        cursor.execute(f"""
+            SELECT
+                COUNT(*) AS total_letters,
+                SUM(CASE WHEN action_taken IS NOT NULL AND TRIM(action_taken) <> '' THEN 1 ELSE 0 END) AS court_action_cases,
+                SUM({success_case_expr}) AS successful_cases,
+                AVG(CASE WHEN {success_case_expr} = 1 THEN years_reduced END) AS avg_years_reduced_success,
+                SUM(CASE WHEN {success_case_expr} = 1 THEN COALESCE(years_reduced, 0) ELSE 0 END) AS total_years_reduced_success
+            FROM metadata
+        """)
+        row = cursor.fetchone() or {}
+        cursor.close()
+        conn.close()
+
+        total_letters = int(row.get("total_letters") or 0)
+        court_action_cases = int(row.get("court_action_cases") or 0)
+        successful_cases = int(row.get("successful_cases") or 0)
+        avg_years = float(row.get("avg_years_reduced_success") or 0.0)
+        total_years = float(row.get("total_years_reduced_success") or 0.0)
+
+        def pct(part: int, whole: int) -> float:
+            return round((part / whole) * 100, 1) if whole > 0 else 0.0
+
+        stages = [
+            {"label": "Letters Received", "value": total_letters, "rate_from_start": 100.0 if total_letters > 0 else 0.0},
+            {"label": "Court Action Recorded", "value": court_action_cases, "rate_from_start": pct(court_action_cases, total_letters)},
+            {"label": "Successful Relief", "value": successful_cases, "rate_from_start": pct(successful_cases, total_letters)},
+        ]
+
+        return jsonify({
+            "stages": stages,
+            "impact": {
+                "avg_years_reduced_success": round(avg_years, 2),
+                "total_years_reduced_success": round(total_years, 2),
+                "success_rate_from_all_letters": pct(successful_cases, total_letters),
+            }
+        }), 200
+    except Exception as e:
+        logging.error(f"Error building poster view payload: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/prof/variables')
+def api_prof_variables():
+    """
+    Return all metadata table columns for the professor variable explorer.
+    """
+    try:
+        columns = _metadata_columns()
+        return jsonify({
+            "variables": [{"key": c, "label": _labelize_column(c)} for c in columns]
+        }), 200
+    except Exception as e:
+        logging.error(f"Error fetching metadata columns: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/prof/distribution')
+def api_prof_distribution():
+    """
+    Return grouped counts for any metadata column for professor exploration.
+    Query params:
+      - field: metadata column name
+      - top_n: max buckets (default 20)
+      - mode: raw | year | auto
+    """
+    field = (request.args.get("field") or "").strip()
+    mode = (request.args.get("mode") or "auto").strip().lower()
+
+    try:
+        top_n = int(request.args.get("top_n", "20"))
+    except ValueError:
+        top_n = 20
+    top_n = max(3, min(top_n, 100))
+
+    try:
+        allowed = set(_metadata_columns())
+        if field not in allowed:
+            return jsonify({"error": "Invalid field"}), 400
+
+        use_year_mode = (mode == "year") or (mode == "auto" and "date" in field.lower())
+
+        conn = mysql.connector.connect(**database_config)
+        cursor = conn.cursor(dictionary=True)
+
+        if use_year_mode:
+            query = f"""
+                SELECT
+                    YEAR(`{field}`) AS bucket,
+                    COUNT(*) AS count
+                FROM metadata
+                WHERE `{field}` IS NOT NULL
+                  AND `{field}` <> ''
+                  AND YEAR(`{field}`) IS NOT NULL
+                GROUP BY YEAR(`{field}`)
+                ORDER BY bucket ASC
+                LIMIT %s
+            """
+            cursor.execute(query, (top_n,))
+        else:
+            query = f"""
+                SELECT
+                    CAST(`{field}` AS CHAR(255)) AS bucket,
+                    COUNT(*) AS count
+                FROM metadata
+                WHERE `{field}` IS NOT NULL
+                  AND TRIM(CAST(`{field}` AS CHAR(255))) <> ''
+                GROUP BY CAST(`{field}` AS CHAR(255))
+                ORDER BY count DESC
+                LIMIT %s
+            """
+            cursor.execute(query, (top_n,))
+
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        labels = []
+        values = []
+        for row in rows:
+            bucket = row.get("bucket")
+            labels.append(str(bucket) if bucket is not None else "Unknown")
+            values.append(int(row.get("count") or 0))
+
+        return jsonify({
+            "field": field,
+            "field_label": _labelize_column(field),
+            "mode": "year" if use_year_mode else "raw",
+            "top_n": top_n,
+            "labels": labels,
+            "values": values
+        }), 200
+    except Exception as e:
+        logging.error(f"Error fetching professor distribution for {field}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/prof/cross_distribution')
+def api_prof_cross_distribution():
+    """
+    Return pairwise grouped counts for two metadata fields so the professor
+    can compare variables against each other.
+    Query params:
+      - x_field, y_field: metadata column names
+      - x_mode, y_mode: raw | year | auto
+      - top_x, top_y: max buckets kept per axis
+    """
+    x_field = (request.args.get("x_field") or "").strip()
+    y_field = (request.args.get("y_field") or "").strip()
+    x_mode = (request.args.get("x_mode") or "auto").strip().lower()
+    y_mode = (request.args.get("y_mode") or "auto").strip().lower()
+
+    try:
+        top_x = int(request.args.get("top_x", "12"))
+    except ValueError:
+        top_x = 12
+    try:
+        top_y = int(request.args.get("top_y", "8"))
+    except ValueError:
+        top_y = 8
+
+    top_x = max(3, min(top_x, 40))
+    top_y = max(2, min(top_y, 20))
+
+    try:
+        allowed = set(_metadata_columns())
+        if x_field not in allowed or y_field not in allowed:
+            return jsonify({"error": "Invalid x_field or y_field"}), 400
+
+        x_is_year = (x_mode == "year") or (x_mode == "auto" and "date" in x_field.lower())
+        y_is_year = (y_mode == "year") or (y_mode == "auto" and "date" in y_field.lower())
+
+        if x_is_year:
+            x_expr = f"YEAR(`{x_field}`)"
+            x_valid = f"`{x_field}` IS NOT NULL AND `{x_field}` <> '' AND YEAR(`{x_field}`) IS NOT NULL"
+        else:
+            x_expr = f"CAST(`{x_field}` AS CHAR(255))"
+            x_valid = f"`{x_field}` IS NOT NULL AND TRIM(CAST(`{x_field}` AS CHAR(255))) <> ''"
+
+        if y_is_year:
+            y_expr = f"YEAR(`{y_field}`)"
+            y_valid = f"`{y_field}` IS NOT NULL AND `{y_field}` <> '' AND YEAR(`{y_field}`) IS NOT NULL"
+        else:
+            y_expr = f"CAST(`{y_field}` AS CHAR(255))"
+            y_valid = f"`{y_field}` IS NOT NULL AND TRIM(CAST(`{y_field}` AS CHAR(255))) <> ''"
+
+        conn = mysql.connector.connect(**database_config)
+        cursor = conn.cursor(dictionary=True)
+        query = f"""
+            SELECT
+                {x_expr} AS x_bucket,
+                {y_expr} AS y_bucket,
+                COUNT(*) AS count
+            FROM metadata
+            WHERE {x_valid}
+              AND {y_valid}
+            GROUP BY {x_expr}, {y_expr}
+            ORDER BY count DESC
+            LIMIT 12000
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        x_totals = {}
+        y_totals = {}
+        pair_counts = {}
+
+        for row in rows:
+            xb = str(row.get("x_bucket") if row.get("x_bucket") is not None else "Unknown")
+            yb = str(row.get("y_bucket") if row.get("y_bucket") is not None else "Unknown")
+            c = int(row.get("count") or 0)
+            if c <= 0:
+                continue
+            x_totals[xb] = x_totals.get(xb, 0) + c
+            y_totals[yb] = y_totals.get(yb, 0) + c
+            pair_counts[(xb, yb)] = pair_counts.get((xb, yb), 0) + c
+
+        x_labels = [k for k, _ in sorted(x_totals.items(), key=lambda t: t[1], reverse=True)[:top_x]]
+        y_labels = [k for k, _ in sorted(y_totals.items(), key=lambda t: t[1], reverse=True)[:top_y]]
+
+        matrix = []
+        for yb in y_labels:
+            series_data = [pair_counts.get((xb, yb), 0) for xb in x_labels]
+            matrix.append({"series": yb, "data": series_data})
+
+        return jsonify({
+            "x_field": x_field,
+            "x_label": _labelize_column(x_field),
+            "x_mode": "year" if x_is_year else "raw",
+            "y_field": y_field,
+            "y_label": _labelize_column(y_field),
+            "y_mode": "year" if y_is_year else "raw",
+            "x_labels": x_labels,
+            "series": matrix
+        }), 200
+    except Exception as e:
+        logging.error(f"Error fetching professor cross distribution: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/prof/value_options')
+def api_prof_value_options():
+    """
+    Return dropdown options for a metadata field (with optional search and filters).
+    Query params:
+      - field: metadata column name
+      - mode: raw | year | auto
+      - q: optional text search on bucket label
+      - limit: max values (default 250, max 600)
+      - filters: JSON object of {field: [values...]}
+    """
+    field = (request.args.get("field") or "").strip()
+    mode = (request.args.get("mode") or "auto").strip().lower()
+    search_q = (request.args.get("q") or "").strip()
+    raw_filters = (request.args.get("filters") or "").strip()
+    try:
+        limit = int(request.args.get("limit", "250"))
+    except ValueError:
+        limit = 250
+    limit = max(20, min(limit, 600))
+
+    try:
+        allowed = set(_metadata_columns())
+        if field not in allowed:
+            return jsonify({"error": "Invalid field"}), 400
+
+        expr, valid_clause, resolved_mode = _prof_bucket_parts(field, mode)
+        filters = _parse_prof_filters(raw_filters, allowed)
+
+        where_clauses = [valid_clause]
+        params = []
+
+        for f_key, f_values in filters.items():
+            f_expr, f_valid, _ = _prof_bucket_parts(f_key, "auto")
+            placeholders = ", ".join(["%s"] * len(f_values))
+            where_clauses.append(f"{f_valid} AND {f_expr} IN ({placeholders})")
+            params.extend(f_values)
+
+        if search_q:
+            where_clauses.append(f"CAST({expr} AS CHAR(255)) LIKE %s")
+            params.append(f"%{search_q}%")
+
+        where_sql = " AND ".join(where_clauses)
+
+        conn = mysql.connector.connect(**database_config)
+        cursor = conn.cursor(dictionary=True)
+        query = f"""
+            SELECT
+                {expr} AS bucket,
+                COUNT(*) AS count
+            FROM metadata
+            WHERE {where_sql}
+            GROUP BY {expr}
+            ORDER BY count DESC
+            LIMIT %s
+        """
+        cursor.execute(query, tuple(params + [limit]))
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        options = []
+        for row in rows:
+            bucket = row.get("bucket")
+            if bucket is None:
+                continue
+            options.append({
+                "value": str(bucket),
+                "label": str(bucket),
+                "count": int(row.get("count") or 0)
+            })
+
+        return jsonify({
+            "field": field,
+            "field_label": _labelize_column(field),
+            "mode": resolved_mode,
+            "options": options
+        }), 200
+    except Exception as e:
+        logging.error(f"Error fetching value options for {field}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/prof/report')
+def api_prof_report():
+    """
+    Build a report-style grouped chart with optional filter dimensions.
+    Query params:
+      - x_field, series_field
+      - x_mode, series_mode
+      - measurement: count | sum:<numeric_field>
+      - top_x, top_series
+      - filters: JSON object of {field: [values...]}
+    """
+    x_field = (request.args.get("x_field") or "").strip()
+    series_field = (request.args.get("series_field") or "").strip()
+    x_mode = (request.args.get("x_mode") or "auto").strip().lower()
+    series_mode = (request.args.get("series_mode") or "auto").strip().lower()
+    measurement = (request.args.get("measurement") or "count").strip().lower()
+    raw_filters = (request.args.get("filters") or "").strip()
+
+    try:
+        top_x = int(request.args.get("top_x", "14"))
+    except ValueError:
+        top_x = 14
+    try:
+        top_series = int(request.args.get("top_series", "8"))
+    except ValueError:
+        top_series = 8
+    top_x = max(4, min(top_x, 40))
+    top_series = max(2, min(top_series, 20))
+
+    try:
+        allowed = set(_metadata_columns())
+        if x_field not in allowed or series_field not in allowed:
+            return jsonify({"error": "Invalid x_field or series_field"}), 400
+
+        x_expr, x_valid, x_resolved_mode = _prof_bucket_parts(x_field, x_mode)
+        s_expr, s_valid, s_resolved_mode = _prof_bucket_parts(series_field, series_mode)
+        filters = _parse_prof_filters(raw_filters, allowed)
+
+        metric_label = "Record Count"
+        metric_expr = "COUNT(*)"
+        if measurement.startswith("sum:"):
+            sum_field = measurement.split(":", 1)[1].strip()
+            if sum_field in allowed:
+                metric_expr = f"SUM(COALESCE(CAST(`{sum_field}` AS DECIMAL(18, 4)), 0))"
+                metric_label = f"Sum of {_labelize_column(sum_field)}"
+            else:
+                return jsonify({"error": "Invalid measurement field"}), 400
+
+        where_clauses = [x_valid, s_valid]
+        params = []
+
+        for f_key, f_values in filters.items():
+            f_expr, f_valid, _ = _prof_bucket_parts(f_key, "auto")
+            placeholders = ", ".join(["%s"] * len(f_values))
+            where_clauses.append(f"{f_valid} AND {f_expr} IN ({placeholders})")
+            params.extend(f_values)
+
+        where_sql = " AND ".join(where_clauses)
+
+        conn = mysql.connector.connect(**database_config)
+        cursor = conn.cursor(dictionary=True)
+        query = f"""
+            SELECT
+                {x_expr} AS x_bucket,
+                {s_expr} AS series_bucket,
+                {metric_expr} AS metric_value
+            FROM metadata
+            WHERE {where_sql}
+            GROUP BY {x_expr}, {s_expr}
+            ORDER BY metric_value DESC
+            LIMIT 18000
+        """
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        x_totals = {}
+        series_totals = {}
+        pair_values = {}
+
+        for row in rows:
+            xb = str(row.get("x_bucket") if row.get("x_bucket") is not None else "Unknown")
+            sb = str(row.get("series_bucket") if row.get("series_bucket") is not None else "Unknown")
+            metric_value = float(row.get("metric_value") or 0)
+            if metric_value <= 0:
+                continue
+            x_totals[xb] = x_totals.get(xb, 0.0) + metric_value
+            series_totals[sb] = series_totals.get(sb, 0.0) + metric_value
+            pair_values[(xb, sb)] = pair_values.get((xb, sb), 0.0) + metric_value
+
+        x_labels = [k for k, _ in sorted(x_totals.items(), key=lambda t: t[1], reverse=True)[:top_x]]
+        series_labels = [k for k, _ in sorted(series_totals.items(), key=lambda t: t[1], reverse=True)[:top_series]]
+
+        series = []
+        for s_label in series_labels:
+            values = [pair_values.get((x_label, s_label), 0.0) for x_label in x_labels]
+            series.append({
+                "series": s_label,
+                "data": values
+            })
+
+        return jsonify({
+            "x_field": x_field,
+            "x_label": _labelize_column(x_field),
+            "x_mode": x_resolved_mode,
+            "series_field": series_field,
+            "series_label": _labelize_column(series_field),
+            "series_mode": s_resolved_mode,
+            "measurement": measurement,
+            "measurement_label": metric_label,
+            "x_labels": x_labels,
+            "series": series
+        }), 200
+    except Exception as e:
+        logging.error(f"Error building professor report: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 def fetch_data_from_db(dataset_type):
     """
     Fetches relevant data from the database for the specified dataset type.
 
     Args:
-        dataset_type (str): One of 'years_reduced', 'sentence_type', 'parole_eligibility'.
+        dataset_type (str): Public dashboard dataset key.
 
     Returns:
         pandas.DataFrame: DataFrame containing the required dataset.
     """
     conn = mysql.connector.connect(**database_config)
 
-    if dataset_type == 'years_reduced':
+    if dataset_type == 'letters_by_county':
+        query = "SELECT county FROM metadata WHERE county IS NOT NULL AND TRIM(county) <> '';"
+    elif dataset_type == 'years_reduced':
         query = "SELECT county, years_reduced FROM metadata WHERE years_reduced IS NOT NULL;"
     elif dataset_type == 'sentence_type':
         query = "SELECT isl_dsl FROM metadata WHERE isl_dsl IS NOT NULL;"
     elif dataset_type == 'parole_eligibility':
         query = "SELECT parole_eligibility_date FROM metadata WHERE parole_eligibility_date IS NOT NULL;"
+    elif dataset_type == 'action_taken':
+        query = "SELECT action_taken FROM metadata WHERE action_taken IS NOT NULL AND TRIM(action_taken) <> '';"
+    elif dataset_type == 'race_distribution':
+        query = """
+            SELECT race, action_taken
+            FROM metadata
+            WHERE race IS NOT NULL AND TRIM(race) <> ''
+        """
+    elif dataset_type == 'ethnicity_distribution':
+        query = """
+            SELECT ethnicity, action_taken
+            FROM metadata
+            WHERE ethnicity IS NOT NULL AND TRIM(ethnicity) <> ''
+        """
+    elif dataset_type == 'isl_dsl_outcome':
+        query = """
+            SELECT isl_dsl, action_taken
+            FROM metadata
+            WHERE (isl_dsl IS NOT NULL AND TRIM(isl_dsl) <> '')
+               OR (action_taken IS NOT NULL AND TRIM(action_taken) <> '')
+        """
     else:
         query = "SELECT county, years_reduced FROM metadata WHERE years_reduced IS NOT NULL;"
 

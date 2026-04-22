@@ -61,26 +61,109 @@
           <div id="data-visualization-container" class="rad-chart-card">
             <div class="rad-stat-grid">
               <div class="rad-stat-card">
-                <div class="rad-stat-label">Total Records</div>
-                <div id="stat-total-records" class="rad-stat-value">--</div>
+                <div class="rad-stat-label">Total Letters</div>
+                <div id="stat-total-letters" class="rad-stat-value">--</div>
               </div>
               <div class="rad-stat-card">
-                <div class="rad-stat-label">Unique Counties</div>
-                <div id="stat-unique-counties" class="rad-stat-value">--</div>
+                <div class="rad-stat-label">Total Individuals</div>
+                <div id="stat-total-individuals" class="rad-stat-value">--</div>
               </div>
               <div class="rad-stat-card">
-                <div class="rad-stat-label">Parole Years Tracked</div>
-                <div id="stat-parole-years" class="rad-stat-value">--</div>
+                <div class="rad-stat-label">Total Counties</div>
+                <div id="stat-total-counties" class="rad-stat-value">--</div>
               </div>
             </div>
             <div>
-              <button class="visualization-button active" data-dataset="years_reduced">Years Reduced by County</button>
-              <button class="visualization-button" data-dataset="sentence_type">Sentence Types</button>
-              <button class="visualization-button" data-dataset="parole_eligibility">Parole Eligibility Visuals</button>
+              <button class="visualization-button" data-dataset="poster_view">Second Chance Gap</button>
+              <button class="visualization-button active" data-dataset="letters_by_county">Letters by County</button>
+              <button class="visualization-button" data-dataset="years_reduced">Years Reduced by County</button>
+              <button class="visualization-button" data-dataset="sentence_type">ISL vs DSL Distribution</button>
+              <button class="visualization-button" data-dataset="parole_eligibility">Parole Eligibility by Year</button>
+              <button class="visualization-button" data-dataset="action_taken">Cases by Action Taken</button>
+              <button class="visualization-button" data-dataset="race_distribution">Race Distribution</button>
+              <button class="visualization-button" data-dataset="ethnicity_distribution">Ethnicity Distribution</button>
+              <button class="visualization-button" data-dataset="isl_dsl_outcome">ISL/DSL by Outcome</button>
             </div>
             <div class="rad-chart-canvas-wrap">
               <div id="loadingMessage" style="display:none;">Loading...</div>
               <canvas id="publicDashboardChart" aria-label="Public aggregate data visualization"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rad-data-section" aria-labelledby="rad-prof-heading">
+        <div class="rad-data-section-inner">
+          <h2 id="rad-prof-heading" class="wp-block-heading has-x-large-font-size rad-data-heading">Professor Variable Explorer (Internal)</h2>
+          <div class="rad-chart-card">
+            <p class="rad-tool-note">Report builder style explorer with multiple dropdown filters (year, county, event point, race, offense, measurement).</p>
+            <div class="rad-prof-controls">
+              <div class="rad-prof-control">
+                <label for="prof-x-variable-select">Customize</label>
+                <select id="prof-x-variable-select"></select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-year-filter-select">Year</label>
+                <select id="prof-year-filter-select" multiple></select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-county-filter-select">County</label>
+                <select id="prof-county-filter-select" multiple></select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-event-filter-select">Event Point</label>
+                <select id="prof-event-filter-select" multiple></select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-race-filter-select">Race</label>
+                <select id="prof-race-filter-select" multiple></select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-offense-filter-select">Offense</label>
+                <select id="prof-offense-filter-select" multiple></select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-measurement-select">Measurement</label>
+                <select id="prof-measurement-select">
+                  <option value="count" selected>Record Count</option>
+                  <option value="sum:years_reduced">Total Years Reduced</option>
+                </select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-series-variable-select">Split By</label>
+                <select id="prof-series-variable-select"></select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-chart-type-select">Chart Type</label>
+                <select id="prof-chart-type-select">
+                  <option value="stacked_bar" selected>Stacked Horizontal</option>
+                  <option value="stacked_bar_100">100% Stacked Horizontal</option>
+                  <option value="stacked_column">Stacked Column</option>
+                  <option value="stacked_column_100">100% Stacked Column</option>
+                  <option value="grouped_column">Grouped Column</option>
+                </select>
+              </div>
+              <div class="rad-prof-control">
+                <label for="prof-topx-select">Top Categories</label>
+                <select id="prof-topx-select">
+                  <option value="10">10</option>
+                  <option value="14" selected>14</option>
+                  <option value="20">20</option>
+                  <option value="30">30</option>
+                </select>
+              </div>
+              <div class="rad-prof-control rad-prof-control-btn">
+                <label>&nbsp;</label>
+                <button id="prof-refresh-btn" class="rad-button rad-button--primary" type="button">Update</button>
+              </div>
+            </div>
+            <div class="rad-prof-meta">
+              <span id="prof-meta-field">Customize: --</span>
+              <span id="prof-meta-mode">Split by: --</span>
+            </div>
+            <div id="prof-loading-message" style="display:none;">Loading variable explorer...</div>
+            <div class="rad-chart-canvas-wrap">
+              <canvas id="professorExplorerChart" aria-label="Professor variable explorer chart"></canvas>
             </div>
           </div>
         </div>

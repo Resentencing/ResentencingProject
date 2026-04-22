@@ -106,3 +106,4 @@ python flask_app.py
 | `/visualize`, `/api/stats` | Yes |
 
 `GET /ping` should return `{"ok": true}`.
+

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tool Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/rad-scales-theme.css') }}">
+  <style>
+    .rad-toolhub-shell { max-width: var(--rf-max); margin: 0 auto; padding: var(--rf-pad-y) var(--rf-pad-x); }
+    .rad-toolhub-title { margin: 0 0 0.5rem; font-family: var(--rf-font-serif); font-size: var(--rf-h1); line-height: 1.1; }
+    .rad-toolhub-lead { margin: 0 0 1.75rem; color: var(--rf-muted); font-size: var(--rf-lead); max-width: var(--rf-prose); }
+    .rad-toolhub-card { background: #fff; border: 1px solid var(--rf-border); border-radius: var(--rf-radius-lg); box-shadow: var(--rf-shadow-sm); padding: 1.25rem; margin-bottom: 1rem; }
+    .rad-toolhub-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; color: var(--rf-muted); font-size: 0.9rem; }
+    .rad-badge { display: inline-block; border: 1px solid var(--rf-border); background: #f8fafc; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: 0.78rem; color: var(--rf-ink-soft); }
+    .rad-subtabs { display:flex; flex-wrap:wrap; gap:0.6rem; margin: 0 0 1rem; }
+    .rad-subtab-btn {
+      border: 1px solid var(--rf-border-strong);
+      background: #fff;
+      color: var(--rf-ink-soft);
+      border-radius: 999px;
+      padding: 0.45rem 0.95rem;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+    .rad-subtab-btn.active {
+      background: var(--rf-accent);
+      color: #fff;
+      border-color: var(--rf-accent);
+    }
+    .rad-subtab-pane { display: none; }
+    .rad-subtab-pane.active { display: block; }
+    .rad-toolhub-grid { display: grid; grid-template-columns: 220px 1fr 130px; gap: 0.75rem; margin-top: 0.75rem; }
+    .rad-toolhub-input, .rad-toolhub-select, .rad-toolhub-textarea { border: 1px solid var(--rf-border-strong); border-radius: var(--rf-radius); padding: 0.65rem 0.7rem; font: inherit; width: 100%; }
+    .rad-toolhub-btn { border: 1px solid var(--rf-accent); background: var(--rf-accent); color: #fff; border-radius: 999px; padding: 0.6rem 1rem; font: inherit; cursor: pointer; font-weight: 600; }
+    .rad-toolhub-btn:hover { background: var(--rf-accent-hover); border-color: var(--rf-accent-hover); }
+    .rad-toolhub-btn.secondary { background: #fff; color: var(--rf-ink-soft); border: 1px solid var(--rf-border-strong); }
+    .rad-toolhub-error { color: #b91c1c; margin: 0.5rem 0 0; }
+    .rad-toolhub-table-wrap { overflow-x: auto; margin-top: 0.75rem; border: 1px solid var(--rf-border); border-radius: var(--rf-radius); }
+    .rad-toolhub-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .rad-toolhub-table th, .rad-toolhub-table td { border-bottom: 1px solid #edf2f7; text-align: left; padding: 0.6rem 0.65rem; vertical-align: top; }
+    .rad-toolhub-table th { background: #f8fafc; font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rf-muted); }
+    .rad-toolhub-muted { color: var(--rf-muted); font-size: 0.92rem; }
+    .rad-toolhub-actions a { margin-right: 0.55rem; display: inline-block; margin-top: 0.15rem; }
+    .rad-ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.8rem; }
+    .rad-ai-response { white-space: pre-wrap; background: #f8fafc; border: 1px solid var(--rf-border); border-radius: var(--rf-radius); min-height: 110px; padding: 0.75rem; }
+    @media (max-width: 980px) {
+      .rad-toolhub-grid { grid-template-columns: 1fr; }
+      .rad-ai-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="rad-app">
+  <div class="wp-site-blocks">
+    <header class="wp-block-template-part rad-site-header">
+      <div class="wp-block-group alignwide has-base-background-color has-background has-global-padding is-layout-constrained wp-block-group-is-layout-constrained" style="padding-top:20px;padding-bottom:20px">
+        <div class="wp-block-group alignwide is-content-justification-space-between is-layout-flex wp-container-core-group-is-layout-4 wp-block-group-is-layout-flex">
+          <div class="wp-block-group is-layout-flex wp-container-core-group-is-layout-2 wp-block-group-is-layout-flex">
+            <div class="wp-block-group is-layout-flow wp-container-core-group-is-layout-1 wp-block-group-is-layout-flow">
+              <p class="wp-block-site-title"><a href="/" target="_self" rel="home">Resentence and Decarcerate (RAD)</a></p>
+            </div>
+          </div>
+          <div class="wp-block-group is-content-justification-left is-layout-flex wp-container-core-group-is-layout-3 wp-block-group-is-layout-flex rad-header-nav-wrap">
+            <nav class="rad-primary-nav" aria-label="Primary navigation">
+              <ul class="rad-primary-nav__list">
+                <li><a href="/" class="rad-primary-nav__link">Home</a></li>
+                <li><a href="/about" class="rad-primary-nav__link">About Us</a></li>
+                <li><a href="/toolhub" class="rad-primary-nav__link" aria-current="page">Tool Hub</a></li>
+                <li><a href="{{ url_for('access_logout') }}" class="rad-primary-nav__link">Sign out</a></li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="wp-block-group is-layout-flow wp-block-group-is-layout-flow" style="margin-top:0">
+      <section class="rad-data-section">
+        <div class="rad-toolhub-shell">
+          <h1 class="rad-toolhub-title">Tool Hub</h1>
+          <p class="rad-toolhub-lead">Unified search for aggregate patterns and individual case records in one place. Select a field, enter a term, then review both summary counts and detailed matching records.</p>
+
+          <div class="rad-toolhub-card">
+            <div class="rad-toolhub-meta">
+              <span>Signed in as <strong>{{ access_email }}</strong></span>
+              <span>role: <strong>{{ access_role }}</strong></span>
+              {% if limits.unlimited %}
+                <span class="rad-badge">Unlimited downloads</span>
+              {% else %}
+                <span class="rad-badge">{{ limits.downloads_per_hour }}/hour</span>
+                <span class="rad-badge">{{ limits.downloads_per_day }}/day</span>
+                <span class="rad-badge">{{ limits.zips_per_day }} ZIP/day</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="rad-subtabs">
+            <button type="button" class="rad-subtab-btn active" data-subtab="search">Search</button>
+            <button type="button" class="rad-subtab-btn" data-subtab="ai">AI Assistant</button>
+          </div>
+
+          <section id="subtab-search" class="rad-subtab-pane active">
+            <div class="rad-toolhub-card">
+              <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">Unified Search</h2>
+              <p class="rad-toolhub-muted">One search runs both aggregate and detailed views.</p>
+              <form method="post" class="rad-toolhub-grid">
+                <select name="search_field" class="rad-toolhub-select">
+                  {% for key, label in unified_fields.items() %}
+                    <option value="{{ key }}" {% if search_field == key %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <input name="search_term" class="rad-toolhub-input" value="{{ search_term }}" placeholder="Type a keyword, case number, CDCR, name, county, cohort, etc.">
+                <button type="submit" class="rad-toolhub-btn">Search</button>
+              </form>
+              {% if error_message %}
+                <p class="rad-toolhub-error">{{ error_message }}</p>
+              {% endif %}
+            </div>
+
+            <div class="rad-toolhub-card">
+              <h3 class="wp-block-heading" style="margin-top:0;">Aggregate Snapshot</h3>
+              <div class="rad-toolhub-table-wrap">
+                <table class="rad-toolhub-table">
+                  <thead>
+                    <tr>
+                      <th>Group</th>
+                      <th>Letter Count</th>
+                      <th>People Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in aggregate_results %}
+                      <tr>
+                        <td>{{ row.group_value }}</td>
+                        <td>{{ row.letter_count }}</td>
+                        <td>{{ row.people_count }}</td>
+                      </tr>
+                    {% else %}
+                      <tr><td colspan="3" class="rad-toolhub-muted">No aggregate results yet.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="rad-toolhub-card">
+              <h3 class="wp-block-heading" style="margin-top:0;">Detailed Records</h3>
+              <div class="rad-toolhub-table-wrap">
+                <table class="rad-toolhub-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>CDCR</th>
+                      <th>Case #</th>
+                      <th>Judge</th>
+                      <th>Institution</th>
+                      <th>County</th>
+                      <th>Action</th>
+                      <th>File Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in detail_results %}
+                      <tr>
+                        <td>{{ row.convict_name or "-" }}</td>
+                        <td>{{ row.cdcr_number or "-" }}</td>
+                        <td>{{ row.case_number or "-" }}</td>
+                        <td>{{ row.judge or "-" }}</td>
+                        <td>{{ row.institution or "-" }}</td>
+                        <td>{{ row.county or "-" }}</td>
+                        <td>{{ row.action_taken or "-" }}</td>
+                        <td class="rad-toolhub-actions">
+                          <div>{{ row.filename }}</div>
+                          <a href="{{ url_for('download_signed', token=row.download_token) }}">Download PDF</a>
+                          <a href="{{ url_for('download_person_zip', token=row.zip_token) }}">Download all for person (ZIP)</a>
+                        </td>
+                      </tr>
+                    {% else %}
+                      <tr><td colspan="8" class="rad-toolhub-muted">No detailed results yet.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <p class="rad-toolhub-muted">Default limits: 10 downloads/hour, 50/day, 3 ZIP/day. Government domains and role rules can override these limits.</p>
+            </div>
+          </section>
+
+          <section id="subtab-ai" class="rad-subtab-pane">
+            <div class="rad-toolhub-card">
+            <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">Database AI Assistant</h2>
+            <p class="rad-toolhub-muted">Ask natural-language questions about the records. You can ask aggregate or individual-level questions.</p>
+            <div class="rad-ai-grid">
+              <div>
+                <label for="ai-query"><strong>Ask a question</strong></label>
+                <textarea id="ai-query" class="rad-toolhub-textarea" rows="6" placeholder="Examples: &#10;- How many Exceptional Conduct letters are in Sacramento County?&#10;- Show records for CDCR AE9384"></textarea>
+                <div style="margin-top:8px; display:flex; gap:8px;">
+                  <button id="ai-submit" type="button" class="rad-toolhub-btn">Ask AI</button>
+                  <button id="ai-clear" type="button" class="rad-toolhub-btn secondary">Clear</button>
+                </div>
+              </div>
+              <div>
+                <label><strong>Response</strong></label>
+                <div id="ai-response" class="rad-ai-response">No response yet.</div>
+                <p class="rad-toolhub-muted">Backend endpoint: {{ backend_base_url }}/query_ai</p>
+              </div>
+            </div>
+          </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const subtabButtons = document.querySelectorAll(".rad-subtab-btn");
+    const subtabPanes = document.querySelectorAll(".rad-subtab-pane");
+    subtabButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const target = btn.dataset.subtab;
+        subtabButtons.forEach(b => b.classList.toggle("active", b === btn));
+        subtabPanes.forEach(p => p.classList.toggle("active", p.id === `subtab-${target}`));
+      });
+    });
+
+    const queryEl = document.getElementById("ai-query");
+    const responseEl = document.getElementById("ai-response");
+    document.getElementById("ai-submit").addEventListener("click", async () => {
+      const query = queryEl.value.trim();
+      if (!query) return;
+      responseEl.textContent = "Loading...";
+      try {
+        const res = await fetch("/query_ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        });
+        const data = await res.json();
+        responseEl.textContent = data.response || data.error || "No response.";
+      } catch (err) {
+        responseEl.textContent = "Request failed: " + err;
+      }
+    });
+    document.getElementById("ai-clear").addEventListener("click", () => {
+      queryEl.value = "";
+      responseEl.textContent = "No response yet.";
+    });
+  </script>
+</body>
+</html>

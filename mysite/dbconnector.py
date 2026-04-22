@@ -6,7 +6,7 @@ import math  # Needed to check for NaN
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -17,6 +17,7 @@ database_config = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
     "database": os.getenv("DB_NAME"),
+    "port": int(os.getenv("DB_PORT", "3306")),
 }
 
 def connect_to_database():

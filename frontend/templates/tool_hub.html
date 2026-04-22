@@ -47,6 +47,22 @@
     .rad-toolhub-actions a { margin-right: 0.55rem; display: inline-block; margin-top: 0.15rem; }
     .rad-ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.8rem; }
     .rad-ai-response { white-space: pre-wrap; background: #f8fafc; border: 1px solid var(--rf-border); border-radius: var(--rf-radius); min-height: 110px; padding: 0.75rem; }
+    .rad-ai-presets { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.65rem; }
+    .rad-ai-preset-btn {
+      border: 1px solid var(--rf-border-strong);
+      background: #fff;
+      color: var(--rf-ink-soft);
+      border-radius: 999px;
+      padding: 0.38rem 0.72rem;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .rad-ai-preset-btn:hover {
+      border-color: var(--rf-accent);
+      color: var(--rf-accent);
+    }
     @media (max-width: 980px) {
       .rad-toolhub-grid { grid-template-columns: 1fr; }
       .rad-ai-grid { grid-template-columns: 1fr; }
@@ -196,6 +212,12 @@
               <div>
                 <label for="ai-query"><strong>Ask a question</strong></label>
                 <textarea id="ai-query" class="rad-toolhub-textarea" rows="6" placeholder="Examples: &#10;- How many Exceptional Conduct letters are in Sacramento County?&#10;- Show records for CDCR AE9384"></textarea>
+                <div class="rad-ai-presets" aria-label="Preset AI prompts">
+                  <button type="button" class="rad-ai-preset-btn" data-preset-query="Using the metadata table, for each county with at least 5 records, show total records, successful relief count (Action Taken contains resentenced/released/granted/approved/recalled), and success rate percentage sorted highest to lowest.">County Success Table</button>
+                  <button type="button" class="rad-ai-preset-btn" data-preset-query="From successful relief cases in the metadata table (Action Taken contains resentenced/released/granted/approved/recalled), show the top 10 counties by total Years Term Reduced By and include average Years Term Reduced By per successful case.">Years Reduced Impact</button>
+                  <button type="button" class="rad-ai-preset-btn" data-preset-query="In the metadata table, summarize the Action Taken field: count and percentage of total records for each category, sorted by count descending.">Action Distribution</button>
+                </div>
+                <p class="rad-toolhub-muted" style="margin-top:0.45rem;">Tip: Mention “metadata table” and human field labels (for example, “Action Taken” and “Years Term Reduced By”) for more reliable answers.</p>
                 <div style="margin-top:8px; display:flex; gap:8px;">
                   <button id="ai-submit" type="button" class="rad-toolhub-btn">Ask AI</button>
                   <button id="ai-clear" type="button" class="rad-toolhub-btn secondary">Clear</button>
@@ -227,7 +249,7 @@
 
     const queryEl = document.getElementById("ai-query");
     const responseEl = document.getElementById("ai-response");
-    document.getElementById("ai-submit").addEventListener("click", async () => {
+    const submitAiQuery = async () => {
       const query = queryEl.value.trim();
       if (!query) return;
       responseEl.textContent = "Loading...";
@@ -242,6 +264,16 @@
       } catch (err) {
         responseEl.textContent = "Request failed: " + err;
       }
+    };
+
+    document.getElementById("ai-submit").addEventListener("click", submitAiQuery);
+    document.querySelectorAll(".rad-ai-preset-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const presetQuery = (btn.dataset.presetQuery || "").trim();
+        if (!presetQuery) return;
+        queryEl.value = presetQuery;
+        submitAiQuery();
+      });
     });
     document.getElementById("ai-clear").addEventListener("click", () => {
       queryEl.value = "";

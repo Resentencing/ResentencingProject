@@ -11,6 +11,7 @@ __pycache__/
 # Environment and dependency management
 .env
 .env.*
+.python-version
 .venv/
 venv/
 ENV/

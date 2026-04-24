@@ -129,8 +129,13 @@ def upload_to_database(connection, pdf_folder, text_folder, metadata_file):
                 logging.error(f"Failed to retrieve pdf_id for {pdf_filename}. Skipping entry.")
                 continue
 
-            # Check if metadata entry already exists for this specific case number
-            cursor.execute("SELECT COUNT(*) FROM metadata WHERE pdf_id = %s AND case_number = %s", (pdf_id, metadata["CASE NO"]))
+            # Check if metadata entry already exists for this case/date combination.
+            # Using date_stamped reduces false duplicate skips when multiple letters
+            # exist for one person and case over time.
+            cursor.execute(
+                "SELECT COUNT(*) FROM metadata WHERE pdf_id = %s AND case_number = %s AND date_stamped <=> %s",
+                (pdf_id, metadata["CASE NO"], metadata.get("DATE STAMPED")),
+            )
             existing_metadata = cursor.fetchone()[0]
 
             if existing_metadata > 0:

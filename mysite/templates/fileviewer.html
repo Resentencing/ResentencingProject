@@ -9,6 +9,8 @@
     <label for="sort">Sort by:</label>
     <select name="sort" id="sort" onchange="document.getElementById('sortForm').submit();">
         <option value="filename" {% if sort_field == 'filename' %}selected{% endif %}>File Name</option>
+        <option value="uploaded_newest" {% if sort_field == 'uploaded_newest' %}selected{% endif %}>Uploaded (Newest)</option>
+        <option value="uploaded_oldest" {% if sort_field == 'uploaded_oldest' %}selected{% endif %}>Uploaded (Oldest)</option>
         <option value="case_number" {% if sort_field == 'case_number' %}selected{% endif %}>Case Number</option>
         <option value="cdcr_number" {% if sort_field == 'cdcr_number' %}selected{% endif %}>CDCR Number</option>
         <option value="date_stamped" {% if sort_field == 'date_stamped' %}selected{% endif %}>Date Stamped</option>

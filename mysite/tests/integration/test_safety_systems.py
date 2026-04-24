@@ -217,8 +217,9 @@ class TestUploadSafetyManager:
 class TestSafeUploadPipelineSafety:
     """Tests for safety features in SafeUploadPipeline."""
     
-    def test_safe_file_clear_success(self, temp_dir):
+    def test_safe_file_clear_success(self, temp_dir, monkeypatch):
         """Test safe file clearing after successful upload."""
+        monkeypatch.setenv("LOG_DIR", os.path.join(temp_dir, "logs"))
         safety_manager = UploadSafetyManager(
             log_dir=os.path.join(temp_dir, "logs"),
             shadow_dir=os.path.join(temp_dir, "shadow")
@@ -242,8 +243,9 @@ class TestSafeUploadPipelineSafety:
         for file_path in test_files:
             assert not os.path.exists(file_path)
     
-    def test_safe_file_clear_with_failures(self, temp_dir):
+    def test_safe_file_clear_with_failures(self, temp_dir, monkeypatch):
         """Test that files are kept when uploads fail."""
+        monkeypatch.setenv("LOG_DIR", os.path.join(temp_dir, "logs"))
         safety_manager = UploadSafetyManager(
             log_dir=os.path.join(temp_dir, "logs"),
             shadow_dir=os.path.join(temp_dir, "shadow")
@@ -272,8 +274,9 @@ class TestSafeUploadPipelineSafety:
         for file_path in test_files:
             assert os.path.exists(file_path)
     
-    def test_safe_file_clear_force(self, temp_dir):
+    def test_safe_file_clear_force(self, temp_dir, monkeypatch):
         """Test forced file clearing even with failures."""
+        monkeypatch.setenv("LOG_DIR", os.path.join(temp_dir, "logs"))
         safety_manager = UploadSafetyManager(
             log_dir=os.path.join(temp_dir, "logs"),
             shadow_dir=os.path.join(temp_dir, "shadow")
@@ -296,8 +299,9 @@ class TestSafeUploadPipelineSafety:
         assert results["files_cleared"] == 1
         assert not os.path.exists(test_file)
     
-    def test_upload_with_shadow_copy(self, temp_dir, mock_db_connection, sample_metadata):
+    def test_upload_with_shadow_copy(self, temp_dir, mock_db_connection, sample_metadata, monkeypatch):
         """Test that upload creates shadow copies."""
+        monkeypatch.setenv("LOG_DIR", os.path.join(temp_dir, "logs"))
         safety_manager = UploadSafetyManager(
             log_dir=os.path.join(temp_dir, "logs"),
             shadow_dir=os.path.join(temp_dir, "shadow")
@@ -321,10 +325,10 @@ class TestSafeUploadPipelineSafety:
         
         mock_cursor.fetchone.side_effect = [(1,), (0,)]
         
-        with patch('safe_upload_pipeline.os.getenv', return_value=pdf_folder):
-            results = pipeline.safe_upload_to_database(
-                mock_conn, pdf_folder, text_folder, metadata_file
-            )
+        monkeypatch.setenv("ARCHIVE_DIR", pdf_folder)
+        results = pipeline.safe_upload_to_database(
+            mock_conn, pdf_folder, text_folder, metadata_file
+        )
         
         # Shadow copy should be created (if implemented in pipeline)
         # This tests the integration between pipeline and safety manager

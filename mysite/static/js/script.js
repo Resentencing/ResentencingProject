@@ -164,9 +164,21 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch('/upload_to_database', {
             method: 'POST',
         })
-        .then(response => {
+        .then(async response => {
             console.log(`Server response status: ${response.status}`);
-            return response.json();
+            const raw = await response.text();
+            let data = null;
+            try {
+                data = raw ? JSON.parse(raw) : {};
+            } catch (_e) {
+                const snippet = (raw || "").slice(0, 300).trim();
+                throw new Error(`HTTP ${response.status}: ${snippet || "Non-JSON response from server"}`);
+            }
+            if (!response.ok) {
+                const errMsg = data.error || data.message || `HTTP ${response.status}`;
+                throw new Error(errMsg);
+            }
+            return data;
         })
         .then(data => {
             clearTimeout(timeoutWarning);

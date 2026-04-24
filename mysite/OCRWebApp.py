@@ -227,6 +227,13 @@ def upload_to_database_route():
 
         # Upload to database
         dbconnector.upload_to_database(conn, "/home/RSCAP/shared/archive_directory", "OCRextractions", "./Jsontags/metadata.json")
+        try:
+            cur_lineage = conn.cursor()
+            from dataset_lineage import touch_dataset_source
+            touch_dataset_source(cur_lineage, conn, "letters_db", detail="legacy upload_to_database")
+            cur_lineage.close()
+        except Exception as lineage_err:
+            logging.warning("dataset lineage (letters) skipped: %s", lineage_err)
         conn.close()
 
         logging.info("Database upload completed successfully.")
@@ -563,6 +570,18 @@ def upload_excel_files():
                             logging.warning(f"Could not remove old log file {existing}: {e}")
 
     if saved_files:
+        try:
+            conn_lineage = mysql.connector.connect(**database_config)
+            cur_lineage = conn_lineage.cursor()
+            from dataset_lineage import touch_dataset_source
+            for fn in saved_files:
+                lk = fn.lower()
+                src_key = "race_data" if "race" in lk else "main_log"
+                touch_dataset_source(cur_lineage, conn_lineage, src_key, detail=fn)
+            cur_lineage.close()
+            conn_lineage.close()
+        except Exception as lineage_err:
+            logging.warning("dataset lineage (excel upload) skipped: %s", lineage_err)
         return jsonify(status='success', message=f"Uploaded {len(saved_files)} Excel files.")
     else:
         return jsonify(status='error', message="No valid files were saved.")

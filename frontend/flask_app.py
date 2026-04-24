@@ -18,7 +18,10 @@ import httpx
 from dotenv import load_dotenv
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
+# Load environment variables (repo root .env fills keys missing from cwd)
+_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 load_dotenv()
+load_dotenv(os.path.join(_repo_root, ".env"), override=False)
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _PROJECT_ROOT not in sys.path:
@@ -40,7 +43,10 @@ CORS(app, resources={
     },
     r"/api/stats": {
         "origins": ["*"]  # Allow frontend from any origin to fetch stats JSON
-    }
+    },
+    r"/api/public_summary": {
+        "origins": ["*"]
+    },
 })
 
 # Cache directory for faster visualization loading
@@ -65,7 +71,10 @@ BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:5000").rstrip
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY") or os.getenv("API_KEY", "")
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "ResentenceDecarcerate@gmail.com")
 GITHUB_REPO_URL = os.getenv("GITHUB_REPO_URL", "").strip()
-ACCESS_REQUEST_URL = os.getenv("ACCESS_REQUEST_URL", "").strip()
+ACCESS_REQUEST_URL = (
+    os.getenv("ACCESS_REQUEST_URL", "").strip()
+    or "https://forms.gle/TZ1uucmPxKUCQUCy9"
+)
 DOWNLOAD_LINK_MAX_AGE_SEC = int(os.getenv("DOWNLOAD_LINK_MAX_AGE_SEC", "900"))
 DEFAULT_DOWNLOADS_PER_HOUR = int(os.getenv("DOWNLOADS_PER_HOUR", "10"))
 DEFAULT_DOWNLOADS_PER_DAY = int(os.getenv("DOWNLOADS_PER_DAY", "50"))
@@ -88,6 +97,52 @@ except json.JSONDecodeError:
 AUDIT_LOG_PATH = os.path.join(os.path.dirname(__file__), "audit.log")
 RATE_STATE = {}
 _METADATA_COLUMNS_CACHE = None
+
+# Keep in sync with mysite/dataset_lineage.py (public site reads; backend writes on upload).
+_DATASET_LINEAGE_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS dataset_source_refresh (
+    source_key VARCHAR(32) NOT NULL PRIMARY KEY,
+    refreshed_at DATETIME NOT NULL,
+    detail VARCHAR(512) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+
+def _iso_date_from_env(date_str):
+    """Parse YYYY-MM-DD from env; return ISO 8601 UTC midnight for JSON."""
+    if not date_str or not str(date_str).strip():
+        return None
+    s = str(date_str).strip()[:10]
+    try:
+        d = datetime.date.fromisoformat(s)
+        dt = datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc)
+        return dt.isoformat()
+    except ValueError:
+        logging.warning("Invalid PUBLIC_FRESHNESS_*_DATE (expected YYYY-MM-DD): %s", date_str)
+        return None
+
+
+def _merge_public_freshness_fallbacks(data_freshness):
+    """
+    Fill missing lineage timestamps from PUBLIC_FRESHNESS_* env vars.
+    Rows in dataset_source_refresh always win when as_of is present.
+    """
+    env_pairs = (
+        ("main_log", "PUBLIC_FRESHNESS_MAIN_LOG_DATE", "PUBLIC_FRESHNESS_MAIN_LOG_DETAIL"),
+        ("race_data", "PUBLIC_FRESHNESS_RACE_DATA_DATE", "PUBLIC_FRESHNESS_RACE_DATA_DETAIL"),
+        ("letters_db", "PUBLIC_FRESHNESS_LETTERS_DB_DATE", "PUBLIC_FRESHNESS_LETTERS_DB_DETAIL"),
+    )
+    for key, date_env, detail_env in env_pairs:
+        cur = data_freshness.get(key)
+        if cur and cur.get("as_of"):
+            continue
+        iso = _iso_date_from_env(os.getenv(date_env))
+        if not iso:
+            continue
+        detail = (os.getenv(detail_env) or "").strip() or None
+        data_freshness[key] = {"as_of": iso, "source_file": detail}
+    return data_freshness
+
 
 BROWSE_FIELDS = {
     "county": "County",
@@ -362,6 +417,7 @@ def access_gate():
         "access.html",
         contact_email=CONTACT_EMAIL,
         debug_enabled=debug_enabled,
+        access_request_url=ACCESS_REQUEST_URL,
     )
 
 
@@ -946,12 +1002,46 @@ def api_public_summary():
             FROM metadata
         """)
         row = cursor.fetchone() or {}
+
+        data_freshness = {
+            "main_log": None,
+            "race_data": None,
+            "letters_db": None,
+        }
+        try:
+            cursor.execute(_DATASET_LINEAGE_TABLE_SQL)
+            cursor.execute(
+                """
+                SELECT source_key, refreshed_at, detail
+                FROM dataset_source_refresh
+                WHERE source_key IN ('main_log', 'race_data', 'letters_db')
+                """
+            )
+            for r in cursor.fetchall() or []:
+                key = r.get("source_key")
+                if key not in data_freshness:
+                    continue
+                ts = r.get("refreshed_at")
+                if ts is not None and hasattr(ts, "isoformat"):
+                    ts_out = ts.isoformat()
+                else:
+                    ts_out = str(ts) if ts is not None else None
+                data_freshness[key] = {
+                    "as_of": ts_out,
+                    "source_file": r.get("detail"),
+                }
+        except mysql.connector.Error as lineage_err:
+            logging.debug("dataset lineage read skipped: %s", lineage_err)
+
+        _merge_public_freshness_fallbacks(data_freshness)
+
         cursor.close()
         conn.close()
         return jsonify({
             "total_letters": int(row.get("total_letters") or 0),
             "total_individuals": int(row.get("total_individuals") or 0),
             "total_counties": int(row.get("total_counties") or 0),
+            "data_freshness": data_freshness,
         }), 200
     except Exception as e:
         logging.error(f"Error fetching public summary metrics: {e}")
@@ -1001,14 +1091,40 @@ def api_poster_view():
         def pct(part: int, whole: int) -> float:
             return round((part / whole) * 100, 1) if whole > 0 else 0.0
 
+        # MasterGuide-aligned funnel language (considered → letters sent → resentenced).
+        # Stage counts are computed from metadata rows; see funnel_definitions for caveats.
         stages = [
-            {"label": "Letters Received", "value": total_letters, "rate_from_start": 100.0 if total_letters > 0 else 0.0},
-            {"label": "Court Action Recorded", "value": court_action_cases, "rate_from_start": pct(court_action_cases, total_letters)},
-            {"label": "Successful Relief", "value": successful_cases, "rate_from_start": pct(successful_cases, total_letters)},
+            {
+                "label": "Considered",
+                "value": total_letters,
+                "rate_from_start": 100.0 if total_letters > 0 else 0.0,
+                "definition": "All resentencing letter records in the dataset (one metadata row per tracked letter event).",
+            },
+            {
+                "label": "Letters sent",
+                "value": court_action_cases,
+                "rate_from_start": pct(court_action_cases, total_letters),
+                "definition": "Records with a populated court/outcome field (action taken). Proxies progression after the letter; not the same as a mail timestamp.",
+            },
+            {
+                "label": "Resentenced",
+                "value": successful_cases,
+                "rate_from_start": pct(successful_cases, total_letters),
+                "definition": "Subset where action indicates resentencing, release, grant, approval, or recall (rule-based on action_taken text).",
+            },
         ]
+
+        funnel_definitions = {
+            "framing": "Funnel labels follow the project reporting guide (considered → letters sent → resentenced). Counts are descriptive, not a causal trial.",
+            "considered": stages[0]["definition"],
+            "letters_sent": stages[1]["definition"],
+            "resentenced": stages[2]["definition"],
+            "missingness": "Blank court fields, lagging logs, or letters not yet ingested shrink downstream stages. Race/ethnicity merge depends on the active race spreadsheet.",
+        }
 
         return jsonify({
             "stages": stages,
+            "funnel_definitions": funnel_definitions,
             "impact": {
                 "avg_years_reduced_success": round(avg_years, 2),
                 "total_years_reduced_success": round(total_years, 2),

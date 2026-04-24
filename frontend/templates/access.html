@@ -8,15 +8,35 @@
     body { font-family: Arial, sans-serif; background: #f7f9fc; margin: 0; color: #1f2937; }
     .wrap { max-width: 760px; margin: 48px auto; padding: 24px; background: #fff; border: 1px solid #dbe2ea; border-radius: 12px; }
     h1 { margin-top: 0; }
-    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 1.25rem 0 0.5rem; }
+    .btn {
+      display: inline-block;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: #e2e8f0; color: #1e293b; }
+    .btn-secondary:hover { background: #cbd5e1; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Tool Hub Access Required</h1>
-    <p>This page is protected by a magic-link access flow.</p>
-    <p>Use your link to open <code>/access/session?... </code>. Once your session is created, you will be redirected to the Tool Hub.</p>
-    <p>If you need access, contact <strong>{{ contact_email }}</strong>.</p>
+    <p>This area uses a <strong>magic link</strong> tied to your email. When you are approved, you receive a one-time-style URL that sets your browser session and sends you into the Tool Hub (archive search, downloads, and related tools).</p>
+    <p><strong>Already approved?</strong> Open the access link from your email (it looks like <code>/access/session?e=…&amp;sig=…</code>). Do not bookmark the session page—use the message we sent you, or ask for a fresh link if it expired.</p>
+    <p>If you need access, use <strong>Request access</strong> below or email <strong>{{ contact_email }}</strong>.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="{{ access_request_url }}" target="_blank" rel="noopener noreferrer">Request access</a>
+      <button type="button" class="btn btn-secondary" id="access-back-btn">Back</button>
+    </div>
     {% if debug_enabled %}
       <hr style="margin: 18px 0; border: 0; border-top: 1px solid #e5e7eb;">
       <h2 style="margin: 0 0 8px;">Local dev sign-in</h2>
@@ -28,5 +48,18 @@
       </p>
     {% endif %}
   </div>
+  <script>
+    (function () {
+      var btn = document.getElementById("access-back-btn");
+      if (!btn) return;
+      btn.addEventListener("click", function () {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = "/";
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

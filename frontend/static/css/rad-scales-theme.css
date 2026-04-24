@@ -552,6 +552,100 @@ body.rad-app .rad-data-heading.has-x-large-font-size {
   color: var(--rf-ink);
 }
 
+.rad-data-freshness {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--rf-muted);
+  margin: 0 0 1rem 0;
+  padding: 0.65rem 0.85rem;
+  background: #f1f5f9;
+  border-radius: var(--rf-radius);
+  border: 1px solid var(--rf-border);
+}
+
+.rad-data-freshness__label {
+  font-weight: 600;
+  color: var(--rf-ink-soft);
+  margin-right: 0.35rem;
+}
+
+.rad-data-freshness__hint {
+  font-weight: 400;
+  color: var(--rf-muted);
+}
+
+.rad-data-freshness code {
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.08em 0.3em;
+  border-radius: 4px;
+}
+
+.rad-dashboard-lead {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--rf-muted);
+  max-width: 52rem;
+  margin: 0 auto 1.25rem;
+  padding: 0 var(--rf-pad-x);
+  text-align: center;
+}
+
+.rad-definitions-panel {
+  max-width: 100%;
+  margin: 0 0 1rem 0;
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius);
+  background: var(--rf-surface);
+}
+
+.rad-definitions-panel__summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--rf-accent);
+  padding: 0.65rem 0.85rem;
+  list-style: none;
+}
+
+.rad-definitions-panel__summary::-webkit-details-marker {
+  display: none;
+}
+
+.rad-definitions-panel__summary::before {
+  content: "▸ ";
+  display: inline-block;
+  margin-right: 0.25rem;
+  transition: transform 0.15s ease;
+}
+
+.rad-definitions-panel[open] .rad-definitions-panel__summary::before {
+  transform: rotate(90deg);
+}
+
+.rad-definitions-panel__body {
+  padding: 0 0.85rem 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--rf-ink-soft);
+  border-top: 1px solid var(--rf-border);
+}
+
+.rad-definitions-panel__body p {
+  margin: 0.65rem 0 0 0;
+}
+
+.rad-definitions-panel__body p:first-child {
+  margin-top: 0.65rem;
+}
+
+.rad-definitions-intro code {
+  font-size: 0.8em;
+  background: #f1f5f9;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
 .rad-chart-canvas-wrap {
   width: 100%;
   min-height: 360px;

@@ -136,7 +136,8 @@ def enhanced_upload_to_database_route(database_config: Dict,
     
     connection = None
     processed_files = []
-    
+    upload_results = None
+
     try:
         log_upload_step("Enhanced Upload Started", "SUCCESS", 
                        f"Processing files from {output_folder}")
@@ -269,7 +270,23 @@ def enhanced_upload_to_database_route(database_config: Dict,
                         log_upload_error("AUTO_RECOVERY_ERROR", err)
             except Exception as e:
                 log_upload_error("AUTO_RECOVERY_FAILED", f"Auto recovery failed: {str(e)}")
-        
+
+        if connection and connection.is_connected() and upload_results is not None:
+            try:
+                fs = int(upload_results.get("files_succeeded") or 0)
+                if fs > 0:
+                    cur_ln = connection.cursor()
+                    from dataset_lineage import touch_dataset_source
+                    touch_dataset_source(
+                        cur_ln,
+                        connection,
+                        "letters_db",
+                        detail=f"enhanced upload, {fs} file(s) succeeded",
+                    )
+                    cur_ln.close()
+            except Exception as lineage_err:
+                logging.warning("dataset lineage (letters) skipped: %s", lineage_err)
+
     except Exception as e:
         error_msg = f"Critical error in enhanced upload: {str(e)}"
         log_upload_error("CRITICAL_UPLOAD_ERROR", error_msg, traceback_info=str(e))

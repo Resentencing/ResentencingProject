@@ -58,23 +58,36 @@
       <section class="rad-data-section" aria-labelledby="rad-data-heading">
         <div class="rad-data-section-inner">
           <h2 id="rad-data-heading" class="wp-block-heading has-x-large-font-size rad-data-heading">Public Data Dashboard</h2>
+          <p class="rad-dashboard-lead">Aggregate views for policy and research. Funnel and outcome labels follow the project reporting codebook (considered → letters sent → resentenced).</p>
           <div id="data-visualization-container" class="rad-chart-card">
             <div class="rad-stat-grid">
-              <div class="rad-stat-card">
-                <div class="rad-stat-label">Total Letters</div>
+              <div class="rad-stat-card" title="Count of metadata rows tied to resentencing letter PDFs in the database.">
+                <div class="rad-stat-label">Letter records</div>
                 <div id="stat-total-letters" class="rad-stat-value">--</div>
               </div>
-              <div class="rad-stat-card">
-                <div class="rad-stat-label">Total Individuals</div>
+              <div class="rad-stat-card" title="Distinct people approximated from CDCR, case number, name, or PDF when those fields differ.">
+                <div class="rad-stat-label">Individuals (approx.)</div>
                 <div id="stat-total-individuals" class="rad-stat-value">--</div>
               </div>
-              <div class="rad-stat-card">
-                <div class="rad-stat-label">Total Counties</div>
+              <div class="rad-stat-card" title="Count of distinct county values among letter records.">
+                <div class="rad-stat-label">Counties</div>
                 <div id="stat-total-counties" class="rad-stat-value">--</div>
               </div>
             </div>
+            <p id="rad-data-freshness" class="rad-data-freshness" aria-live="polite">
+              <span class="rad-data-freshness__label">Dataset dates:</span>
+              <span id="rad-data-freshness-body">Loading…</span>
+            </p>
+            <details class="rad-definitions-panel" id="rad-definitions-panel">
+              <summary class="rad-definitions-panel__summary">How metrics are defined · data quality</summary>
+              <div class="rad-definitions-panel__body">
+                <p class="rad-definitions-intro"><strong>Funnel (poster view).</strong> <em>Considered</em> = all letter records in the database. <em>Letters sent</em> = records with court/outcome text filled in (<code>action_taken</code>). <em>Resentenced</em> = subset flagged by rule-based keywords (resentenced, released, grant, approved, recalled). This mirrors reporting vocabulary; it is not a randomized controlled outcome.</p>
+                <p><strong>Missingness.</strong> Incomplete logs, not-yet-ingested letters, or blank court fields reduce later funnel stages. County and outcome charts omit or group sparse categories. Race/ethnicity views use values merged from the active race spreadsheet when available.</p>
+                <p><strong>Stacked outcome charts.</strong> Green = favorable outcome (same keyword rule as resentenced/favorable above). Gray = all other or unknown outcomes.</p>
+              </div>
+            </details>
             <div>
-              <button class="visualization-button" data-dataset="poster_view">Second Chance Gap</button>
+              <button class="visualization-button" data-dataset="poster_view">Funnel (considered → sent → resentenced)</button>
               <button class="visualization-button active" data-dataset="letters_by_county">Letters by County</button>
               <button class="visualization-button" data-dataset="years_reduced">Years Reduced by County</button>
               <button class="visualization-button" data-dataset="sentence_type">ISL vs DSL Distribution</button>

@@ -98,9 +98,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalYears = Number(impact?.total_years_reduced_success || 0);
     const successRate = Number(impact?.success_rate_from_all_letters || 0);
     badges.innerHTML = `
-      <span class="rad-poster-badge">Avg Years Reduced: ${avgYears.toFixed(2)}</span>
-      <span class="rad-poster-badge">Total Years Reduced: ${formatNumber(totalYears)}</span>
-      <span class="rad-poster-badge">Overall Success Rate: ${successRate.toFixed(1)}%</span>
+      <span class="rad-poster-badge">Avg years reduced (favorable): ${avgYears.toFixed(2)}</span>
+      <span class="rad-poster-badge">Total years reduced (favorable): ${formatNumber(totalYears)}</span>
+      <span class="rad-poster-badge">Favorable rate vs. considered: ${successRate.toFixed(1)}%</span>
     `;
     badges.style.display = "flex";
   }
@@ -123,6 +123,27 @@ document.addEventListener("DOMContentLoaded", () => {
     return exitBtn;
   }
 
+  function formatFreshnessDate(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  }
+
+  function escFreshnessHint(s) {
+    if (s == null || String(s).trim() === "") return "";
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function renderSummaryCards(summary) {
     const statLetters = document.getElementById("stat-total-letters");
     const statIndividuals = document.getElementById("stat-total-individuals");
@@ -132,6 +153,28 @@ document.addEventListener("DOMContentLoaded", () => {
     statLetters.textContent = formatNumber(summary?.total_letters || 0);
     statIndividuals.textContent = formatNumber(summary?.total_individuals || 0);
     statCounties.textContent = formatNumber(summary?.total_counties || 0);
+
+    const freshBody = document.getElementById("rad-data-freshness-body");
+    if (freshBody) {
+      const f = summary?.data_freshness || {};
+      const logD = formatFreshnessDate(f.main_log?.as_of);
+      const raceD = formatFreshnessDate(f.race_data?.as_of);
+      const lettersD = formatFreshnessDate(f.letters_db?.as_of);
+      const logHint = f.main_log?.source_file ? ` <span class="rad-data-freshness__hint">(${escFreshnessHint(f.main_log.source_file)})</span>` : "";
+      const raceHint = f.race_data?.source_file ? ` <span class="rad-data-freshness__hint">(${escFreshnessHint(f.race_data.source_file)})</span>` : "";
+      const lettersHint = f.letters_db?.source_file ? ` <span class="rad-data-freshness__hint">(${escFreshnessHint(f.letters_db.source_file)})</span>` : "";
+      const any = f.main_log?.as_of || f.race_data?.as_of || f.letters_db?.as_of;
+      if (!any) {
+        freshBody.innerHTML =
+          "Set <code>PUBLIC_FRESHNESS_*</code> in <code>.env</code> for interim dates, or upload the 1170(d) log, race spreadsheet, and run a letter database sync on the backend—then timestamps come from the database automatically.";
+      } else {
+        freshBody.innerHTML = [
+          `<strong>1170(d) tracking log</strong> (spreadsheet) as of ${logD}${logHint}`,
+          `<strong>Race / ethnicity data</strong> (spreadsheet) as of ${raceD}${raceHint}`,
+          `<strong>Letter database</strong> last synced ${lettersD}${lettersHint}`,
+        ].join("; ");
+      }
+    }
   }
 
   async function fetchDashboardSummary() {
@@ -272,9 +315,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const grouped = {};
     rows.forEach((row) => {
       const fieldValue = (row?.[fieldKey] || "Unknown").toString().trim() || "Unknown";
-      const status = isSuccessfulAction(row?.action_taken) ? "Successful" : "Other Outcomes";
+      const status = isSuccessfulAction(row?.action_taken) ? "Favorable outcome" : "Other / unknown";
       if (!grouped[fieldValue]) {
-        grouped[fieldValue] = { Successful: 0, "Other Outcomes": 0, Total: 0 };
+        grouped[fieldValue] = { "Favorable outcome": 0, "Other / unknown": 0, Total: 0 };
       }
       grouped[fieldValue][status] += 1;
       grouped[fieldValue].Total += 1;
@@ -286,8 +329,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return {
       labels: sorted.map(([k]) => k),
-      successful: sorted.map(([, v]) => v.Successful),
-      other: sorted.map(([, v]) => v["Other Outcomes"]),
+      successful: sorted.map(([, v]) => v["Favorable outcome"]),
+      other: sorted.map(([, v]) => v["Other / unknown"]),
     };
   }
 
@@ -364,7 +407,7 @@ document.addEventListener("DOMContentLoaded", () => {
           labels,
           datasets: [
             {
-              label: "Cases",
+              label: "Records",
               data: counts,
               backgroundColor: ["rgba(59, 130, 246, 0.9)", "rgba(14, 165, 233, 0.88)", "rgba(16, 185, 129, 0.88)"],
               borderColor: "#ffffff",
@@ -403,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
               },
               title: {
                 display: true,
-                text: "Case Count",
+                text: "Record count",
               },
             },
             y1: {
@@ -425,10 +468,17 @@ document.addEventListener("DOMContentLoaded", () => {
           plugins: {
             title: {
               display: true,
-              text: "Second Chance Gap Funnel",
+              text: "Resentencing funnel: considered → letters sent → resentenced",
               color: "#152a45",
-              font: { size: 22, weight: "700" },
-              padding: { top: 8, bottom: 14 },
+              font: { size: 18, weight: "700" },
+              padding: { top: 8, bottom: 6 },
+            },
+            subtitle: {
+              display: true,
+              text: "Counts are from the letter metadata table; expand “How metrics are defined” above.",
+              color: "#4b5563",
+              font: { size: 12, weight: "400" },
+              padding: { bottom: 12 },
             },
             legend: {
               display: true,
@@ -436,6 +486,11 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             tooltip: {
               callbacks: {
+                afterTitle: (items) => {
+                  const idx = items[0]?.dataIndex;
+                  const def = stages[idx]?.definition;
+                  return def ? def : "";
+                },
                 label: (ctx) => {
                   if (ctx.dataset.yAxisID === "y1") {
                     return `${ctx.dataset.label}: ${Number(ctx.parsed.y || 0).toFixed(1)}%`;
@@ -492,7 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
       stacked = true;
       datasets = [
         {
-          label: "Successful",
+          label: "Favorable outcome",
           data: outcome.successful,
           backgroundColor: "rgba(16, 185, 129, 0.88)",
           borderColor: "#ffffff",
@@ -500,7 +555,7 @@ document.addEventListener("DOMContentLoaded", () => {
           borderRadius: 3,
         },
         {
-          label: "Other Outcomes",
+          label: "Other / unknown",
           data: outcome.other,
           backgroundColor: "rgba(148, 163, 184, 0.95)",
           borderColor: "#ffffff",
@@ -516,7 +571,7 @@ document.addEventListener("DOMContentLoaded", () => {
       stacked = true;
       datasets = [
         {
-          label: "Successful",
+          label: "Favorable outcome",
           data: outcome.successful,
           backgroundColor: "rgba(16, 185, 129, 0.88)",
           borderColor: "#ffffff",
@@ -524,7 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
           borderRadius: 3,
         },
         {
-          label: "Other Outcomes",
+          label: "Other / unknown",
           data: outcome.other,
           backgroundColor: "rgba(148, 163, 184, 0.95)",
           borderColor: "#ffffff",
@@ -540,7 +595,7 @@ document.addEventListener("DOMContentLoaded", () => {
       stacked = true;
       datasets = [
         {
-          label: "Successful",
+          label: "Favorable outcome",
           data: outcome.successful,
           backgroundColor: "rgba(16, 185, 129, 0.88)",
           borderColor: "#ffffff",
@@ -548,7 +603,7 @@ document.addEventListener("DOMContentLoaded", () => {
           borderRadius: 3,
         },
         {
-          label: "Other Outcomes",
+          label: "Other / unknown",
           data: outcome.other,
           backgroundColor: "rgba(148, 163, 184, 0.95)",
           borderColor: "#ffffff",
@@ -620,20 +675,20 @@ document.addEventListener("DOMContentLoaded", () => {
             display: true,
             text:
               dataset === "letters_by_county"
-                ? "Letters by County"
+                ? "Letter records by county"
                 : dataset === "years_reduced"
-                ? "Top Counties by Years Reduced"
+                ? "Sum of years reduced by county (non-null values)"
                 : dataset === "sentence_type"
-                ? "ISL vs DSL Distribution"
+                ? "ISL vs DSL (sentence type)"
                 : dataset === "parole_eligibility"
-                ? "Parole Eligibility by Year"
+                ? "Parole eligibility year (recorded dates)"
                 : dataset === "action_taken"
-                ? "Cases by Action Taken"
+                ? "Outcomes (action taken, top categories)"
                 : dataset === "race_distribution"
-                ? "Race Distribution by Outcome"
+                ? "Race × outcome (favorable vs. other / unknown)"
                 : dataset === "ethnicity_distribution"
-                ? "Ethnicity Distribution by Outcome"
-                : "ISL/DSL by Outcome",
+                ? "Ethnicity × outcome (favorable vs. other / unknown)"
+                : "ISL/DSL × outcome",
             color: "#152a45",
             font: { size: 14, weight: "600" },
             padding: { top: 4, bottom: 10 },

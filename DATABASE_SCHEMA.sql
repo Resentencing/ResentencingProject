@@ -88,6 +88,18 @@ CREATE TABLE metadata (
 -- (1, 'July 16, 2018', 'Michael L. Schuur', 'Los Angeles', '12720 Norwalk Boulevard, Norwalk, CA 90650', 'Rodarte Jr. Jose Luis', 'G46407', 'VA106941-02', 'December 11. 2008', 'vs. Gonzalez', '11639215', 'SATF-Facility D', '2022-07-12 00:00:00', '2018-06-19 00:00:00', '2018-06-19 00:00:00', '2018-07-11 00:00:00', 'Approved', '2018-07-18 00:00:00', NULL, NULL, NULL, NULL, NULL, NULL, 'Paroled on 12/28/2021', '2022-08-10 00:00:00', NULL, 'DSL', '2021-12-15 00:00:00', 'Hispanic', 'Hispanic');
 
 -- =====================================================
+-- TABLE: dataset_source_refresh
+-- =====================================================
+-- Purpose: UTC timestamps for public "data as of" copy (log, race, letters DB).
+-- Updated by mysite on /upload_excel (main_log, race_data) and successful DB letter ingest.
+
+CREATE TABLE dataset_source_refresh (
+    source_key VARCHAR(32) NOT NULL PRIMARY KEY,
+    refreshed_at DATETIME NOT NULL,
+    detail VARCHAR(512) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =====================================================
 -- TABLE: text_files
 -- =====================================================
 -- Purpose: Stores references to extracted text files

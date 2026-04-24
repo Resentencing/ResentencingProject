@@ -181,7 +181,7 @@ class UploadSafetyManager:
                          f"Cleaned up {cleaned_count} old shadow copies")
             
         except Exception as e:
-            self.log_error("SHADOW_CLEANUP_FAILED", str(e), traceback=traceback.format_exc())
+            self.log_error("SHADOW_CLEANUP_FAILED", str(e), traceback_info=traceback.format_exc())
     
     def verify_archive_copy(self, source_path: str, archive_path: str) -> bool:
         """
@@ -259,7 +259,7 @@ class UploadSafetyManager:
             return True
             
         except Exception as e:
-            self.log_error("DB_VERIFICATION_FAILED", str(e), traceback=traceback.format_exc())
+            self.log_error("DB_VERIFICATION_FAILED", str(e), traceback_info=traceback.format_exc())
             return False
     
     def safe_upload_pipeline(self, files_to_process: List[str], 
@@ -388,21 +388,29 @@ class UploadSafetyManager:
 
 
 # Convenience functions for easy integration
+def _safe_manager_for_log_dir(log_dir: str) -> UploadSafetyManager:
+    """Create a safety manager and fallback to local logs if path is unwritable."""
+    try:
+        return UploadSafetyManager(log_dir)
+    except OSError:
+        return UploadSafetyManager("./logs")
+
+
 def create_safety_manager(log_dir: str = None) -> UploadSafetyManager:
     """Create and return a new UploadSafetyManager instance."""
     if log_dir is None:
         log_dir = os.getenv('LOG_DIR', './logs')
-    return UploadSafetyManager(log_dir)
+    return _safe_manager_for_log_dir(log_dir)
 
 def log_upload_step(step: str, status: str, details: str = "", file_path: str = ""):
     """Log an upload step using the default safety manager."""
     log_dir = os.getenv('LOG_DIR', './logs')
-    manager = UploadSafetyManager(log_dir)
+    manager = _safe_manager_for_log_dir(log_dir)
     manager.log_step(step, status, details, file_path)
 
 def log_upload_error(error_type: str, error_message: str, file_path: str = "", 
                     traceback_info: str = "", context: Dict = None):
     """Log an upload error using the default safety manager."""
     log_dir = os.getenv('LOG_DIR', './logs')
-    manager = UploadSafetyManager(log_dir)
+    manager = _safe_manager_for_log_dir(log_dir)
     manager.log_error(error_type, error_message, file_path, traceback_info, context)

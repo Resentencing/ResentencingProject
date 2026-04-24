@@ -10,9 +10,96 @@ import os
 import json
 import logging
 import mysql.connector
+import datetime
 from typing import Dict, List
 from upload_safety import UploadSafetyManager, log_upload_step, log_upload_error
 from safe_upload_pipeline import SafeUploadPipeline
+
+
+def _env_flag(name: str, default: str = "false") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _run_auto_recovery(connection, archive_dir: str) -> Dict:
+    """
+    Recover archive files missing from DB by inserting minimal placeholder records.
+    Also ensures each PDF row has at least one metadata row.
+    """
+    stats = {
+        "missing_pdfs_inserted": 0,
+        "metadata_placeholders_inserted": 0,
+        "errors": [],
+    }
+    if not os.path.isdir(archive_dir):
+        return stats
+
+    cursor = connection.cursor()
+    try:
+        # Build a quick lookup of PDF rows currently in DB.
+        cursor.execute("SELECT id, filename FROM pdfs")
+        db_rows = cursor.fetchall()
+        filename_to_pdf_id = {row[1]: row[0] for row in db_rows if row and len(row) >= 2}
+
+        archive_files = [f for f in os.listdir(archive_dir) if f.lower().endswith(".pdf")]
+        now_stamp = datetime.datetime.now().strftime("%B %d, %Y")
+        note_stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Insert missing PDF rows + minimal metadata placeholders.
+        for filename in archive_files:
+            try:
+                if filename in filename_to_pdf_id:
+                    continue
+                file_path = os.path.join(archive_dir, filename)
+                cursor.execute(
+                    "INSERT INTO pdfs (filename, file_path) VALUES (%s, %s)",
+                    (filename, file_path),
+                )
+                pdf_id = cursor.lastrowid
+                cursor.execute(
+                    """
+                    INSERT INTO metadata (pdf_id, date_stamped, notes)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (pdf_id, now_stamp, f"Auto-recovered on {note_stamp} - Metadata pending refresh"),
+                )
+                filename_to_pdf_id[filename] = pdf_id
+                stats["missing_pdfs_inserted"] += 1
+                stats["metadata_placeholders_inserted"] += 1
+            except Exception as row_error:
+                stats["errors"].append(f"{filename}: {row_error}")
+
+        # Ensure existing pdf rows have at least one metadata row.
+        cursor.execute(
+            """
+            SELECT p.id, p.filename
+            FROM pdfs p
+            LEFT JOIN metadata m ON p.id = m.pdf_id
+            WHERE m.pdf_id IS NULL
+            """
+        )
+        orphaned_pdf_rows = cursor.fetchall()
+        for pdf_id, filename in orphaned_pdf_rows:
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO metadata (pdf_id, date_stamped, notes)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (pdf_id, now_stamp, f"Auto-recovered on {note_stamp} - Metadata pending refresh"),
+                )
+                stats["metadata_placeholders_inserted"] += 1
+            except Exception as meta_error:
+                stats["errors"].append(f"{filename} metadata: {meta_error}")
+
+        connection.commit()
+        return stats
+    except Exception as e:
+        connection.rollback()
+        stats["errors"].append(str(e))
+        return stats
+    finally:
+        cursor.close()
+
 
 def enhanced_upload_to_database_route(database_config: Dict, 
                                     output_folder: str = "processed",
@@ -71,7 +158,10 @@ def enhanced_upload_to_database_route(database_config: Dict,
             text_files = os.listdir(extractions_folder) if os.path.exists(extractions_folder) else []
             log_upload_step("Metadata Extraction Started", "SUCCESS", 
                            f"Found {len(text_files)} text files for processing")
-            
+
+            metadata_dir = os.path.dirname(metadata_file)
+            if metadata_dir:
+                os.makedirs(metadata_dir, exist_ok=True)
             extract_metadata_from_text_files(extractions_folder, metadata_file)
             log_upload_step("Metadata Extraction", "SUCCESS", "Metadata extraction completed")
         except Exception as e:
@@ -161,6 +251,24 @@ def enhanced_upload_to_database_route(database_config: Dict,
             log_upload_step("Shadow Copy Cleanup", "SUCCESS", "Old shadow copies cleaned up")
         except Exception as e:
             log_upload_error("SHADOW_CLEANUP_ERROR", f"Shadow copy cleanup failed: {str(e)}")
+
+        # Step 11: Optional auto-recovery for archive-vs-DB drift.
+        # Enabled by default to match current operational preference.
+        if _env_flag("ENABLE_AUTO_RECOVERY", "true"):
+            try:
+                recovery_stats = _run_auto_recovery(connection, archive_dir)
+                log_upload_step(
+                    "Auto Recovery",
+                    "SUCCESS" if not recovery_stats["errors"] else "PARTIAL",
+                    f"missing_pdfs_inserted={recovery_stats['missing_pdfs_inserted']}, "
+                    f"metadata_placeholders_inserted={recovery_stats['metadata_placeholders_inserted']}, "
+                    f"errors={len(recovery_stats['errors'])}",
+                )
+                if recovery_stats["errors"]:
+                    for err in recovery_stats["errors"][:25]:
+                        log_upload_error("AUTO_RECOVERY_ERROR", err)
+            except Exception as e:
+                log_upload_error("AUTO_RECOVERY_FAILED", f"Auto recovery failed: {str(e)}")
         
     except Exception as e:
         error_msg = f"Critical error in enhanced upload: {str(e)}"

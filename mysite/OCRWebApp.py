@@ -22,6 +22,10 @@ import json
 import decimal
 import datetime
 import pymysql
+try:
+    from enhanced_upload_route import enhanced_upload_to_database_route
+except Exception:
+    enhanced_upload_to_database_route = None
 
 
 Image.MAX_IMAGE_PIXELS = None
@@ -171,6 +175,33 @@ def upload_to_database_route():
     - Uploads both to the MySQL database
     Errors are caught and logged at each stage.
     """
+    use_enhanced = os.getenv("USE_ENHANCED_UPLOAD_ROUTE", "true").strip().lower() in {"1", "true", "yes", "on"}
+    # Keep existing API tests and legacy mock-based flows stable.
+    if app.config.get("TESTING"):
+        use_enhanced = False
+    if use_enhanced and enhanced_upload_to_database_route is not None:
+        try:
+            archive_dir = os.getenv("ARCHIVE_DIR", "/home/RSCAP/shared/archive_directory")
+            if archive_dir.startswith("/home/RSCAP") and not os.path.exists("/home/RSCAP"):
+                archive_dir = os.path.join(os.getcwd(), "shared", "archive_directory")
+
+            results = enhanced_upload_to_database_route(
+                database_config=database_config,
+                output_folder=app.config["OUTPUT_FOLDER"],
+                extractions_folder=app.config["EXTRACTIONS"],
+                metadata_file="./Jsontags/metadata.json",
+                archive_dir=archive_dir,
+            )
+            if results.get("success"):
+                return jsonify({"message": results.get("message", "Data successfully uploaded to the database.")})
+
+            return jsonify({
+                "error": results.get("message", "Upload failed."),
+                "details": results.get("errors", []),
+            }), 500
+        except Exception as enhanced_error:
+            logging.error(f"Enhanced upload route failed, falling back to legacy path: {enhanced_error}")
+
     try:
         logging.info("Starting database upload process...")
 
@@ -474,8 +505,9 @@ def upload_excel_files():
     Accepts uploaded Excel files and saves them to a server-side directory.
     Ensures the folder exists and returns a success/failure response.
     """
-    if not session.get('logged_in'):
-        return jsonify(status='error', message='User not logged in'), 401
+    auth_fail = require_auth_json()
+    if auth_fail:
+        return auth_fail
 
     # Create the folder if it doesn't exist
     excel_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Excel')
@@ -497,6 +529,31 @@ def upload_excel_files():
             save_path = os.path.join(excel_folder, filename)
             file.save(save_path)
             saved_files.append(filename)
+
+            lower_name = filename.lower()
+            # Keep one active race data file (newest upload wins).
+            if "race" in lower_name:
+                for existing in os.listdir(excel_folder):
+                    if existing == filename:
+                        continue
+                    if "race" in existing.lower():
+                        try:
+                            os.remove(os.path.join(excel_folder, existing))
+                        except Exception as e:
+                            logging.warning(f"Could not remove old race file {existing}: {e}")
+            # Keep one active main log file (newest upload wins).
+            elif filename.lower().endswith((".xlsx", ".xls", ".csv")):
+                for existing in os.listdir(excel_folder):
+                    if existing == filename:
+                        continue
+                    existing_lower = existing.lower()
+                    if "race" in existing_lower:
+                        continue
+                    if existing_lower.endswith((".xlsx", ".xls", ".csv")):
+                        try:
+                            os.remove(os.path.join(excel_folder, existing))
+                        except Exception as e:
+                            logging.warning(f"Could not remove old log file {existing}: {e}")
 
     if saved_files:
         return jsonify(status='success', message=f"Uploaded {len(saved_files)} Excel files.")
@@ -654,6 +711,11 @@ def preprocess_pdf(file_path, output_folder):
 
         # === Archive the final corrected PDF if it doesn't already exist ===
         archive_dir = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
+        # Local-safe fallback when PythonAnywhere path is unavailable.
+        if not archive_dir.startswith('/home/RSCAP') or os.path.exists('/home/RSCAP'):
+            pass
+        else:
+            archive_dir = os.path.join(os.getcwd(), 'shared', 'archive_directory')
         os.makedirs(archive_dir, exist_ok=True)
 
         archive_path = os.path.join(archive_dir, os.path.basename(corrected_pdf_path))
@@ -693,25 +755,32 @@ def file_viewer():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
-    sort_field = request.args.get('sort', 'filename')
+    sort_field = request.args.get('sort', 'uploaded_newest')
     direction = request.args.get('direction', 'desc').lower()
     search_term = request.args.get('search', '').strip()
     allowed_fields = {
         'filename': 'pdfs.filename',
-        'case_number': 'metadata.case_number',
-        'cdcr_number': 'metadata.cdcr_number',
-        'date_stamped': 'metadata.date_stamped'
+        'case_number': 'm_view.case_number',
+        'cdcr_number': 'm_view.cdcr_number',
+        'date_stamped': 'm_view.date_stamped',
+        'uploaded_newest': 'pdfs.id',
+        'uploaded_oldest': 'pdfs.id',
     }
     sort_column = allowed_fields.get(sort_field, 'pdfs.filename')
-    sort_direction = 'ASC' if direction == 'asc' else 'DESC'
+    if sort_field == 'uploaded_oldest':
+        sort_direction = 'ASC'
+    elif sort_field == 'uploaded_newest':
+        sort_direction = 'DESC'
+    else:
+        sort_direction = 'ASC' if direction == 'asc' else 'DESC'
 
     where_clause = ""
     params = []
     if search_term:
         where_clause = ("WHERE pdfs.filename LIKE %s "
-                        "OR metadata.case_number LIKE %s "
-                        "OR metadata.cdcr_number LIKE %s "
-                        "OR metadata.date_stamped LIKE %s")
+                        "OR m_view.case_number LIKE %s "
+                        "OR m_view.cdcr_number LIKE %s "
+                        "OR m_view.date_stamped LIKE %s")
         like_term = f"%{search_term}%"
         params = [like_term, like_term, like_term, like_term]
 
@@ -725,9 +794,25 @@ def file_viewer():
     try:
         with connection.cursor() as cursor:
             query = f"""
-                SELECT pdfs.filename, pdfs.file_path, metadata.case_number, metadata.cdcr_number, metadata.date_stamped
+                SELECT
+                    pdfs.filename,
+                    pdfs.file_path,
+                    m_view.case_number,
+                    m_view.cdcr_number,
+                    m_view.date_stamped
                 FROM pdfs
-                LEFT JOIN metadata ON pdfs.id = metadata.pdf_id
+                LEFT JOIN metadata AS m_view
+                    ON m_view.id = (
+                        SELECT m2.id
+                        FROM metadata AS m2
+                        WHERE m2.pdf_id = pdfs.id
+                        ORDER BY
+                            (CASE WHEN m2.case_number IS NOT NULL AND m2.case_number <> '' THEN 1 ELSE 0 END) DESC,
+                            (CASE WHEN m2.cdcr_number IS NOT NULL AND m2.cdcr_number <> '' THEN 1 ELSE 0 END) DESC,
+                            (CASE WHEN m2.date_stamped IS NOT NULL AND m2.date_stamped <> '' THEN 1 ELSE 0 END) DESC,
+                            m2.id DESC
+                        LIMIT 1
+                    )
                 {where_clause}
                 ORDER BY {sort_column} {sort_direction}
             """
@@ -746,7 +831,10 @@ def file_viewer():
         }
         for row in results
     ]
-    search_info = "Users can search by filename, case number, CDCR number, or date stamped. The search will work together with your sort and direction dropdowns."
+    search_info = (
+        "Users can search by filename, case number, CDCR number, or date stamped. "
+        "Use Uploaded (Newest) to see recently added files first."
+    )
     return render_template("fileviewer.html", files=files, sort_field=sort_field, direction=sort_direction.lower(), search_term=search_term, search_info=search_info)
 
 @app.route('/dashboard')

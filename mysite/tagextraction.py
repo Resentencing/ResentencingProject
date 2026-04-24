@@ -133,6 +133,19 @@ def _extract_batch_candidates(text, base_outputdict):
     return uniq
 
 
+def _split_case_numbers(raw_case_value, fallback_case):
+    raw = (raw_case_value or "").strip()
+    fallback = (fallback_case or "").strip()
+    if not raw:
+        return [fallback] if fallback else [""]
+
+    # Handle common delimiters seen in the 1170(d) log.
+    normalized = re.sub(r"\s+(?:and|AND)\s+", "|", raw)
+    normalized = re.sub(r"\s*(?:,|;|/|&)\s*", "|", normalized)
+    parts = [p.strip() for p in normalized.split("|") if p.strip()]
+    return parts if parts else ([fallback] if fallback else [raw])
+
+
 def extract_metadata_from_text_files(input_folder, output_file):
     """
     Extracts metadata from text files in the input folder and saves it in JSON format.
@@ -145,7 +158,15 @@ def extract_metadata_from_text_files(input_folder, output_file):
     default_excel_dir = "/home/RSCAP/mysite/Excel"
     excel_dir = os.getenv("OCR_EXCEL_DIR", default_excel_dir)
     if not os.path.isdir(excel_dir):
-        excel_dir = "./Excel"
+        # Local fallback when running from repo root or alternate cwd.
+        module_excel_dir = os.path.join(os.path.dirname(__file__), "Excel")
+        cwd_excel_dir = os.path.join(os.getcwd(), "Excel")
+        if os.path.isdir(module_excel_dir):
+            excel_dir = module_excel_dir
+        elif os.path.isdir(cwd_excel_dir):
+            excel_dir = cwd_excel_dir
+        else:
+            excel_dir = "./Excel"
     enable_batch_expansion = os.getenv("ENABLE_BATCH_METADATA_EXPANSION", "false").strip().lower() in {
         "1",
         "true",
@@ -194,11 +215,9 @@ def extract_metadata_from_text_files(input_folder, output_file):
                     continue
 
                 excel_case_numbers = str(series.iat[0, 6]) if pd.notna(series.iat[0, 6]) else ""
-                if " and " in excel_case_numbers:
-                    case_number_list = [case.strip() for case in excel_case_numbers.split(" and ")]
+                case_number_list = _split_case_numbers(excel_case_numbers, candidate.get("CASE NO", ""))
+                if len(case_number_list) > 1:
                     print(f"Found multiple case numbers for CDC {cdcr_no}: {case_number_list}")
-                else:
-                    case_number_list = [excel_case_numbers] if excel_case_numbers else [candidate.get("CASE NO", "")]
 
                 for case_num in case_number_list:
                     case_outputdict = candidate.copy()

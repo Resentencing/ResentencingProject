@@ -69,20 +69,22 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['OUTPUT_FOLDER'] = 'processed'
 app.config['EXTRACTIONS']='OCRextractions'
 
-PROXY_API_KEY = os.getenv("API_KEY", "")
+# Purpose-specific key for Apps Script/backend ingestion auth.
+# Backward-compatible fallback to API_KEY during migration.
+INGEST_API_KEY = os.getenv("INGEST_API_KEY", "") or os.getenv("API_KEY", "")
 
-if not PROXY_API_KEY:
+if not INGEST_API_KEY:
     # Fail if not configured.
-    logging.error("API_KEY environment variable is NOT set. "
+    logging.error("INGEST_API_KEY (or fallback API_KEY) is NOT set. "
                   "All X-API-Key checks will fail until it's configured.")
 
 def _api_key_ok() -> bool:
     """
     Validates the incoming request by checking the 'X-API-Key' header against the
-    environment-provided PROXY_API_KEY using constant-time comparison.
+    environment-provided ingestion API key using constant-time comparison.
     """
     incoming = (request.headers.get("X-API-Key") or "").strip()
-    expected = PROXY_API_KEY
+    expected = INGEST_API_KEY
     # If either is missing, reject.
     if not expected or not incoming:
         return False

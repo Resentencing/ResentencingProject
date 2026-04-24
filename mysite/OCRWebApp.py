@@ -142,8 +142,9 @@ def upload_and_process_files():
     Accepts and saves uploaded PDF files, then immediately processes them for OCR.
     This function verifies login, validates file type, and triggers the OCR pipeline.
     """
-    if not session.get('logged_in'):
-        return jsonify(status='error', message='User not logged in'), 401
+    auth_fail = require_auth_json()
+    if auth_fail:
+        return auth_fail
 
     uploaded_files = request.files.getlist('files[]')
     for file in uploaded_files:
@@ -175,6 +176,10 @@ def upload_to_database_route():
     - Uploads both to the MySQL database
     Errors are caught and logged at each stage.
     """
+    auth_fail = require_auth_json()
+    if auth_fail:
+        return auth_fail
+
     use_enhanced = os.getenv("USE_ENHANCED_UPLOAD_ROUTE", "true").strip().lower() in {"1", "true", "yes", "on"}
     # Keep existing API tests and legacy mock-based flows stable.
     if app.config.get("TESTING"):

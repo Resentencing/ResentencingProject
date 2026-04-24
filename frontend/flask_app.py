@@ -1,7 +1,5 @@
 from flask import Flask, render_template, Response, request, url_for, send_file, abort, jsonify, session, redirect
 from flask_cors import CORS
-import seaborn as sns
-import matplotlib.pyplot as plt
 import pandas as pd
 import mysql.connector
 from io import BytesIO
@@ -62,6 +60,7 @@ DOWNLOAD_LINK_MAX_AGE_SEC = int(os.getenv("DOWNLOAD_LINK_MAX_AGE_SEC", "900"))
 DEFAULT_DOWNLOADS_PER_HOUR = int(os.getenv("DOWNLOADS_PER_HOUR", "10"))
 DEFAULT_DOWNLOADS_PER_DAY = int(os.getenv("DOWNLOADS_PER_DAY", "50"))
 DEFAULT_ZIPS_PER_DAY = int(os.getenv("ZIPS_PER_DAY", "3"))
+UNLIMITED_ACCESS_ROLE = (os.getenv("UNLIMITED_ACCESS_ROLE", "priority_access") or "priority_access").strip().lower()
 ENFORCE_MAGIC_LINK_EXPIRY = os.getenv("ENFORCE_MAGIC_LINK_EXPIRY", "false").lower() == "true"
 ROLE_LIMITS_JSON = os.getenv("ROLE_LIMITS_JSON", "{}")
 
@@ -134,7 +133,6 @@ def _is_true(value: str) -> bool:
 
 
 def _session_limits() -> dict:
-    email = _session_email()
     limits = {
         "downloads_per_hour": DEFAULT_DOWNLOADS_PER_HOUR,
         "downloads_per_day": DEFAULT_DOWNLOADS_PER_DAY,
@@ -158,9 +156,6 @@ def _session_limits() -> dict:
         limits["zips_per_day"] = _to_int(session.get("zips_per_day"), limits["zips_per_day"])
     if "unlimited_access" in session:
         limits["unlimited"] = bool(session.get("unlimited_access"))
-
-    if email.endswith(".gov"):
-        limits["unlimited"] = True
 
     return limits
 
@@ -342,11 +337,22 @@ def access_session():
     email = (request.args.get("e") or "").strip().lower()
     exp = (request.args.get("exp") or "").strip()
     sig = (request.args.get("sig") or "").strip()
-    role = (request.args.get("role") or "default").strip().lower()
+    incoming_role = (request.args.get("role") or "default").strip().lower()
     dl_hour = (request.args.get("dl_hour") or "").strip()
     dl_day = (request.args.get("dl_day") or "").strip()
     zip_day = (request.args.get("zip_day") or "").strip()
     unlimited = _is_true(request.args.get("unlimited"))
+
+    # Keep a simple two-tier model:
+    # - default role is capped
+    # - unlimited role is uncapped
+    # .gov users are mapped into the unlimited role automatically.
+    is_gov_email = email.endswith(".gov")
+    if is_gov_email:
+        role = UNLIMITED_ACCESS_ROLE
+    else:
+        role = "default" if incoming_role in {"", "default"} else UNLIMITED_ACCESS_ROLE
+    unlimited = (role == UNLIMITED_ACCESS_ROLE)
 
     if not email:
         return "Missing email in access link.", 400
@@ -785,82 +791,18 @@ def home():
 @app.route('/visualize')
 def visualize():
     """
-    Generates or serves cached data visualizations based on the selected dataset type.
-
-    Dataset types supported:
-        - 'letters_by_county': Bar chart of letter counts by county.
-        - 'years_reduced': Bar chart of years reduced by county.
-        - 'sentence_type': Pie chart of ISL/DSL sentence types.
-        - 'parole_eligibility': Histogram of parole eligibility years.
-
-    Returns:
-        Flask Response: A PNG image of the visualization or a 404/500 error response.
+    Legacy server-rendered image chart endpoint (deprecated).
+    Use /api/stats + Chart.js on the frontend.
     """
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-
-    dataset_type = request.args.get('dataset', 'years_reduced')
-    cache_filename = generate_cache_filename(dataset_type)
-    cache_path = os.path.join(CACHE_DIR, cache_filename)
-
-    # Check if the cache file already exists
-    if os.path.exists(cache_path):
-        logging.info(f"Loading cached visualization for {dataset_type}")
-        with open(cache_path, 'rb') as f:
-            return Response(f.read(), mimetype='image/png')
-
-    # Generate new visualization if not cached
-    try:
-        df = fetch_data_from_db(dataset_type)
-
-        if df.empty:
-            logging.warning(f"No data found for dataset: {dataset_type}")
-            return Response("No data available for the requested visualization.", status=404)
-
-        sns.set(rc={'axes.facecolor': '#F9F9F9', 'figure.facecolor': '#F9F9F9'})
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.set_facecolor('#F9F9F9')
-
-        if dataset_type == 'letters_by_county':
-            county_counts = df.groupby('county').size().reset_index(name='letter_count').sort_values('letter_count', ascending=False).head(20)
-            sns.barplot(data=county_counts, x='letter_count', y='county', ax=ax)
-            ax.set_title('Letters by County')
-            ax.set_xlabel('Letters')
-            ax.set_ylabel('County')
-
-        elif dataset_type == 'years_reduced':
-            sns.barplot(data=df, x='county', y='years_reduced', estimator=sum, ax=ax)
-            ax.set_title('Years Reduced by County')
-            plt.xticks(rotation=45)
-
-        elif dataset_type == 'sentence_type':
-            df = df.groupby('isl_dsl').size().reset_index(name='count')
-            ax.pie(df['count'], labels=df['isl_dsl'], autopct='%1.1f%%', startangle=90)
-            ax.set_title('Sentence Type Distribution')
-            ax.axis('equal')
-
-        elif dataset_type == 'parole_eligibility':
-            df['parole_eligibility_date'] = pd.to_datetime(df['parole_eligibility_date'])
-            df['parole_eligibility_date'] = df['parole_eligibility_date'].dt.year  # Group by year instead of exact date
-            sns.histplot(data=df, x='parole_eligibility_date', kde=True, ax=ax)
-            ax.set_title('Parole Eligibility Distribution')
-            plt.xticks(rotation=45)
-
-        else:
-            logging.error(f"Unknown dataset type requested: {dataset_type}")
-            return Response("Invalid dataset type requested.", status=400)
-
-        plt.tight_layout()
-
-        # Save the plot to a cache file
-        fig.savefig(cache_path)
-        plt.close(fig)
-
-        with open(cache_path, 'rb') as f:
-            return Response(f.read(), mimetype='image/png')
-    except Exception as e:
-        logging.error(f"Error generating visualization: {e}")
-        return Response("An error occurred while generating the visualization.", status=500)
+    return (
+        jsonify(
+            {
+                "error": "Deprecated endpoint",
+                "message": "Use /api/stats (JSON) and frontend Chart.js rendering instead.",
+            }
+        ),
+        410,
+    )
 
 
 @app.route('/api/stats')

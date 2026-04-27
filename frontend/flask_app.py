@@ -4,6 +4,7 @@ import pandas as pd
 import mysql.connector
 from io import BytesIO
 import os
+import sys
 import logging
 import hashlib
 import hmac
@@ -12,12 +13,21 @@ import secrets
 import zipfile
 import datetime
 import json
+import urllib.parse
 import httpx
 from dotenv import load_dotenv
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
-# Load environment variables
 load_dotenv()
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+try:
+    from assistant import chat as pinecone_chat
+except Exception as _e:
+    pinecone_chat = None
+    logging.warning("Pinecone assistant import failed: %s", _e)
 
 
 app = Flask(__name__)
@@ -63,6 +73,11 @@ DEFAULT_ZIPS_PER_DAY = int(os.getenv("ZIPS_PER_DAY", "3"))
 UNLIMITED_ACCESS_ROLE = (os.getenv("UNLIMITED_ACCESS_ROLE", "priority_access") or "priority_access").strip().lower()
 ENFORCE_MAGIC_LINK_EXPIRY = os.getenv("ENFORCE_MAGIC_LINK_EXPIRY", "false").lower() == "true"
 ROLE_LIMITS_JSON = os.getenv("ROLE_LIMITS_JSON", "{}")
+STREAMLIT_BASE_URL = os.getenv("STREAMLIT_BASE_URL", "").strip().rstrip("/")
+try:
+    STREAMLIT_TOKEN_TTL_SECONDS = int(os.getenv("STREAMLIT_TOKEN_TTL_SECONDS", "300"))
+except ValueError:
+    STREAMLIT_TOKEN_TTL_SECONDS = 300
 
 try:
     ROLE_LIMITS = json.loads(ROLE_LIMITS_JSON)
@@ -206,6 +221,28 @@ def _make_zip_token(field: str, value: str, email: str) -> str:
     return _serializer().dumps({"lookup_field": field, "lookup_value": value, "email": email})
 
 
+def _make_streamlit_handoff_params(email: str, role: str) -> dict:
+    """Mint a short-lived HMAC-signed token the Streamlit RAG app can verify.
+
+    Uses the same ACCESS_HANDOFF_SECRET as /access/session so a single shared
+    secret governs both gate entry and downstream RAG handoff.
+    """
+    exp = str(int(time.time()) + STREAMLIT_TOKEN_TTL_SECONDS)
+    role_clean = (role or "default").strip().lower()
+    payload = f"{email}|{exp}|{role_clean}"
+    sig = hmac.new(
+        ACCESS_HANDOFF_SECRET.encode("utf-8"),
+        payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return {
+        "st_email": email,
+        "st_exp": exp,
+        "st_role": role_clean,
+        "st_sig": sig,
+    }
+
+
 def _resolve_file_path(raw_path: str) -> str:
     raw = (raw_path or "").strip()
     if not raw:
@@ -304,22 +341,13 @@ def query_ai():
 
     _audit("ai_query", _session_email(), f"query={q[:300]}")
 
-    # Forward to backend AI if configured. Fall back to local echo in dev.
-    headers = {"Content-Type": "application/json"}
-    if BACKEND_API_KEY:
-        headers["X-API-Key"] = BACKEND_API_KEY
-
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            resp = client.post(f"{BACKEND_BASE_URL}/query_ai", headers=headers, json={"query": q})
-            if resp.status_code == 200:
-                payload = resp.json()
-                # Normalized output shape for frontend.
-                answer = payload.get("response") or payload.get("answer") or payload.get("result") or str(payload)
-                return jsonify({"response": answer}), 200
-            logging.warning("Backend AI call failed with status %s: %s", resp.status_code, resp.text[:300])
-    except Exception as exc:
-        logging.warning("Backend AI unavailable, using local fallback: %s", exc)
+    if pinecone_chat is not None:
+        try:
+            answer = pinecone_chat(q)
+            return jsonify({"response": answer}), 200
+        except Exception as exc:
+            logging.exception("Pinecone assistant call failed")
+            return jsonify({"response": f"[pinecone error] {exc}"}), 200
 
     return jsonify({"response": f"[local fallback] {q}"}), 200
 
@@ -329,7 +357,12 @@ def query_ai():
 
 @app.route("/access")
 def access_gate():
-    return render_template("access.html", contact_email=CONTACT_EMAIL)
+    debug_enabled = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes", "y", "on"}
+    return render_template(
+        "access.html",
+        contact_email=CONTACT_EMAIL,
+        debug_enabled=debug_enabled,
+    )
 
 
 @app.route("/access/session")
@@ -387,12 +420,68 @@ def access_session():
     return redirect(url_for("tool_hub"))
 
 
+@app.route("/dev/magiclink")
+def dev_magiclink():
+    """
+    Local-only helper to create a valid magic-link URL.
+
+    Enabled only when FLASK_DEBUG=true. This avoids manually generating
+    signatures during local testing. Do not rely on this in production.
+    """
+    debug_enabled = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes", "y", "on"}
+    if not debug_enabled:
+        return abort(404)
+    if not ACCESS_HANDOFF_SECRET:
+        return "ACCESS_HANDOFF_SECRET is not set. Add it to .env and restart Flask.", 503
+
+    email = (request.args.get("e") or "local@test").strip().lower()
+    exp = str(int(time.time()) + 3600)
+    sig = hmac.new(
+        ACCESS_HANDOFF_SECRET.encode("utf-8"),
+        f"{email}|{exp}".encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    target = url_for("access_session", e=email, exp=exp, sig=sig, _external=True)
+    return redirect(target)
+
+
 @app.route("/access/logout")
 def access_logout():
     email = _session_email()
     session.clear()
     _audit("logout", email, "session cleared")
     return redirect(url_for("access_gate"))
+
+
+@app.route("/launch_rag")
+def launch_rag():
+    """Hand the authenticated user off to the Streamlit RAG agent.
+
+    Mints a short-lived HMAC-signed token that the Streamlit app verifies
+    using the same ACCESS_HANDOFF_SECRET. Direct hits to the Streamlit URL
+    without a valid token are rejected on the Streamlit side.
+    """
+    access_redirect = _require_access()
+    if access_redirect:
+        return access_redirect
+
+    if not STREAMLIT_BASE_URL:
+        return ("Streamlit RAG agent is not configured. "
+                "Set STREAMLIT_BASE_URL in the server environment."), 503
+    if not ACCESS_HANDOFF_SECRET:
+        return ("Streamlit RAG handoff disabled: ACCESS_HANDOFF_SECRET is not set "
+                "on the server. The Streamlit app cannot be reached securely "
+                "without a shared signing secret."), 503
+
+    email = _session_email()
+    role = (session.get("access_role") or "default").strip().lower()
+    params = _make_streamlit_handoff_params(email, role)
+    qs = urllib.parse.urlencode(params)
+    target = f"{STREAMLIT_BASE_URL}?{qs}"
+
+    _audit("launch_rag", email, f"role={role} ttl={STREAMLIT_TOKEN_TTL_SECONDS}s")
+    return redirect(target)
 
 
 def _browse_search(field: str, term: str):
@@ -540,6 +629,7 @@ def tool_hub():
         access_role=session.get("access_role", "default"),
         limits=limits,
         backend_base_url=BACKEND_BASE_URL,
+        streamlit_rag_enabled=bool(STREAMLIT_BASE_URL and ACCESS_HANDOFF_SECRET),
     )
 
 

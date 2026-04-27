@@ -17,6 +17,16 @@
     <p>This page is protected by a magic-link access flow.</p>
     <p>Use your link to open <code>/access/session?... </code>. Once your session is created, you will be redirected to the Tool Hub.</p>
     <p>If you need access, contact <strong>{{ contact_email }}</strong>.</p>
+    {% if debug_enabled %}
+      <hr style="margin: 18px 0; border: 0; border-top: 1px solid #e5e7eb;">
+      <h2 style="margin: 0 0 8px;">Local dev sign-in</h2>
+      <p style="margin-top: 0;">This is only shown when <code>FLASK_DEBUG=true</code>.</p>
+      <p>
+        <a href="{{ url_for('dev_magiclink') }}" style="display:inline-block; padding:10px 14px; border-radius: 999px; background:#2563eb; color:#fff; text-decoration:none; font-weight:600;">
+          Sign in locally (dev)
+        </a>
+      </p>
+    {% endif %}
   </div>
 </body>
 </html>

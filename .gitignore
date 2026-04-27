@@ -78,3 +78,7 @@ Documentation/
 
 # Local-only poster / personal site (do not commit)
 LynnLocal/
+
+# Next.js / Node (web app)
+web/.next/
+web/node_modules/

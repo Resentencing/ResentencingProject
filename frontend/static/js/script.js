@@ -660,13 +660,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 x: {
                   stacked,
                   ticks: {
-                    callback: (value) => (horizontal ? formatNumber(value) : String(value)),
+                    callback: function (value) {
+                      if (horizontal) return formatNumber(value);
+                      return this.getLabelForValue ? this.getLabelForValue(value) : String(value);
+                    },
                   },
                 },
                 y: {
                   stacked,
                   ticks: {
-                    callback: (value) => (horizontal ? String(value) : formatNumber(value)),
+                    callback: function (value) {
+                      if (!horizontal) return formatNumber(value);
+                      return this.getLabelForValue ? this.getLabelForValue(value) : String(value);
+                    },
                   },
                 },
               },
@@ -801,9 +807,12 @@ document.addEventListener("DOMContentLoaded", () => {
             min: normalized && indexAxis === "x" ? 0 : undefined,
             max: normalized && indexAxis === "x" ? 100 : undefined,
             ticks: {
-              callback: (value) => {
-                if (normalized && indexAxis === "x") return `${value}%`;
-                return formatNumber(value);
+              callback: function (value) {
+                if (indexAxis === "x") {
+                  if (normalized) return `${value}%`;
+                  return formatNumber(value);
+                }
+                return this.getLabelForValue ? this.getLabelForValue(value) : String(value);
               },
             },
           },
@@ -812,9 +821,12 @@ document.addEventListener("DOMContentLoaded", () => {
             min: normalized && indexAxis === "y" ? 0 : undefined,
             max: normalized && indexAxis === "y" ? 100 : undefined,
             ticks: {
-              callback: (value) => {
-                if (normalized && indexAxis === "y") return `${value}%`;
-                return indexAxis === "y" ? String(value) : formatNumber(value);
+              callback: function (value) {
+                if (indexAxis === "y") {
+                  if (normalized) return `${value}%`;
+                  return formatNumber(value);
+                }
+                return this.getLabelForValue ? this.getLabelForValue(value) : String(value);
               },
             },
           },

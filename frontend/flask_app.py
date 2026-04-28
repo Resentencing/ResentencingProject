@@ -346,8 +346,30 @@ def _prof_bucket_parts(field: str, mode: str):
         resolved_mode = "year"
 
     if resolved_mode == "year":
-        expr = f"YEAR(`{field}`)"
-        valid_clause = f"`{field}` IS NOT NULL AND `{field}` <> '' AND YEAR(`{field}`) IS NOT NULL"
+        # Support real DATE columns and text-formatted dates (common in this dataset).
+        # Falls back to the trailing 4-digit year when parsing cannot normalize.
+        expr = f"""
+        CASE
+            WHEN `{field}` IS NULL OR TRIM(CAST(`{field}` AS CHAR(255))) = '' THEN NULL
+            WHEN YEAR(`{field}`) IS NOT NULL AND YEAR(`{field}`) <> 0 THEN YEAR(`{field}`)
+            WHEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%Y-%m-%d')) IS NOT NULL
+                 AND YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%Y-%m-%d')) <> 0
+                THEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%Y-%m-%d'))
+            WHEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%m/%d/%Y')) IS NOT NULL
+                 AND YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%m/%d/%Y')) <> 0
+                THEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%m/%d/%Y'))
+            WHEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%M %e, %Y')) IS NOT NULL
+                 AND YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%M %e, %Y')) <> 0
+                THEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%M %e, %Y'))
+            WHEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%M %e. %Y')) IS NOT NULL
+                 AND YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%M %e. %Y')) <> 0
+                THEN YEAR(STR_TO_DATE(CAST(`{field}` AS CHAR(255)), '%M %e. %Y'))
+            WHEN RIGHT(TRIM(CAST(`{field}` AS CHAR(255))), 4) REGEXP '^[0-9]{4}$'
+                THEN CAST(RIGHT(TRIM(CAST(`{field}` AS CHAR(255))), 4) AS UNSIGNED)
+            ELSE NULL
+        END
+        """
+        valid_clause = f"({expr}) IS NOT NULL"
     else:
         expr = f"CAST(`{field}` AS CHAR(255))"
         valid_clause = f"`{field}` IS NOT NULL AND TRIM(CAST(`{field}` AS CHAR(255))) <> ''"

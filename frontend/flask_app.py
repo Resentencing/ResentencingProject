@@ -73,7 +73,7 @@ CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "ResentenceDecarcerate@gmail.com")
 GITHUB_REPO_URL = os.getenv("GITHUB_REPO_URL", "").strip()
 ACCESS_REQUEST_URL = (
     os.getenv("ACCESS_REQUEST_URL", "").strip()
-    or "https://forms.gle/TZ1uucmPxKUCQUCy9"
+    or "https://docs.google.com/forms/d/e/1FAIpQLSeQX5rNoBvAEAo6pO0JNHKygt9rrr_D7yJpXd8GI8PlknXGWA/viewform"
 )
 DOWNLOAD_LINK_MAX_AGE_SEC = int(os.getenv("DOWNLOAD_LINK_MAX_AGE_SEC", "900"))
 DEFAULT_DOWNLOADS_PER_HOUR = int(os.getenv("DOWNLOADS_PER_HOUR", "10"))
@@ -81,6 +81,7 @@ DEFAULT_DOWNLOADS_PER_DAY = int(os.getenv("DOWNLOADS_PER_DAY", "50"))
 DEFAULT_ZIPS_PER_DAY = int(os.getenv("ZIPS_PER_DAY", "3"))
 UNLIMITED_ACCESS_ROLE = (os.getenv("UNLIMITED_ACCESS_ROLE", "priority_access") or "priority_access").strip().lower()
 ENFORCE_MAGIC_LINK_EXPIRY = os.getenv("ENFORCE_MAGIC_LINK_EXPIRY", "false").lower() == "true"
+REQUIRE_MAGIC_LINK_SIGNATURE = os.getenv("REQUIRE_MAGIC_LINK_SIGNATURE", "true").lower() == "true"
 ROLE_LIMITS_JSON = os.getenv("ROLE_LIMITS_JSON", "{}")
 STREAMLIT_BASE_URL = os.getenv("STREAMLIT_BASE_URL", "").strip().rstrip("/")
 try:
@@ -484,15 +485,26 @@ def access_session():
     if not email:
         return "Missing email in access link.", 400
 
+    if REQUIRE_MAGIC_LINK_SIGNATURE and not ACCESS_HANDOFF_SECRET:
+        return (
+            "Magic-link access is disabled because ACCESS_HANDOFF_SECRET is not set on the server.",
+            503,
+        )
+
     if ACCESS_HANDOFF_SECRET:
         legacy_payload = f"{email}|{exp}"
         extended_payload = f"{email}|{exp}|{role}|{dl_hour}|{dl_day}|{zip_day}|{int(unlimited)}"
         expected_legacy = hmac.new(ACCESS_HANDOFF_SECRET.encode("utf-8"), legacy_payload.encode("utf-8"), hashlib.sha256).hexdigest()
         expected_extended = hmac.new(ACCESS_HANDOFF_SECRET.encode("utf-8"), extended_payload.encode("utf-8"), hashlib.sha256).hexdigest()
-        if not sig or sig not in {expected_legacy, expected_extended}:
+        signature_valid = bool(sig) and (
+            hmac.compare_digest(sig, expected_legacy) or hmac.compare_digest(sig, expected_extended)
+        )
+        if not signature_valid:
             return "Invalid or missing signature.", 403
 
-    if ENFORCE_MAGIC_LINK_EXPIRY and exp:
+    if ENFORCE_MAGIC_LINK_EXPIRY:
+        if not exp:
+            return "Missing expiration timestamp.", 400
         try:
             if int(exp) < int(time.time()):
                 return "This access link has expired.", 403

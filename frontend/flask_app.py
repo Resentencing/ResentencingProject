@@ -13,6 +13,7 @@ import secrets
 import zipfile
 import datetime
 import json
+import re
 import urllib.parse
 import httpx
 from dotenv import load_dotenv
@@ -75,6 +76,9 @@ ACCESS_REQUEST_URL = (
     os.getenv("ACCESS_REQUEST_URL", "").strip()
     or "https://docs.google.com/forms/d/e/1FAIpQLSeQX5rNoBvAEAo6pO0JNHKygt9rrr_D7yJpXd8GI8PlknXGWA/viewform"
 )
+# Apps Script Web App URL ending in /exec (no query). Used by /access/magic so approval
+# emails can link to your domain first; avoids Gmail/Chrome rewriting script.google.com with /u/N/.
+APPS_SCRIPT_WEB_APP_EXEC_URL = os.getenv("APPS_SCRIPT_WEB_APP_EXEC_URL", "").strip().rstrip("/")
 DOWNLOAD_LINK_MAX_AGE_SEC = int(os.getenv("DOWNLOAD_LINK_MAX_AGE_SEC", "900"))
 DEFAULT_DOWNLOADS_PER_HOUR = int(os.getenv("DOWNLOADS_PER_HOUR", "10"))
 DEFAULT_DOWNLOADS_PER_DAY = int(os.getenv("DOWNLOADS_PER_DAY", "50"))
@@ -98,6 +102,18 @@ except json.JSONDecodeError:
 AUDIT_LOG_PATH = os.path.join(os.path.dirname(__file__), "audit.log")
 RATE_STATE = {}
 _METADATA_COLUMNS_CACHE = None
+
+
+def _normalize_apps_script_exec_url(url: str) -> str:
+    if not (url or "").strip():
+        return ""
+    u = url.strip().rstrip("/")
+    return re.sub(
+        r"(https?://script\.google\.com/macros/)u/\d+/s/",
+        r"\1s/",
+        u,
+        flags=re.IGNORECASE,
+    )
 
 # Keep in sync with mysite/dataset_lineage.py (public site reads; backend writes on upload).
 _DATASET_LINEAGE_TABLE_SQL = """
@@ -458,6 +474,28 @@ def access_gate():
         debug_enabled=debug_enabled,
         access_request_url=ACCESS_REQUEST_URL,
     )
+
+
+@app.route("/access/magic")
+def access_magic_redirect():
+    """Approval emails link here first (your domain), then redirect to Apps Script Web App.
+
+    Gmail and multi-account Chrome often rewrite script.google.com links to
+    /macros/u/N/s/... which breaks for recipients. A first hop on rscap avoids that.
+    """
+    token = (request.args.get("t") or "").strip()
+    if not token:
+        return "Missing access token.", 400
+    base = _normalize_apps_script_exec_url(APPS_SCRIPT_WEB_APP_EXEC_URL)
+    if not base:
+        return (
+            "Email magic links are not configured. Set APPS_SCRIPT_WEB_APP_EXEC_URL to your "
+            "Apps Script Web App URL (https://script.google.com/macros/s/.../exec), reload the web app, "
+            "and resend the approval email.",
+            503,
+        )
+    target = f"{base}?t={urllib.parse.quote(token, safe='')}"
+    return redirect(target, code=302)
 
 
 @app.route("/access/session")

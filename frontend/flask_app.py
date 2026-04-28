@@ -424,7 +424,23 @@ def query_ai():
             return jsonify({"response": answer}), 200
         except Exception as exc:
             logging.exception("Pinecone assistant call failed")
-            return jsonify({"response": f"[pinecone error] {exc}"}), 200
+            logging.warning("Falling back to OCRWebApp /query_ai after Pinecone failure: %s", exc)
+
+    # Secondary path: OCRWebApp backend AI endpoint.
+    headers = {"Content-Type": "application/json"}
+    if BACKEND_API_KEY:
+        headers["X-API-Key"] = BACKEND_API_KEY
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(f"{BACKEND_BASE_URL}/query_ai", headers=headers, json={"query": q})
+            if resp.status_code == 200:
+                payload = resp.json()
+                answer = payload.get("response") or payload.get("answer") or payload.get("result") or str(payload)
+                return jsonify({"response": answer}), 200
+            logging.warning("OCRWebApp /query_ai failed with status %s: %s", resp.status_code, resp.text[:300])
+    except Exception as exc:
+        logging.warning("OCRWebApp /query_ai unavailable: %s", exc)
 
     return jsonify({"response": f"[local fallback] {q}"}), 200
 

@@ -55,7 +55,10 @@ def _extract_primary_fields(text, filename, months):
                             formattedname = " ".join(outputarray[1:])
                             outputdict["CNAME"] = " ".join([formattedname, outputarray[0]])
                         else:
-                            outputdict["CNAME"] = " ".join([outputarray[1], outputarray[0]])
+                            if len(outputarray) >= 2:
+                                outputdict["CNAME"] = " ".join([outputarray[1], outputarray[0]])
+                            else:
+                                outputdict["CNAME"] = outputarray[0]
                     else:
                         outputdict["CNAME"] = " ".join(outputarray)
 

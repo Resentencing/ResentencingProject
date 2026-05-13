@@ -1125,15 +1125,171 @@ def api_public_summary():
 
         cursor.close()
         conn.close()
+
+        # Log coverage — aggregate counts only, no individual identifiers
+        log_total = None
+        log_missing = None
+        try:
+            recon = _load_log_reconcile()
+            if "total_log" in recon:
+                log_total = recon["total_log"]
+                log_missing = recon["missing_count"]
+        except Exception as _recon_err:
+            logging.debug("log reconcile skipped for public summary: %s", _recon_err)
+
         return jsonify({
             "total_letters": int(row.get("total_letters") or 0),
             "total_individuals": int(row.get("total_individuals") or 0),
             "total_counties": int(row.get("total_counties") or 0),
             "data_freshness": data_freshness,
+            "log_total": log_total,
+            "log_missing": log_missing,
         }), 200
     except Exception as e:
         logging.error(f"Error fetching public summary metrics: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+_LOG_RECONCILE_CACHE: dict = {"data": None, "ts": 0.0}
+_LOG_RECONCILE_TTL = 3600  # rebuild at most once per hour
+
+
+def _load_log_reconcile(force: bool = False) -> dict:
+    """
+    Parse the 1170(d) tracking log Excel and compare against the DB.
+    Results are cached for up to _LOG_RECONCILE_TTL seconds.
+    """
+    now = time.time()
+    if not force and _LOG_RECONCILE_CACHE["data"] and (now - _LOG_RECONCILE_CACHE["ts"]) < _LOG_RECONCILE_TTL:
+        return _LOG_RECONCILE_CACHE["data"]
+
+    # Locate the most-recent 1170 tracking log in mysite/Excel/
+    excel_dir = os.path.join(_PROJECT_ROOT, "mysite", "Excel")
+    log_path = None
+    if os.path.isdir(excel_dir):
+        candidates = sorted(
+            [f for f in os.listdir(excel_dir) if "1170" in f and f.endswith(".xlsx")],
+            reverse=True,
+        )
+        if candidates:
+            log_path = os.path.join(excel_dir, candidates[0])
+
+    if not log_path or not os.path.exists(log_path):
+        result = {"error": "Tracking log not found", "log_filename": None}
+        _LOG_RECONCILE_CACHE["data"] = result
+        _LOG_RECONCILE_CACHE["ts"] = now
+        return result
+
+    # Row 0 = filter-label artefact; row 1 = actual column headers
+    df = pd.read_excel(log_path, header=1)
+    df.columns = [str(c).replace("\n", " ").strip() for c in df.columns]
+
+    cdcr_col = "CDC #"
+    case_col = "Case #"
+    name_col = "Inmate's Last Name"
+    category_col = "Category"
+    county_col = "County"
+    institution_col = "Institution"
+
+    def _clean(series):
+        return (
+            series.astype(str)
+            .str.strip()
+            .str.upper()
+            .replace({"NAN": "", "NONE": "", "N/A": "", "NA": ""})
+        )
+
+    df[cdcr_col] = _clean(df[cdcr_col])
+    df[case_col] = _clean(df[case_col])
+    # Keep name/county/institution in original case for display
+    for col in (name_col, category_col, county_col, institution_col):
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip().replace({"nan": "", "None": "", "NaN": ""})
+
+    df = df[(df[cdcr_col] != "") | (df[case_col] != "")].copy()
+    total_log = len(df)
+
+    # Pull all existing DB identifiers
+    conn = mysql.connector.connect(**database_config)
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT UPPER(TRIM(cdcr_number)) AS cdcr, UPPER(TRIM(case_number)) AS case_num "
+        "FROM metadata WHERE cdcr_number IS NOT NULL OR case_number IS NOT NULL"
+    )
+    db_rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    db_cdcr = {r["cdcr"] for r in db_rows if r.get("cdcr")}
+    db_case = {r["case_num"] for r in db_rows if r.get("case_num")}
+
+    matched = []
+    missing = []
+
+    for _, row in df.iterrows():
+        cdcr = row.get(cdcr_col, "")
+        case = row.get(case_col, "")
+        name = row.get(name_col, "") if name_col in df.columns else ""
+        category = row.get(category_col, "") if category_col in df.columns else ""
+        county = row.get(county_col, "") if county_col in df.columns else ""
+        institution = row.get(institution_col, "") if institution_col in df.columns else ""
+
+        if cdcr and cdcr in db_cdcr:
+            match_method = "cdcr"
+            in_db = True
+        elif case and case in db_case:
+            match_method = "case"
+            in_db = True
+        else:
+            match_method = None
+            in_db = False
+
+        entry = {
+            "cdcr": cdcr,
+            "case": case,
+            "name": name,
+            "category": category,
+            "county": county,
+            "institution": institution,
+            "match_method": match_method,
+        }
+        (matched if in_db else missing).append(entry)
+
+    log_cdcrs = {r for r in df[cdcr_col].values if r}
+    log_cases = {r for r in df[case_col].values if r}
+    extra_in_db = sum(
+        1 for r in db_rows
+        if (not r.get("cdcr") or r["cdcr"] not in log_cdcrs)
+        and (not r.get("case_num") or r["case_num"] not in log_cases)
+    )
+
+    result = {
+        "log_filename": os.path.basename(log_path),
+        "total_log": total_log,
+        "matched": len(matched),
+        "missing_count": len(missing),
+        "extra_in_db_count": extra_in_db,
+        "missing": missing[:1000],
+    }
+    _LOG_RECONCILE_CACHE["data"] = result
+    _LOG_RECONCILE_CACHE["ts"] = now
+    return result
+
+
+@app.route('/api/log_reconcile')
+def api_log_reconcile():
+    """
+    Compare the 1170(d) tracking log against the database.
+    Requires an active session (Tool Hub access).
+    """
+    if not _session_email():
+        return jsonify({"error": "Access required"}), 403
+    try:
+        refresh = request.args.get("refresh", "").lower() in ("1", "true", "yes")
+        return jsonify(_load_log_reconcile(force=refresh)), 200
+    except Exception as exc:
+        logging.error("log_reconcile error: %s", exc)
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.route('/api/poster_view')

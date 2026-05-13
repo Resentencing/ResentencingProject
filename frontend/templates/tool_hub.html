@@ -121,6 +121,7 @@
             <button type="button" class="rad-subtab-btn active" data-subtab="search">Search</button>
             <button type="button" class="rad-subtab-btn" data-subtab="ai">AI Assistant</button>
             <button type="button" class="rad-subtab-btn" data-subtab="variables">Variable Explorer</button>
+            <button type="button" class="rad-subtab-btn" data-subtab="logreconcile">Log Reconcile</button>
           </div>
 
           <section id="subtab-search" class="rad-subtab-pane active">
@@ -321,6 +322,64 @@
               </div>
             </div>
           </section>
+          <section id="subtab-logreconcile" class="rad-subtab-pane">
+            <div class="rad-toolhub-card">
+              <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">1170(d) Log vs. Database</h2>
+              <p class="rad-toolhub-muted">
+                Compares the 1170(d) Main Tracking Log (Excel) against letter records in the database.
+                Matching is done by CDCR&nbsp;# first, then Case&nbsp;# as a fallback.
+                Letters marked <em>missing</em> are in the log but not yet in the database — we have
+                requested these letters from CDCR and are still waiting to receive them.
+              </p>
+
+              <div id="reconcile-summary" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
+                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="Total rows in the 1170(d) tracking log Excel file.">
+                  <div class="rad-stat-label">Log entries</div>
+                  <div id="recon-total" class="rad-stat-value">--</div>
+                </div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#22c55e;" title="Log entries that have a matching record in the database.">
+                  <div class="rad-stat-label">In database</div>
+                  <div id="recon-matched" class="rad-stat-value" style="color:#15803d;">--</div>
+                </div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#f59e0b;" title="Log entries with no matching record in the database. These letters have been requested from CDCR but may not yet be received or processed.">
+                  <div class="rad-stat-label">Missing from DB</div>
+                  <div id="recon-missing" class="rad-stat-value" style="color:#b45309;">--</div>
+                </div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="DB records that have no matching entry in the tracking log.">
+                  <div class="rad-stat-label">DB-only records</div>
+                  <div id="recon-extra" class="rad-stat-value">--</div>
+                </div>
+              </div>
+
+              <div id="reconcile-meta" class="rad-toolhub-muted" style="margin-bottom:0.75rem;"></div>
+
+              <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
+                <button id="reconcile-refresh-btn" class="rad-toolhub-btn secondary" type="button">Refresh</button>
+                <span id="reconcile-status" class="rad-toolhub-muted"></span>
+              </div>
+
+              <h3 class="wp-block-heading" style="margin-top:0;">Missing from Database</h3>
+              <p class="rad-toolhub-muted" style="margin-top:0;">Entries in the 1170(d) log that have no matching letter in the database.</p>
+              <div class="rad-toolhub-table-wrap">
+                <table class="rad-toolhub-table">
+                  <thead>
+                    <tr>
+                      <th>CDCR #</th>
+                      <th>Last Name</th>
+                      <th>Case #</th>
+                      <th>Category</th>
+                      <th>County</th>
+                      <th>Institution</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reconcile-missing-tbody">
+                    <tr><td colspan="6" class="rad-toolhub-muted">Click "Refresh" to load.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
         </div>
       </section>
     </main>
@@ -371,6 +430,63 @@
     document.getElementById("ai-clear").addEventListener("click", () => {
       queryEl.value = "";
       responseEl.textContent = "No response yet.";
+    });
+
+    // --- Log Reconcile tab ---
+    let reconcileLoaded = false;
+
+    async function loadReconcile(force) {
+      const statusEl = document.getElementById("reconcile-status");
+      const refreshBtn = document.getElementById("reconcile-refresh-btn");
+      statusEl.textContent = "Loading…";
+      refreshBtn.disabled = true;
+      try {
+        const url = force ? "/api/log_reconcile?refresh=1" : "/api/log_reconcile";
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.error) {
+          statusEl.textContent = "Error: " + data.error;
+          return;
+        }
+        document.getElementById("recon-total").textContent = (data.total_log ?? "--").toLocaleString();
+        document.getElementById("recon-matched").textContent = (data.matched ?? "--").toLocaleString();
+        document.getElementById("recon-missing").textContent = (data.missing_count ?? "--").toLocaleString();
+        document.getElementById("recon-extra").textContent = (data.extra_in_db_count ?? "--").toLocaleString();
+        document.getElementById("reconcile-meta").textContent =
+          "Log file: " + (data.log_filename || "unknown") +
+          " · Coverage: " + (data.total_log ? Math.round((data.matched / data.total_log) * 100) : "--") + "%";
+
+        const tbody = document.getElementById("reconcile-missing-tbody");
+        tbody.innerHTML = "";
+        const rows = data.missing || [];
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="rad-toolhub-muted">No missing entries — all log rows matched!</td></tr>';
+        } else {
+          rows.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.innerHTML =
+              `<td>${r.cdcr || "—"}</td><td>${r.name || "—"}</td><td>${r.case || "—"}</td>` +
+              `<td>${r.category || "—"}</td><td>${r.county || "—"}</td><td>${r.institution || "—"}</td>`;
+            tbody.appendChild(tr);
+          });
+        }
+        statusEl.textContent = "Last loaded: " + new Date().toLocaleTimeString();
+        reconcileLoaded = true;
+      } catch (err) {
+        statusEl.textContent = "Request failed: " + err;
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    document.getElementById("reconcile-refresh-btn").addEventListener("click", () => loadReconcile(true));
+
+    subtabButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.subtab === "logreconcile" && !reconcileLoaded) {
+          loadReconcile(false);
+        }
+      });
     });
   </script>
 </body>

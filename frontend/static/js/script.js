@@ -154,6 +154,20 @@ document.addEventListener("DOMContentLoaded", () => {
     statIndividuals.textContent = formatNumber(summary?.total_individuals || 0);
     statCounties.textContent = formatNumber(summary?.total_counties || 0);
 
+    const logCoverageEl = document.getElementById("rad-log-coverage");
+    const logCoverageBody = document.getElementById("rad-log-coverage-body");
+    if (logCoverageEl && logCoverageBody && summary?.log_total != null) {
+      const logTotal = summary.log_total;
+      const logMissing = summary.log_missing ?? 0;
+      const logInDb = logTotal - logMissing;
+      logCoverageBody.innerHTML =
+        `<strong>1170(d) log coverage:</strong> ${logInDb.toLocaleString()} of ${logTotal.toLocaleString()} tracking-log entries have letters in the database` +
+        (logMissing > 0
+          ? ` · <strong>${logMissing.toLocaleString()} letters pending</strong> — requested from CDCR, not yet received`
+          : " · all log entries matched");
+      logCoverageEl.style.display = "";
+    }
+
     const freshBody = document.getElementById("rad-data-freshness-body");
     if (freshBody) {
       const f = summary?.data_freshness || {};

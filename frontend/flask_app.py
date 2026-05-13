@@ -1180,16 +1180,58 @@ def _load_log_reconcile(force: bool = False) -> dict:
         _LOG_RECONCILE_CACHE["ts"] = now
         return result
 
-    # Row 0 = filter-label artefact; row 1 = actual column headers
-    df = pd.read_excel(log_path, header=1)
-    df.columns = [str(c).replace("\n", " ").strip() for c in df.columns]
+    # Scan the first 8 rows to find the one that IS the header row.
+    # We require an exact (case-insensitive) cell value match for "cdc #" or "case #"
+    # so we don't accidentally match a filter-label sentence that contains those words.
+    _HEADER_TOKENS = {"cdc #", "cdc#", "cdcr #", "cdcr#", "case #", "case#"}
+    raw = pd.read_excel(log_path, header=None, nrows=8)
+    header_row = None
+    for i, row in raw.iterrows():
+        vals = {str(v).strip().lower() for v in row.values if pd.notna(v)}
+        if vals & _HEADER_TOKENS:
+            header_row = i
+            break
+    if header_row is None:
+        header_row = 1  # fall back to old assumption
 
-    cdcr_col = "CDC #"
-    case_col = "Case #"
-    name_col = "Inmate's Last Name"
-    category_col = "Category"
-    county_col = "County"
-    institution_col = "Institution"
+    df = pd.read_excel(log_path, header=header_row)
+    df.columns = [str(c).replace("\n", " ").strip() for c in df.columns]
+    actual_cols = list(df.columns)
+
+    def _find_col(df, *candidates):
+        """Return the first matching column name (case-insensitive substring)."""
+        col_lower = {c.lower(): c for c in df.columns}
+        for cand in candidates:
+            if cand in df.columns:
+                return cand
+            match = next((orig for low, orig in col_lower.items() if cand.lower() in low), None)
+            if match:
+                return match
+        return None
+
+    cdcr_col = _find_col(df, "CDC #", "CDC#", "CDCR", "CDC")
+    case_col = _find_col(df, "Case #", "Case#", "Case Number")
+    name_col = _find_col(df, "Inmate's Last Name", "Last Name", "Name")
+    category_col = _find_col(df, "Category")
+    county_col = _find_col(df, "County")
+    institution_col = _find_col(df, "Institution")
+
+    if not cdcr_col and not case_col:
+        result = {
+            "error": f"Could not find CDC # or Case # columns. Columns found: {actual_cols}",
+            "log_filename": os.path.basename(log_path),
+        }
+        _LOG_RECONCILE_CACHE["data"] = result
+        _LOG_RECONCILE_CACHE["ts"] = now
+        return result
+
+    # Fall back to empty series for any missing column
+    if not cdcr_col:
+        df["_cdcr"] = ""
+        cdcr_col = "_cdcr"
+    if not case_col:
+        df["_case"] = ""
+        case_col = "_case"
 
     def _clean(series):
         return (
@@ -1203,7 +1245,7 @@ def _load_log_reconcile(force: bool = False) -> dict:
     df[case_col] = _clean(df[case_col])
     # Keep name/county/institution in original case for display
     for col in (name_col, category_col, county_col, institution_col):
-        if col in df.columns:
+        if col and col in df.columns:
             df[col] = df[col].astype(str).str.strip().replace({"nan": "", "None": "", "NaN": ""})
 
     df = df[(df[cdcr_col] != "") | (df[case_col] != "")].copy()
@@ -1229,10 +1271,10 @@ def _load_log_reconcile(force: bool = False) -> dict:
     for _, row in df.iterrows():
         cdcr = row.get(cdcr_col, "")
         case = row.get(case_col, "")
-        name = row.get(name_col, "") if name_col in df.columns else ""
-        category = row.get(category_col, "") if category_col in df.columns else ""
-        county = row.get(county_col, "") if county_col in df.columns else ""
-        institution = row.get(institution_col, "") if institution_col in df.columns else ""
+        name = row.get(name_col, "") if name_col else ""
+        category = row.get(category_col, "") if category_col else ""
+        county = row.get(county_col, "") if county_col else ""
+        institution = row.get(institution_col, "") if institution_col else ""
 
         if cdcr and cdcr in db_cdcr:
             match_method = "cdcr"
@@ -1270,6 +1312,14 @@ def _load_log_reconcile(force: bool = False) -> dict:
         "missing_count": len(missing),
         "extra_in_db_count": extra_in_db,
         "missing": missing[:1000],
+        "columns_detected": {
+            "cdcr": cdcr_col,
+            "case": case_col,
+            "name": name_col,
+            "category": category_col,
+            "county": county_col,
+            "institution": institution_col,
+        },
     }
     _LOG_RECONCILE_CACHE["data"] = result
     _LOG_RECONCILE_CACHE["ts"] = now

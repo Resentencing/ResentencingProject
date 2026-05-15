@@ -22,6 +22,9 @@ import json
 import decimal
 import datetime
 import pymysql
+import subprocess
+import sys as _sys
+from pathlib import Path
 try:
     from enhanced_upload_route import enhanced_upload_to_database_route
 except Exception:
@@ -138,26 +141,140 @@ def home():
         return redirect(url_for('login'))
     return render_template('home.html')
 
-@app.route('/upload_and_process', methods=['POST'])
-def upload_and_process_files():
+@app.route('/queue_pdfs', methods=['POST'])
+def queue_pdfs():
     """
-    Accepts and saves uploaded PDF files, then immediately processes them for OCR.
-    This function verifies login, validates file type, and triggers the OCR pipeline.
+    Save PDFs to uploads/ only — returns quickly.
+
+    For Google Apps Script and other automated callers that must not wait for
+    OCR (6-minute Apps Script cap). Pair with ``process_uploads.py`` (cron or
+    ``POST /run_process_uploads``) for OCR + DB.
     """
     auth_fail = require_auth_json()
     if auth_fail:
         return auth_fail
 
     uploaded_files = request.files.getlist('files[]')
+    saved = []
+    skipped = []
     for file in uploaded_files:
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
-            # Start processing right after saving
-            preprocess_pdf(file_path, app.config['OUTPUT_FOLDER'])
+            saved.append(filename)
+        else:
+            skipped.append(getattr(file, "filename", "<unknown>"))
 
-    return jsonify(status='success', message='Files uploaded and processed successfully')
+    return jsonify(
+        status='success',
+        message=(
+            f'Saved {len(saved)} file(s) to the server queue. '
+            'OCR + database ingest runs via process_uploads.py (scheduled or manual).'
+        ),
+        saved=saved,
+        skipped=skipped,
+    )
+
+
+@app.route('/upload_and_process', methods=['POST'])
+def upload_and_process_files():
+    """
+    Admin / manual tool: upload PDFs and run OCR immediately (legacy).
+
+    Saves each file to uploads/, then calls ``preprocess_pdf`` so corrected PDFs
+    land in processed/. Use **Upload to Database** (or ``POST /upload_to_database``)
+    as a second step for text extraction + MySQL insert.
+
+    Automated Drive sync should use ``POST /queue_pdfs`` instead so callers are
+    not held open during OCR.
+    """
+    auth_fail = require_auth_json()
+    if auth_fail:
+        return auth_fail
+
+    uploaded_files = request.files.getlist('files[]')
+    saved = []
+    skipped = []
+    for file in uploaded_files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            preprocess_pdf(file_path, app.config['OUTPUT_FOLDER'])
+            saved.append(filename)
+        else:
+            skipped.append(getattr(file, "filename", "<unknown>"))
+
+    return jsonify(
+        status='success',
+        message='Files uploaded and processed successfully',
+        saved=saved,
+        skipped=skipped,
+    )
+
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PROCESS_UPLOADS_SCRIPT = _SCRIPT_DIR / "process_uploads.py"
+_PROCESS_UPLOADS_LOG_DIR = _SCRIPT_DIR / "logs"
+_PROCESS_UPLOADS_STATUS = _SCRIPT_DIR / "process_uploads.status.json"
+
+
+@app.route('/run_process_uploads', methods=['POST'])
+def run_process_uploads():
+    """Start `process_uploads.py` in the background (same as daily cron).
+
+    Auth: logged-in admin session or X-API-Key (Apps Script could call this
+    if you add a second trigger later — not required for the Drive file-upload flow).
+    """
+    auth_fail = require_auth_json()
+    if auth_fail:
+        return auth_fail
+    if not _PROCESS_UPLOADS_SCRIPT.exists():
+        return jsonify({"error": "process_uploads.py not found"}), 500
+    try:
+        _PROCESS_UPLOADS_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        log_path = _PROCESS_UPLOADS_LOG_DIR / "process_uploads.last.log"
+        log_fh = open(log_path, "ab")
+        log_fh.write(
+            b"\n===== manual run_process_uploads "
+            + datetime.datetime.now(datetime.timezone.utc).isoformat().encode()
+            + b" =====\n"
+        )
+        log_fh.flush()
+        subprocess.Popen(
+            [_sys.executable, str(_PROCESS_UPLOADS_SCRIPT)],
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            cwd=str(_SCRIPT_DIR),
+            close_fds=True,
+            start_new_session=True,
+        )
+        logging.info("Started process_uploads.py in background (log %s)", log_path)
+        return jsonify({
+            "status": "started",
+            "message": "Processing started in the background. Poll GET /process_uploads_status.",
+            "log_file": str(log_path),
+        }), 202
+    except Exception as exc:
+        logging.error("run_process_uploads failed: %s", exc)
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/process_uploads_status', methods=['GET'])
+def process_uploads_status():
+    """Latest JSON status from process_uploads.py (for home page polling)."""
+    auth_fail = require_auth_json()
+    if auth_fail:
+        return auth_fail
+    if not _PROCESS_UPLOADS_STATUS.exists():
+        return jsonify({"state": "never_run"}), 200
+    try:
+        with open(_PROCESS_UPLOADS_STATUS, "r", encoding="utf-8") as f:
+            return jsonify(json.load(f)), 200
+    except Exception as exc:
+        return jsonify({"error": str(exc), "state": "unknown"}), 500
+
 
 @app.route('/database_ai')
 def database_ai():

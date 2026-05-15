@@ -9,12 +9,13 @@
     <p>The application is built using Flask, leveraging libraries such as PyMuPDF and pytesseract for processing PDF files and performing OCR.</p>
 
     <div class="box">
-        <h2>Process PDF Files</h2>
+        <h2>Upload &amp; OCR (manual, legacy two-step)</h2>
+        <p>Select PDFs and run OCR on the server now. Corrected PDFs go to <code>processed/</code>. Then use <strong>Upload Corrected Files to Database</strong> below to extract text and insert into MySQL.</p>
         <input type="file" id="fileInput" multiple accept=".pdf">
         <ul id="fileList"></ul>
         <div class="processing-area">
         
-            <button id="processButton">Process PDFs</button>
+            <button id="processButton">Upload &amp; OCR now</button>
 
             
         </div>
@@ -22,6 +23,15 @@
         <button id="clearButton">Clear Files</button>
         <progress id="progressBar" value="0" max="100" style="width:100%;"></progress>
         <audio id="successSound" src="{{ url_for('static', filename='audio/success.mp3') }}" preload="auto"></audio>
+    </div>
+
+    <div class="box">
+        <h2>Process server queue (Drive sync path)</h2>
+        <p>Runs <code>process_uploads.py</code> on everything in <code>uploads/</code>: OCR, metadata, database insert. Use this after Google Apps Script has queued files via <code>/queue_pdfs</code>, or run the daily scheduled task.</p>
+        <button id="runProcessUploadsButton" type="button">Run OCR &amp; upload to database</button>
+        <button id="refreshProcessStatusButton" type="button" class="button secondary">Refresh status</button>
+        <span id="processUploadsStatusLabel" style="margin-left:0.75rem;"></span>
+        <div id="processUploadsStatusDetail" style="display:none;margin-top:1rem;padding:0.75rem;background:#f5f5f5;border-radius:6px;font-size:0.9rem;"></div>
     </div>
 
     <div class="box">

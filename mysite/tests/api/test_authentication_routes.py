@@ -93,6 +93,12 @@ class TestProtectedRoutes:
         assert response.is_json
         data = response.get_json()
         assert 'error' in data or 'message' in data
+
+    def test_queue_pdfs_requires_login(self, client):
+        """Test that queue_pdfs requires authentication."""
+        response = client.post('/queue_pdfs')
+        assert response.status_code == 401
+        assert response.is_json
     
     def test_upload_to_database_requires_login(self, client):
         """Test that upload_to_database requires authentication."""

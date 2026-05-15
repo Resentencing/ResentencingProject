@@ -1170,17 +1170,61 @@ def api_public_summary():
                             }
                         except Exception:
                             pass
-            # Letters DB — use MAX(date_stamped) from metadata as last-updated proxy
+            # Letters DB — prefer MAX(uploaded_at) (real ingest time).
+            # date_stamped is OCR-extracted text from the letter body, often varchar;
+            # MAX(date_stamped) is lexical and wrong for "last synced".
+            # Column added by mysite/add_uploaded_at_column.py (run once per environment).
             if not data_freshness.get("letters_db", {}) or not (data_freshness.get("letters_db") or {}).get("as_of"):
                 try:
-                    cursor2 = conn if False else mysql.connector.connect(**database_config).cursor(dictionary=True)
-                    cursor2.execute("SELECT MAX(date_stamped) AS last_date FROM metadata WHERE date_stamped IS NOT NULL")
-                    lrow = cursor2.fetchone()
-                    cursor2.close()
-                    if lrow and lrow.get("last_date"):
-                        ts = lrow["last_date"]
-                        ts_out = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
-                        data_freshness["letters_db"] = {"as_of": ts_out, "source_file": None}
+                    conn_l = mysql.connector.connect(**database_config)
+                    try:
+                        cursor2 = conn_l.cursor(dictionary=True)
+                        last_date = None
+                        try:
+                            cursor2.execute(
+                                "SELECT MAX(uploaded_at) AS last_date FROM metadata "
+                                "WHERE uploaded_at IS NOT NULL"
+                            )
+                            row_u = cursor2.fetchone() or {}
+                            last_date = row_u.get("last_date")
+                        except mysql.connector.Error:
+                            last_date = None
+                        finally:
+                            cursor2.close()
+
+                        if last_date:
+                            ts_out = (
+                                last_date.isoformat()
+                                if hasattr(last_date, "isoformat")
+                                else str(last_date)
+                            )
+                            data_freshness["letters_db"] = {
+                                "as_of": ts_out,
+                                "source_file": None,
+                            }
+                        else:
+                            cursor3 = conn_l.cursor(dictionary=True)
+                            try:
+                                cursor3.execute(
+                                    "SELECT MAX(date_stamped) AS last_date FROM metadata "
+                                    "WHERE date_stamped IS NOT NULL"
+                                )
+                                lrow = cursor3.fetchone()
+                                if lrow and lrow.get("last_date"):
+                                    ts = lrow["last_date"]
+                                    ts_out = (
+                                        ts.isoformat()
+                                        if hasattr(ts, "isoformat")
+                                        else str(ts)
+                                    )
+                                    data_freshness["letters_db"] = {
+                                        "as_of": ts_out,
+                                        "source_file": None,
+                                    }
+                            finally:
+                                cursor3.close()
+                    finally:
+                        conn_l.close()
                 except Exception as _le:
                     logging.debug("letters_db freshness fallback failed: %s", _le)
         except Exception as _recon_err:

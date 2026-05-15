@@ -141,6 +141,33 @@ class TestUploadAndProcessRoute:
             app.config.update(original_config)
 
 
+class TestQueuePdfsRoute:
+    """POST /queue_pdfs — save only, no OCR in-request."""
+
+    def test_queue_pdfs_success(self, client, temp_upload_dirs):
+        original_config = app.config.copy()
+        app.config['UPLOAD_FOLDER'] = temp_upload_dirs['upload']
+        app.config['OUTPUT_FOLDER'] = temp_upload_dirs['output']
+        try:
+            with patch('OCRWebApp.preprocess_pdf') as mock_preprocess:
+                pdf_content = b"%PDF-1.4\n"
+                file_obj = BytesIO(pdf_content)
+                file_obj.filename = 'queued.pdf'
+                data = {'files[]': [(file_obj, 'queued.pdf')]}
+                response = client.post(
+                    '/queue_pdfs',
+                    data=data,
+                    content_type='multipart/form-data',
+                )
+                assert response.status_code == 200
+                result = response.get_json()
+                assert result.get('status') == 'success'
+                assert 'queued.pdf' in result.get('saved', [])
+                mock_preprocess.assert_not_called()
+        finally:
+            app.config.update(original_config)
+
+
 class TestUploadToDatabaseRoute:
     """Tests for the /upload_to_database route."""
     

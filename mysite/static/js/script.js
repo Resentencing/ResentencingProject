@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const button = document.getElementById('processButton');
         const originalText = button.textContent;
         
-        // Disable button and show processing state
+        // Disable button and show processing state        
         button.disabled = true;
         button.textContent = 'Processing...';
         button.style.opacity = '0.6';
@@ -278,4 +278,91 @@ document.addEventListener('DOMContentLoaded', function () {
                 aiResponseDiv.innerHTML = `<p>An error occurred: ${error.message}</p>`;
             });
     });
+
+    // --- Background pipeline: process_uploads.py (OCR home page only) ---
+    let processUploadsPollTimer = null;
+
+    function fmtProcessTs(iso) {
+        if (!iso) return "—";
+        try { return new Date(iso).toLocaleString(); } catch (_) { return iso; }
+    }
+
+    function loadProcessUploadsStatus() {
+        const detail = document.getElementById("processUploadsStatusDetail");
+        const label = document.getElementById("processUploadsStatusLabel");
+        if (!detail || !label) return;
+
+        fetch("/process_uploads_status")
+            .then((r) => r.json())
+            .then((data) => {
+                const state = data.state || "unknown";
+                detail.style.display = "";
+                let html = `<div><strong>State:</strong> ${state}</div>`;
+                html += `<div><strong>PDFs pending (last run):</strong> ${data.pdfs_pending ?? "—"}</div>`;
+                html += `<div><strong>Last update:</strong> ${fmtProcessTs(data.last_finished || data.ts)}</div>`;
+                if (data.duration_seconds != null) {
+                    html += `<div><strong>Duration:</strong> ${data.duration_seconds}s</div>`;
+                }
+                const failed = data.pdfs_failed || [];
+                if (failed.length) {
+                    html += "<div style='margin-top:0.5rem;color:#b45309;'><strong>Failures:</strong><ul>";
+                    failed.forEach((f) => {
+                        html += `<li><code>${f.file}</code> — ${f.stage}: ${f.error}</li>`;
+                    });
+                    html += "</ul></div>";
+                }
+                detail.innerHTML = html;
+
+                if (state === "running") {
+                    label.textContent = "Pipeline running…";
+                    if (!processUploadsPollTimer) {
+                        processUploadsPollTimer = setInterval(loadProcessUploadsStatus, 5000);
+                    }
+                } else {
+                    label.textContent =
+                        state === "done" ? "Last run finished."
+                        : state === "idle" ? "Queue empty (nothing to process)."
+                        : state === "error" ? "Last run reported errors."
+                        : state === "never_run" ? "No status file yet."
+                        : "";
+                    if (processUploadsPollTimer) {
+                        clearInterval(processUploadsPollTimer);
+                        processUploadsPollTimer = null;
+                    }
+                }
+            })
+            .catch((err) => {
+                label.textContent = "Status error: " + err.message;
+            });
+    }
+
+    document.getElementById("refreshProcessStatusButton")?.addEventListener("click", loadProcessUploadsStatus);
+
+    document.getElementById("runProcessUploadsButton")?.addEventListener("click", () => {
+        const btn = document.getElementById("runProcessUploadsButton");
+        const label = document.getElementById("processUploadsStatusLabel");
+        if (!btn || !label) return;
+        btn.disabled = true;
+        label.textContent = "Starting…";
+        fetch("/run_process_uploads", { method: "POST" })
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (res.status === 202) {
+                    label.textContent = data.message || "Started.";
+                    loadProcessUploadsStatus();
+                } else {
+                    label.textContent = "Error: " + (data.error || res.statusText);
+                }
+            })
+            .catch((err) => {
+                label.textContent = "Request failed: " + err.message;
+            })
+            .finally(() => {
+                btn.disabled = false;
+            });
+    });
+
+    if (document.getElementById("runProcessUploadsButton")) {
+        loadProcessUploadsStatus();
+    }
 });

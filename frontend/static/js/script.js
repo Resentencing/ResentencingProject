@@ -156,16 +156,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const logCoverageEl = document.getElementById("rad-log-coverage");
     const logCoverageBody = document.getElementById("rad-log-coverage-body");
-    if (logCoverageEl && logCoverageBody && summary?.log_total != null) {
-      const logTotal = summary.log_total;
-      const logMissing = summary.log_missing ?? 0;
-      const logInDb = logTotal - logMissing;
-      logCoverageBody.innerHTML =
-        `<strong>1170(d) log coverage:</strong> ${logInDb.toLocaleString()} of ${logTotal.toLocaleString()} tracking-log entries have letters in the database` +
-        (logMissing > 0
-          ? ` · <strong>${logMissing.toLocaleString()} letters pending</strong> — requested from CDCR, not yet received`
-          : " · all log entries matched");
-      logCoverageEl.style.display = "";
+    if (logCoverageEl && logCoverageBody) {
+      const logTotal   = summary?.log_total   ?? 0;
+      const logMatched = summary?.log_matched  ?? null;  // exact reconcile count
+      const logMissing = summary?.log_missing  ?? null;
+      const dbLetters  = summary?.total_letters ?? 0;
+      // Only show reconcile numbers when the log looks like a real full log (> 10 rows).
+      const logLooksReal = logTotal > 10;
+      let coverageHtml = "";
+      if (logLooksReal && logMatched !== null && logMissing !== null) {
+        coverageHtml =
+          `<strong>1170(d) log coverage:</strong> ` +
+          `${dbLetters.toLocaleString()} letters in our database · ` +
+          `CDCR tracking log shows ${logTotal.toLocaleString()} generated · ` +
+          `${logMatched.toLocaleString()} matched` +
+          (logMissing > 0
+            ? ` · <strong>${logMissing.toLocaleString()} still pending</strong> — requested from CDCR, will be added as received`
+            : " · all log entries matched");
+      } else if (dbLetters > 0) {
+        coverageHtml =
+          `<strong>Letter coverage:</strong> ${dbLetters.toLocaleString()} letters in our database · ` +
+          `additional letters have been requested from CDCR and will be added as they are received`;
+      }
+      if (coverageHtml) {
+        logCoverageBody.innerHTML = coverageHtml;
+        logCoverageEl.style.display = "";
+      }
     }
 
     const freshBody = document.getElementById("rad-data-freshness-body");

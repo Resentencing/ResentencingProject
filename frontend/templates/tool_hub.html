@@ -47,6 +47,10 @@
     .rad-toolhub-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
     .rad-toolhub-table th, .rad-toolhub-table td { border-bottom: 1px solid #edf2f7; text-align: left; padding: 0.6rem 0.65rem; vertical-align: top; }
     .rad-toolhub-table th { background: #f8fafc; font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rf-muted); }
+    .recon-sortable:hover { background: #f0f9ff !important; }
+    .recon-sort-icon { opacity: 0.5; font-style: normal; }
+    .recon-method-btn { transition: background 0.15s, font-weight 0.1s; }
+    .recon-method-btn.active, .recon-method-btn[aria-pressed="true"] { background: #e0f2fe !important; font-weight: 600; border-color: #38bdf8 !important; }
     .rad-toolhub-muted { color: var(--rf-muted); font-size: 0.92rem; }
     .rad-toolhub-actions a { margin-right: 0.55rem; display: inline-block; margin-top: 0.15rem; }
     .rad-ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.8rem; }
@@ -330,11 +334,14 @@
                 Matching is done by CDCR&nbsp;# first, then Case&nbsp;# as a fallback.
                 Letters marked <em>missing</em> are in the log but not yet in the database — we have
                 requested these letters from CDCR and are still waiting to receive them.
+                <strong>Only rows where "Date Letter Created" is filled in are counted</strong> — rows
+                where no letter was ever generated (Secretary declined, etc.) are excluded.
               </p>
+              <div id="reconcile-filter-note" class="rad-toolhub-muted" style="margin-bottom:0.5rem;display:none;"></div>
 
               <div id="reconcile-summary" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
-                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="Total rows in the 1170(d) tracking log Excel file.">
-                  <div class="rad-stat-label">Log entries</div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="Rows where a letter was actually generated (Date Letter Created is filled in).">
+                  <div class="rad-stat-label">Letters generated</div>
                   <div id="recon-total" class="rad-stat-value">--</div>
                 </div>
                 <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#22c55e;" title="Log entries that have a matching record in the database.">
@@ -360,16 +367,42 @@
 
               <h3 class="wp-block-heading" style="margin-top:0;">Missing from Database</h3>
               <p class="rad-toolhub-muted" style="margin-top:0;">Entries in the 1170(d) log that have no matching letter in the database.</p>
+
+              <!-- Search + match-method filter toolbar -->
+              <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
+                <input id="reconcile-search" type="search" placeholder="Search CDCR #, name, case, county…"
+                  style="flex:1;min-width:200px;padding:0.4rem 0.6rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.85rem;">
+                <div id="reconcile-method-filters" style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+                  <button class="recon-method-btn" data-method="all"
+                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #38bdf8;background:#e0f2fe;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                    All
+                  </button>
+                  <button class="recon-method-btn" data-method="cdcr"
+                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
+                    CDCR# matched
+                  </button>
+                  <button class="recon-method-btn" data-method="case"
+                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
+                    Case# matched
+                  </button>
+                  <button class="recon-method-btn" data-method="name+county"
+                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
+                    Name+County matched
+                  </button>
+                </div>
+                <span id="reconcile-row-count" class="rad-toolhub-muted" style="white-space:nowrap;"></span>
+              </div>
+
               <div class="rad-toolhub-table-wrap">
-                <table class="rad-toolhub-table">
+                <table class="rad-toolhub-table" id="reconcile-missing-table">
                   <thead>
                     <tr>
-                      <th>CDCR #</th>
-                      <th>Last Name</th>
-                      <th>Case #</th>
-                      <th>Category</th>
-                      <th>County</th>
-                      <th>Institution</th>
+                      <th class="recon-sortable" data-col="0" style="cursor:pointer;user-select:none;">CDCR # <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="1" style="cursor:pointer;user-select:none;">Last Name <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="2" style="cursor:pointer;user-select:none;">Case # <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="3" style="cursor:pointer;user-select:none;">Category <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="4" style="cursor:pointer;user-select:none;">County <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="5" style="cursor:pointer;user-select:none;">Institution <span class="recon-sort-icon">↕</span></th>
                     </tr>
                   </thead>
                   <tbody id="reconcile-missing-tbody">
@@ -434,6 +467,72 @@
 
     // --- Log Reconcile tab ---
     let reconcileLoaded = false;
+    let reconAllRows = [];      // full missing list from API
+    let reconSortCol = -1;
+    let reconSortAsc = true;
+    let reconMethodFilter = "all";
+    let reconSearchTerm = "";
+
+    const RECON_COLS = ["cdcr", "name", "case", "category", "county", "institution"];
+
+    function reconRender() {
+      const tbody = document.getElementById("reconcile-missing-tbody");
+      let rows = reconAllRows.slice();
+
+      // Method filter (only relevant for the "matched" side — here missing list has no match_method,
+      // so method filter is wired to the matched breakdown buttons instead; skip on missing table)
+
+      // Search filter
+      if (reconSearchTerm) {
+        const q = reconSearchTerm.toLowerCase();
+        rows = rows.filter(r =>
+          RECON_COLS.some(k => (r[k] || "").toLowerCase().includes(q))
+        );
+      }
+
+      // Sort
+      if (reconSortCol >= 0) {
+        const key = RECON_COLS[reconSortCol];
+        rows.sort((a, b) => {
+          const av = (a[key] || "").toLowerCase();
+          const bv = (b[key] || "").toLowerCase();
+          return reconSortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+        });
+      }
+
+      // Update sort icons
+      document.querySelectorAll(".recon-sortable").forEach(th => {
+        const col = parseInt(th.dataset.col);
+        const icon = th.querySelector(".recon-sort-icon");
+        if (icon) {
+          icon.textContent = col === reconSortCol ? (reconSortAsc ? " ↑" : " ↓") : " ↕";
+        }
+        th.style.background = col === reconSortCol ? "#f0f9ff" : "";
+      });
+
+      tbody.innerHTML = "";
+      const rowCount = document.getElementById("reconcile-row-count");
+      if (rows.length === 0) {
+        const msg = reconAllRows.length === 0
+          ? "No missing entries — all log rows matched!"
+          : "No rows match your search.";
+        tbody.innerHTML = `<tr><td colspan="6" class="rad-toolhub-muted">${msg}</td></tr>`;
+        if (rowCount) rowCount.textContent = "";
+      } else {
+        rows.forEach(r => {
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            `<td>${r.cdcr || "—"}</td><td>${r.name || "—"}</td><td>${r.case || "—"}</td>` +
+            `<td>${r.category || "—"}</td><td>${r.county || "—"}</td><td>${r.institution || "—"}</td>`;
+          tbody.appendChild(tr);
+        });
+        if (rowCount) {
+          rowCount.textContent = rows.length < reconAllRows.length
+            ? `Showing ${rows.length.toLocaleString()} of ${reconAllRows.length.toLocaleString()}`
+            : `${rows.length.toLocaleString()} entries`;
+        }
+      }
+    }
 
     async function loadReconcile(force) {
       const statusEl = document.getElementById("reconcile-status");
@@ -452,24 +551,44 @@
         document.getElementById("recon-matched").textContent = (data.matched ?? "--").toLocaleString();
         document.getElementById("recon-missing").textContent = (data.missing_count ?? "--").toLocaleString();
         document.getElementById("recon-extra").textContent = (data.extra_in_db_count ?? "--").toLocaleString();
-        document.getElementById("reconcile-meta").textContent =
-          "Log file: " + (data.log_filename || "unknown") +
-          " · Coverage: " + (data.total_log ? Math.round((data.matched / data.total_log) * 100) : "--") + "%";
 
-        const tbody = document.getElementById("reconcile-missing-tbody");
-        tbody.innerHTML = "";
-        const rows = data.missing || [];
-        if (rows.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="rad-toolhub-muted">No missing entries — all log rows matched!</td></tr>';
-        } else {
-          rows.forEach(r => {
-            const tr = document.createElement("tr");
-            tr.innerHTML =
-              `<td>${r.cdcr || "—"}</td><td>${r.name || "—"}</td><td>${r.case || "—"}</td>` +
-              `<td>${r.category || "—"}</td><td>${r.county || "—"}</td><td>${r.institution || "—"}</td>`;
-            tbody.appendChild(tr);
-          });
+        const pct = data.total_log ? Math.round((data.matched / data.total_log) * 100) : "--";
+        const byCdcr = data.match_by_cdcr ?? 0;
+        const byCase = data.match_by_case ?? 0;
+        const byName = data.match_by_name_county ?? 0;
+        document.getElementById("reconcile-meta").innerHTML =
+          "Log file: <strong>" + (data.log_filename || "unknown") + "</strong>" +
+          " &nbsp;·&nbsp; Coverage: <strong>" + pct + "%</strong>" +
+          " &nbsp;·&nbsp; Matched by: " +
+          `CDCR# <strong>${byCdcr.toLocaleString()}</strong>, ` +
+          `Case# <strong>${byCase.toLocaleString()}</strong>, ` +
+          `Name+County <strong>${byName.toLocaleString()}</strong>`;
+
+        // Update match-method filter button labels with live counts
+        document.querySelector('.recon-method-btn[data-method="cdcr"]').textContent =
+          `CDCR# matched (${byCdcr.toLocaleString()})`;
+        document.querySelector('.recon-method-btn[data-method="case"]').textContent =
+          `Case# matched (${byCase.toLocaleString()})`;
+        document.querySelector('.recon-method-btn[data-method="name+county"]').textContent =
+          `Name+County matched (${byName.toLocaleString()})`;
+
+        // Filter note
+        const filterNote = document.getElementById("reconcile-filter-note");
+        if (filterNote && data.total_log_raw != null) {
+          const excluded = data.total_log_raw - data.total_log;
+          filterNote.textContent =
+            `Filtered to ${data.total_log.toLocaleString()} rows where "Date Letter Created" is filled in ` +
+            `(${excluded.toLocaleString()} rows excluded — no letter generated).`;
+          filterNote.style.display = "";
         }
+
+        reconAllRows = data.missing || [];
+        reconSortCol = -1;
+        reconSortAsc = true;
+        reconSearchTerm = "";
+        document.getElementById("reconcile-search").value = "";
+        reconRender();
+
         statusEl.textContent = "Last loaded: " + new Date().toLocaleTimeString();
         reconcileLoaded = true;
       } catch (err) {
@@ -478,6 +597,49 @@
         refreshBtn.disabled = false;
       }
     }
+
+    // Sort on header click
+    document.querySelectorAll(".recon-sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const col = parseInt(th.dataset.col);
+        if (reconSortCol === col) {
+          reconSortAsc = !reconSortAsc;
+        } else {
+          reconSortCol = col;
+          reconSortAsc = true;
+        }
+        reconRender();
+      });
+    });
+
+    // Search
+    document.getElementById("reconcile-search").addEventListener("input", e => {
+      reconSearchTerm = e.target.value.trim();
+      reconRender();
+    });
+
+    // Match-method filter buttons — highlight which method contributed most matches.
+    // The missing table has no match method (all rows failed to match), so these
+    // buttons show the matched-side breakdown as context only.
+    function setMethodActive(activeBtn) {
+      document.querySelectorAll(".recon-method-btn").forEach(b => {
+        b.style.background = "#fff";
+        b.style.fontWeight = "";
+        b.style.borderColor = "#6b7280";
+      });
+      activeBtn.style.background = "#e0f2fe";
+      activeBtn.style.fontWeight = "600";
+      activeBtn.style.borderColor = "#38bdf8";
+    }
+    // Set "All" as active initially
+    setMethodActive(document.querySelector('.recon-method-btn[data-method="all"]'));
+
+    document.querySelectorAll(".recon-method-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        setMethodActive(btn);
+        reconMethodFilter = btn.dataset.method;
+      });
+    });
 
     document.getElementById("reconcile-refresh-btn").addEventListener("click", () => loadReconcile(true));
 

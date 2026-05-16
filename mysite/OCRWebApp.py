@@ -17,6 +17,7 @@ from dbconnector import database_config, connect_to_database
 import secrets
 from openai import OpenAI
 from dotenv import load_dotenv
+from drive_duplicate_names import upload_basename_variants
 import re
 import json
 import decimal
@@ -812,31 +813,49 @@ def _archive_dir_base():
     return os.path.join(os.getcwd(), "shared", "archive_directory")
 
 
+def _first_existing_archive_corrected(archive_dir: str, upload_basename: str):
+    """
+    Return (full_archive_path, log_label) for reuse, or (None, None).
+
+    Tries ``corrected_`` + each basename variant (exact name, then Drive-duplicate
+    stripped forms).
+    """
+    for variant in upload_basename_variants(upload_basename):
+        arc_name = f"corrected_{variant}"
+        path = os.path.join(archive_dir, arc_name)
+        if os.path.isfile(path):
+            if variant == upload_basename:
+                return path, arc_name
+            return path, f"{arc_name} (reusing canonical for duplicate-style name {upload_basename!r})"
+    return None, None
+
+
 def preprocess_pdf(file_path, output_folder):
     """
     Converts each PDF page to an image, corrects orientation, reassembles into a new PDF,
     and applies OCR to make the final output searchable.
     Temporary images are cleaned up after processing.
 
-    If ``corrected_<original_basename>`` already exists in the archive directory
-    (e.g. from a prior rsync or run), copy it into ``output_folder`` and skip OCR
-    so ``process_uploads`` can still run extract → DB without redoing ocrmypdf.
+    If ``corrected_<original_basename>`` (or a **canonical** name after stripping
+    Drive duplicate prefixes like ``Copy_of_``) already exists in the archive,
+    copy it into ``output_folder`` as ``corrected_<original_basename>`` and skip
+    OCR so ``process_uploads`` can still run extract → DB.
     """
     basename = os.path.basename(file_path)
     corrected_name = f"corrected_{basename}"
     archive_dir = _archive_dir_base()
     os.makedirs(archive_dir, exist_ok=True)
-    archive_corrected = os.path.join(archive_dir, corrected_name)
     processed_dest = os.path.join(output_folder, corrected_name)
 
-    if os.path.isfile(archive_corrected):
+    archive_hit, archive_label = _first_existing_archive_corrected(archive_dir, basename)
+    if archive_hit:
         os.makedirs(output_folder, exist_ok=True)
         try:
-            shutil.copy2(archive_corrected, processed_dest)
+            shutil.copy2(archive_hit, processed_dest)
             logging.info(
-                "Skipping OCR for %s; archive already has %s — copied to processed/",
+                "Skipping OCR for %s; archive match %s — copied to processed/",
                 basename,
-                corrected_name,
+                archive_label,
             )
             return
         except OSError as e:

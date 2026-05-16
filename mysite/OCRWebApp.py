@@ -803,12 +803,49 @@ def correct_orientation(image_path):
         logging.error(f"Tesseract failed to process {image_path}: {e}")
         return None  # Return None to indicate an error occurred
 
+
+def _archive_dir_base():
+    """ARCHIVE_DIR with same local-dev fallback as preprocess_pdf / download routes."""
+    archive_dir = os.getenv("ARCHIVE_DIR", "/home/RSCAP/shared/archive_directory")
+    if not archive_dir.startswith("/home/RSCAP") or os.path.exists("/home/RSCAP"):
+        return archive_dir
+    return os.path.join(os.getcwd(), "shared", "archive_directory")
+
+
 def preprocess_pdf(file_path, output_folder):
     """
     Converts each PDF page to an image, corrects orientation, reassembles into a new PDF,
     and applies OCR to make the final output searchable.
     Temporary images are cleaned up after processing.
+
+    If ``corrected_<original_basename>`` already exists in the archive directory
+    (e.g. from a prior rsync or run), copy it into ``output_folder`` and skip OCR
+    so ``process_uploads`` can still run extract → DB without redoing ocrmypdf.
     """
+    basename = os.path.basename(file_path)
+    corrected_name = f"corrected_{basename}"
+    archive_dir = _archive_dir_base()
+    os.makedirs(archive_dir, exist_ok=True)
+    archive_corrected = os.path.join(archive_dir, corrected_name)
+    processed_dest = os.path.join(output_folder, corrected_name)
+
+    if os.path.isfile(archive_corrected):
+        os.makedirs(output_folder, exist_ok=True)
+        try:
+            shutil.copy2(archive_corrected, processed_dest)
+            logging.info(
+                "Skipping OCR for %s; archive already has %s — copied to processed/",
+                basename,
+                corrected_name,
+            )
+            return
+        except OSError as e:
+            logging.warning(
+                "Archive file exists for %s but copy to processed failed (%s); running full OCR.",
+                basename,
+                e,
+            )
+
     temp_dir = os.path.join(output_folder, "temp_images")
     os.makedirs(temp_dir, exist_ok=True)
     corrected_images = []
@@ -853,12 +890,7 @@ def preprocess_pdf(file_path, output_folder):
             logging.error(f"Error during OCR processing of {corrected_pdf_path}: {e}")
 
         # === Archive the final corrected PDF if it doesn't already exist ===
-        archive_dir = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
-        # Local-safe fallback when PythonAnywhere path is unavailable.
-        if not archive_dir.startswith('/home/RSCAP') or os.path.exists('/home/RSCAP'):
-            pass
-        else:
-            archive_dir = os.path.join(os.getcwd(), 'shared', 'archive_directory')
+        archive_dir = _archive_dir_base()
         os.makedirs(archive_dir, exist_ok=True)
 
         archive_path = os.path.join(archive_dir, os.path.basename(corrected_pdf_path))

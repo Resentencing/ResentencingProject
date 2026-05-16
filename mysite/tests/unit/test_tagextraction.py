@@ -305,6 +305,37 @@ class TestAddressExtraction:
         assert "City, CA 12345" in address
 
 
+class TestFilenameMetadataHints:
+    """Tests for tagextraction.filename_metadata_hints (basename CDCR/case)."""
+
+    def test_cdcr_glued_before_surname(self):
+        import tagextraction
+
+        h = tagextraction.filename_metadata_hints("corrected_667 (a)-AB0395Thomas.pdf")
+        assert h["CDCR NO"] == "AB0395"
+
+    def test_cdcr_before_space_then_name(self):
+        import tagextraction
+
+        h = tagextraction.filename_metadata_hints("corrected_667 (a)WE6373 Sims.pdf")
+        assert h["CDCR NO"] == "WE6373"
+
+    def test_case_style_long_numeric(self):
+        import tagextraction
+
+        h = tagextraction.filename_metadata_hints("misc_C1226110_signed.pdf")
+        assert h.get("CASE NO") == "C1226110"
+        assert h.get("CDCR NO") is None or h.get("CDCR NO") != "C1226110"
+
+    def test_d63289_after_name(self):
+        import tagextraction
+
+        h = tagextraction.filename_metadata_hints(
+            "corrected_GE Signed Secretary Letter Moore D63289.pdf"
+        )
+        assert h["CDCR NO"] == "D63289"
+
+
 class TestFilenameProcessing:
     """Tests for filename processing."""
     

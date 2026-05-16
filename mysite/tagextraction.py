@@ -12,10 +12,55 @@ CDCR_LABEL_PATTERN = re.compile(
 CASE_LABEL_PATTERN = re.compile(r"CASE\s*(?:NO\.?|#)?\s*[:\-]?\s*(.+)", re.IGNORECASE)
 SENTENCE_LABEL_PATTERN = re.compile(r"DATE\s*OF\s*SENTENCE\s*[:\-]?\s*(.+)", re.IGNORECASE)
 RE_NAME_PATTERN = re.compile(r"RE\s*[:;]\s*(.+)", re.IGNORECASE)
+# CDCR in archive filenames (e.g. ``AB0395Thomas``, ``Letter_MOORE_D63289``): letters + 4–5 digits,
+# including when glued before a capitalized surname.
+CDCR_FILENAME_PATTERN = re.compile(
+    r"(?<![A-Z0-9])([A-Z]{1,2}\d{4,5})(?=(?:[A-Z][a-z]|[^A-Za-z0-9]|$))",
+    re.IGNORECASE,
+)
+# Court / lead case style: one letter + long digit run (e.g. ``C1226110``, ``F12909692``).
+CASE_FILENAME_PATTERN = re.compile(
+    r"(?<![A-Z0-9])([A-Z]\d{7,11})(?![0-9])",
+    re.IGNORECASE,
+)
 
 
 def _clean(s):
     return " ".join((s or "").replace("\n", " ").split())
+
+
+def filename_metadata_hints(pdf_or_txt_name: str) -> dict:
+    """
+    Best-effort CDCR / case hints from a PDF or .txt basename (no OCR).
+    Used when letter body does not match the ``Honorable`` block or OCR is noisy.
+    """
+    base = (pdf_or_txt_name or "").strip()
+    for ext in (".pdf", ".txt"):
+        if base.lower().endswith(ext):
+            base = base[: -len(ext)]
+            break
+    base_u = base.upper()
+    hints = {}
+    for m in CDCR_FILENAME_PATTERN.finditer(base_u):
+        hints["CDCR NO"] = m.group(1).upper()
+        break
+    for m in CASE_FILENAME_PATTERN.finditer(base_u):
+        cand = m.group(1).upper()
+        if hints.get("CDCR NO") and cand == hints["CDCR NO"]:
+            continue
+        hints["CASE NO"] = cand
+        break
+    return hints
+
+
+def _apply_filename_hints(outputdict, filename_txt: str):
+    """Fill missing CDCR / CASE from filename when OCR cues are absent."""
+    pdf_name = filename_txt.replace(".txt", ".pdf")
+    hints = filename_metadata_hints(pdf_name)
+    if hints.get("CDCR NO") and not (outputdict.get("CDCR NO") or "").strip():
+        outputdict["CDCR NO"] = hints["CDCR NO"]
+    if hints.get("CASE NO") and not (outputdict.get("CASE NO") or "").strip():
+        outputdict["CASE NO"] = hints["CASE NO"]
 
 
 def _extract_primary_fields(text, filename, months):
@@ -62,14 +107,6 @@ def _extract_primary_fields(text, filename, months):
                     else:
                         outputdict["CNAME"] = " ".join(outputarray)
 
-            # Filename-derived fallback CDCR
-            filenamesplit = re.split(r"[\.\_\-\s\(]", filename)
-            for string in filenamesplit:
-                token = string.strip().upper()
-                if bool(re.search(r"\d", token)) and len(token) == 6 and bool(re.search(r"[A-Z]", token)):
-                    outputdict["CDCR NO"] = token
-                    break
-
             if linenumber + 7 < len(text):
                 outputdict["CASE NO"] = (
                     text[linenumber + 7].replace("Case", "").replace("No:", "").replace("No.:", "").strip()
@@ -84,6 +121,7 @@ def _extract_primary_fields(text, filename, months):
                 )
             print("Extracted metadata for: " + filename)
             break
+    _apply_filename_hints(outputdict, filename)
     return outputdict
 
 
@@ -189,20 +227,19 @@ def extract_metadata_from_text_files(input_folder, output_file):
     jsonarray=[]
 
     for filename in os.listdir(input_folder):
-        if filename.endswith(".txt"):
-            file_path = os.path.join(input_folder, filename)
-            with open(file_path, "r", encoding="utf-8") as textfile:
-                text = textfile.readlines()
+        if not filename.endswith(".txt"):
+            continue
+        file_path = os.path.join(input_folder, filename)
+        with open(file_path, "r", encoding="utf-8") as textfile:
+            text = textfile.readlines()
 
-            outputdict = _extract_primary_fields(text, filename, months)
-            source_pdf_name = filename.replace(".txt", ".pdf")
-            if enable_batch_expansion:
-                candidate_dicts = _extract_batch_candidates(text, outputdict)
-            else:
-                # Safe default: preserve prior single-record behavior unless explicitly enabled.
-                candidate_dicts = [outputdict]
+        outputdict = _extract_primary_fields(text, filename, months)
+        source_pdf_name = filename.replace(".txt", ".pdf")
+        if enable_batch_expansion:
+            candidate_dicts = _extract_batch_candidates(text, outputdict)
+        else:
+            candidate_dicts = [outputdict]
 
-        # Save Excel metadata for each candidate (supports batch PDFs).
         for candidate in candidate_dicts:
             try:
                 cdcr_no = (candidate.get("CDCR NO") or "").strip().upper()
@@ -225,12 +262,10 @@ def extract_metadata_from_text_files(input_folder, output_file):
                 for case_num in case_number_list:
                     case_outputdict = candidate.copy()
                     if not (case_outputdict.get("filename") or "").strip():
-                        # Defensive fallback: keep a stable source filename for batch entries.
                         case_outputdict["filename"] = source_pdf_name
                     case_outputdict["CDCR NO"] = cdcr_no
                     case_outputdict["CASE NO"] = case_num
 
-                    # Add Excel metadata
                     case_outputdict["COHORT"] = series.iat[0, 0]
                     case_outputdict["PID NO"] = series.iat[0, 3]
                     case_outputdict["INSTITUTION"] = series.iat[0, 4]

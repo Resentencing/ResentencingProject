@@ -25,6 +25,12 @@ DB_NAME = os.getenv('DB_NAME')
 ARCHIVE_DIR = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
 LOG_DIR = os.getenv('LOG_DIR', '/home/RSCAP/mysite/logs')
 
+# Match enhanced upload auto-recovery: inventory-only inserts avoid misleading
+# metadata (today's date + NULL case/CDCR). Set true for legacy placeholder rows.
+def _placeholder_metadata_enabled() -> bool:
+    v = (os.getenv('AUTO_RECOVERY_PLACEHOLDER_METADATA') or '').lower()
+    return v in {'1', 'true', 'yes'}
+
 def get_db_filenames():
     """Get list of filenames currently in the database."""
     connection = pymysql.connect(
@@ -64,19 +70,17 @@ def insert_file_to_db(filename):
                 (filename, file_path)
             )
             
-            # Get the inserted pdf_id
             pdf_id = cursor.lastrowid
-            
-            # Insert basic metadata record
-            cursor.execute("""
-                INSERT INTO metadata (pdf_id, date_stamped, notes) 
-                VALUES (%s, %s, %s)
-            """, (
-                pdf_id,
-                datetime.now().strftime('%B %d, %Y'),
-                f"Auto-recovered on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Metadata pending refresh"
-            ))
-            
+            if _placeholder_metadata_enabled():
+                cursor.execute("""
+                    INSERT INTO metadata (pdf_id, date_stamped, notes)
+                    VALUES (%s, %s, %s)
+                """, (
+                    pdf_id,
+                    datetime.now().strftime('%B %d, %Y'),
+                    f"Auto-recovered on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Metadata pending refresh"
+                ))
+
             connection.commit()
             return True
     except Exception as e:

@@ -5,6 +5,12 @@
 {% block content %}
 <div class="dashboard-container">
     <h1>📊 Database Dashboard</h1>
+
+    {% if dashboard_error %}
+    <div class="alert alert-error" style="background:#f8d7da;border:1px solid #f5c6cb;color:#721c24;padding:12px;border-radius:6px;margin-bottom:16px;">
+        <strong>Database unavailable.</strong> {{ dashboard_error }}
+    </div>
+    {% endif %}
     
     <!-- Statistics Cards -->
     <div class="stats-grid">
@@ -17,10 +23,10 @@
             <p class="stat-number">{{ stats.with_metadata }}</p>
         </div>
         <div class="stat-card">
-            <h3>⚠️ Missing Metadata</h3>
-            <p class="stat-number">{{ stats.missing_metadata }}</p>
-            {% if stats.needs_refresh > 0 %}
-            <p class="stat-detail">({{ stats.needs_refresh }} need refresh)</p>
+            <h3>⚠️ Missing / incomplete</h3>
+            <p class="stat-number">{{ stats.missing_total }}</p>
+            {% if stats.missing_no_row or stats.needs_refresh %}
+            <p class="stat-detail">{{ stats.missing_no_row }} no metadata row; {{ stats.needs_refresh }} need refresh</p>
             {% endif %}
         </div>
         <div class="stat-card">
@@ -59,17 +65,17 @@
     <div class="system-status">
         <h2>System Status</h2>
         <div class="status-grid">
-            <div class="status-item {% if status.database %}status-ok{% else %}status-error{% endif %}">
+            <div class="status-item {% if status.database == 'Connected' %}status-ok{% else %}status-error{% endif %}">
                 <span class="status-icon">🗄️</span>
                 <span class="status-label">Database</span>
                 <span class="status-value">{{ status.database }}</span>
             </div>
-            <div class="status-item {% if status.archive %}status-ok{% else %}status-error{% endif %}">
+            <div class="status-item {% if status.archive == 'Accessible' %}status-ok{% else %}status-error{% endif %}">
                 <span class="status-icon">📁</span>
                 <span class="status-label">Archive</span>
                 <span class="status-value">{{ status.archive }}</span>
             </div>
-            <div class="status-item {% if status.sync %}status-ok{% else %}status-warning{% endif %}">
+            <div class="status-item {% if status.sync == 'Synchronized' %}status-ok{% else %}status-warning{% endif %}">
                 <span class="status-icon">🔄</span>
                 <span class="status-label">Sync Status</span>
                 <span class="status-value">{{ status.sync }}</span>
@@ -146,6 +152,7 @@
 .btn-warning { background: #ffc107; color: #212529; }
 .btn-info { background: #17a2b8; color: white; }
 .btn-secondary { background: #6c757d; color: white; }
+.btn-success { background: #28a745; color: white; }
 
 .btn:hover {
     transform: translateY(-2px);

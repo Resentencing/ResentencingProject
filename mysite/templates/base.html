@@ -11,6 +11,7 @@
         <ul>
             <li><a href="{{ url_for('home') }}" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a></li>
             <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a></li>
+            <li><a href="{{ url_for('safety.safety_dashboard') }}" class="{% if request.endpoint == 'safety.safety_dashboard' %}active{% endif %}">Upload safety</a></li>
             <li><a href="{{ url_for('database_ai') }}" class="{% if request.endpoint == 'database_ai' %}active{% endif %}">AI Interaction</a></li>
             <li><a href="{{ url_for('file_viewer') }}" class="{% if request.endpoint == 'file_viewer' %}active{% endif %}">File Viewer</a></li>
         </ul>

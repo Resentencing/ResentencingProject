@@ -22,8 +22,15 @@ def _env_flag(name: str, default: str = "false") -> bool:
 
 def _run_auto_recovery(connection, archive_dir: str) -> Dict:
     """
-    Recover archive files missing from DB by inserting minimal placeholder records.
-    Also ensures each PDF row has at least one metadata row.
+    Sync archive filenames into the ``pdfs`` table when missing (file inventory only).
+
+    By default this does **not** insert placeholder ``metadata`` rows. Placeholder
+    rows used today's date and NULL case/CDCR, which made the File Viewer look
+    like bad OCR. Rows without metadata appear on **Missing metadata** and can be
+    filled by the normal tag + upload pipeline or ``metadata_refresh.py``.
+
+    Optional (legacy): set ``AUTO_RECOVERY_ORPHAN_PLACEHOLDER=true`` to insert
+    minimal metadata for existing PDF rows that still have no metadata row.
     """
     stats = {
         "missing_pdfs_inserted": 0,
@@ -44,7 +51,7 @@ def _run_auto_recovery(connection, archive_dir: str) -> Dict:
         now_stamp = datetime.datetime.now().strftime("%B %d, %Y")
         note_stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Insert missing PDF rows + minimal metadata placeholders.
+        # Insert missing PDF rows only (no fake metadata — use Missing metadata + ingest).
         for filename in archive_files:
             try:
                 if filename in filename_to_pdf_id:
@@ -55,41 +62,33 @@ def _run_auto_recovery(connection, archive_dir: str) -> Dict:
                     (filename, file_path),
                 )
                 pdf_id = cursor.lastrowid
-                cursor.execute(
-                    """
-                    INSERT INTO metadata (pdf_id, date_stamped, notes)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (pdf_id, now_stamp, f"Auto-recovered on {note_stamp} - Metadata pending refresh"),
-                )
                 filename_to_pdf_id[filename] = pdf_id
                 stats["missing_pdfs_inserted"] += 1
-                stats["metadata_placeholders_inserted"] += 1
             except Exception as row_error:
                 stats["errors"].append(f"{filename}: {row_error}")
 
-        # Ensure existing pdf rows have at least one metadata row.
-        cursor.execute(
-            """
-            SELECT p.id, p.filename
-            FROM pdfs p
-            LEFT JOIN metadata m ON p.id = m.pdf_id
-            WHERE m.pdf_id IS NULL
-            """
-        )
-        orphaned_pdf_rows = cursor.fetchall()
-        for pdf_id, filename in orphaned_pdf_rows:
-            try:
-                cursor.execute(
-                    """
-                    INSERT INTO metadata (pdf_id, date_stamped, notes)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (pdf_id, now_stamp, f"Auto-recovered on {note_stamp} - Metadata pending refresh"),
-                )
-                stats["metadata_placeholders_inserted"] += 1
-            except Exception as meta_error:
-                stats["errors"].append(f"{filename} metadata: {meta_error}")
+        if _env_flag("AUTO_RECOVERY_ORPHAN_PLACEHOLDER", "false"):
+            cursor.execute(
+                """
+                SELECT p.id, p.filename
+                FROM pdfs p
+                LEFT JOIN metadata m ON p.id = m.pdf_id
+                WHERE m.pdf_id IS NULL
+                """
+            )
+            orphaned_pdf_rows = cursor.fetchall()
+            for pdf_id, filename in orphaned_pdf_rows:
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO metadata (pdf_id, date_stamped, notes)
+                        VALUES (%s, %s, %s)
+                        """,
+                        (pdf_id, now_stamp, f"Auto-recovered on {note_stamp} - Metadata pending refresh"),
+                    )
+                    stats["metadata_placeholders_inserted"] += 1
+                except Exception as meta_error:
+                    stats["errors"].append(f"{filename} metadata: {meta_error}")
 
         connection.commit()
         return stats

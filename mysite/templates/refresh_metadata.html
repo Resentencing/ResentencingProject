@@ -6,6 +6,13 @@
 <div class="container">
     <h2>🔄 Refresh Metadata</h2>
     <p>These files were auto-recovered with basic information and need full metadata extraction.</p>
+    <div class="alert alert-info" style="background:#e7f3ff;border-color:#b6daff;color:#004085;">
+        <strong>Why it takes so long:</strong> each file runs your full OCR pipeline, then tagging + Excel merge,
+        <strong>one after another</strong>. Hundreds of PDFs can take <strong>hours</strong> (and may hit HTTP timeouts
+        when started from this page). For large batches, run
+        <code>cd /home/RSCAP/mysite && …/python metadata_refresh.py</code> from a scheduled or Always-on console task.
+        Filename-based CDCR hints are applied when full merge is not possible (see logs).
+    </div>
     
     {% if files %}
     <div class="alert alert-warning">
@@ -171,36 +178,52 @@ code {
 document.getElementById('refreshAllBtn').addEventListener('click', function() {
     const btn = this;
     const statusDiv = document.getElementById('refreshStatus');
-    
-    // Disable button and show loading
+    const refreshUrl = {{ url_for('refresh_metadata') | tojson }};
+
     btn.disabled = true;
     btn.textContent = '🔄 Refreshing...';
     statusDiv.className = 'loading';
     statusDiv.style.display = 'block';
     statusDiv.textContent = 'Refreshing metadata for all files...';
-    
-    // Make POST request to refresh metadata
-    fetch('/refresh_metadata', {
+
+    // Plain POST — avoid Content-Type: application/json with an empty body (Safari/proxies can be picky).
+    fetch(refreshUrl, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(async (response) => {
+        const raw = await response.text();
+        let data = null;
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            const hint = response.ok ? 'non-JSON response' : 'server error page (not JSON)';
+            const preview = raw.replace(/\s+/g, ' ').trim().slice(0, 280);
+            throw new Error(
+                'Could not read JSON from server (' + hint + '). ' +
+                'HTTP ' + response.status + (preview ? '. Body: ' + preview : '')
+            );
+        }
+        if (!response.ok) {
+            const msg = (data && data.message) ? data.message : ('HTTP ' + response.status);
+            throw new Error(msg);
+        }
+        return data;
+    })
+    .then((data) => {
         if (data.success) {
             statusDiv.className = 'success';
             statusDiv.textContent = data.message;
-            // Reload page after 2 seconds to show updated status
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
         } else {
             statusDiv.className = 'error';
-            statusDiv.textContent = data.message;
+            statusDiv.textContent = data.message || 'Refresh failed.';
         }
     })
-    .catch(error => {
+    .catch((error) => {
         statusDiv.className = 'error';
         statusDiv.textContent = 'Error: ' + error.message;
     })

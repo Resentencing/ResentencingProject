@@ -54,9 +54,50 @@ def get_files_needing_refresh():
     finally:
         connection.close()
 
+def apply_filename_only_refresh(pdf_id, filename):
+    """
+    When OCR/tag excel-merge did not produce a row, still persist CDCR/case hints
+    parsed from the archive basename (see tagextraction.filename_metadata_hints).
+    """
+    hints = tagextraction.filename_metadata_hints(filename)
+    if not hints:
+        return False
+    connection = pymysql.connect(
+        host=DB_HOST,
+        port=int(os.getenv("DB_PORT", 3306)),
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME,
+    )
+    try:
+        with connection.cursor() as cursor:
+            parts = []
+            vals = []
+            if hints.get("CDCR NO"):
+                parts.append("cdcr_number = %s")
+                vals.append(hints["CDCR NO"])
+            if hints.get("CASE NO"):
+                parts.append("case_number = %s")
+                vals.append(hints["CASE NO"])
+            note = (
+                f"Partial hints from filename on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} "
+                "(re-run refresh after Excel/CDCR updates for full merge)."
+            )
+            parts.append("notes = %s")
+            vals.append(note)
+            vals.append(pdf_id)
+            sql = f"UPDATE metadata SET {', '.join(parts)} WHERE pdf_id = %s"
+            cursor.execute(sql, tuple(vals))
+        connection.commit()
+        print(f"  📝 Filename hints applied for {filename}: {hints}")
+        return True
+    finally:
+        connection.close()
+
+
 def refresh_metadata_for_file(pdf_id, filename, file_path):
     """Refresh metadata for a single file by re-processing it."""
-    print(f"Refreshing metadata for: {filename}")
+    print(f"Refreshing metadata for: {filename}", flush=True)
     
     temp_output_dir = f"temp_ocr_{pdf_id}"
     metadata_file = f"temp_metadata_{pdf_id}.json"
@@ -79,6 +120,8 @@ def refresh_metadata_for_file(pdf_id, filename, file_path):
         # Step 4: Load the extracted metadata
         if not os.path.exists(metadata_file):
             print(f"  ⚠️  No metadata file created for {filename}")
+            if apply_filename_only_refresh(pdf_id, filename):
+                return True
             return False
             
         with open(metadata_file, 'r') as f:
@@ -86,6 +129,8 @@ def refresh_metadata_for_file(pdf_id, filename, file_path):
         
         if not metadata_list:
             print(f"  ⚠️  No metadata extracted for {filename}")
+            if apply_filename_only_refresh(pdf_id, filename):
+                return True
             return False
         
         # Step 5: Update the database with new metadata
@@ -178,6 +223,8 @@ def refresh_metadata_for_file(pdf_id, filename, file_path):
             
     except Exception as e:
         print(f"  ❌ Error refreshing metadata for {filename}: {e}")
+        if apply_filename_only_refresh(pdf_id, filename):
+            return True
         return False
     finally:
         # Clean up temporary files
@@ -207,7 +254,8 @@ def run_metadata_refresh():
     successful = 0
     failed = 0
     
-    for pdf_id, filename, file_path, metadata_id in files_to_refresh:
+    for n, (pdf_id, filename, file_path, metadata_id) in enumerate(files_to_refresh, start=1):
+        print(f"[{n}/{len(files_to_refresh)}] …", flush=True)
         if refresh_metadata_for_file(pdf_id, filename, file_path):
             successful += 1
         else:

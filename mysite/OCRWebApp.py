@@ -1396,7 +1396,7 @@ def dashboard_stats():
 
 @app.route('/refresh_metadata', methods=['GET', 'POST'])
 def refresh_metadata():
-    """Refresh metadata for files that were auto-recovered."""
+    """OCR + tag for placeholder metadata and orphan PDFs (no metadata row)."""
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
@@ -1439,14 +1439,25 @@ def refresh_metadata():
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT p.filename, p.file_path, m.notes
-                FROM pdfs p
-                JOIN metadata m ON p.id = m.pdf_id
-                WHERE m.notes LIKE '%Auto-recovered%'
-                AND (m.case_number IS NULL OR m.case_number = '')
-                ORDER BY p.filename
-            """)
+            cursor.execute(
+                """
+                SELECT filename, file_path, status_note FROM (
+                    SELECT p.filename, p.file_path, m.notes AS status_note
+                    FROM pdfs p
+                    INNER JOIN metadata m ON p.id = m.pdf_id
+                    WHERE m.notes LIKE %s
+                      AND (m.case_number IS NULL OR TRIM(m.case_number) = '')
+                    UNION ALL
+                    SELECT p.filename, p.file_path,
+                           'No metadata row yet (orphan)' AS status_note
+                    FROM pdfs p
+                    LEFT JOIN metadata m ON p.id = m.pdf_id
+                    WHERE m.pdf_id IS NULL
+                ) AS cohort
+                ORDER BY filename
+                """,
+                ("%Auto-recovered%",),
+            )
             results = cursor.fetchall()
     finally:
         connection.close()
@@ -1455,7 +1466,7 @@ def refresh_metadata():
         {
             "filename": row[0],
             "file_path": row[1],
-            "notes": row[2]
+            "notes": row[2],
         }
         for row in results
     ]

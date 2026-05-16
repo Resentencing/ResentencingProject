@@ -5,7 +5,11 @@
 {% block content %}
 <div class="container">
     <h2>🔄 Refresh Metadata</h2>
-    <p>These files were auto-recovered with basic information and need full metadata extraction.</p>
+    <p>
+        These PDFs need a real <strong>metadata</strong> row: either a placeholder (auto-recovered, empty case)
+        or an <strong>orphan</strong> <code>pdfs</code> row with no metadata yet. The same job OCRs each file,
+        runs tag extraction + Excel merge, then <strong>updates</strong> or <strong>inserts</strong> metadata.
+    </p>
     <div class="alert alert-info" style="background:#e7f3ff;border-color:#b6daff;color:#004085;">
         <strong>Why it takes so long:</strong> each file runs your full OCR pipeline, then tagging + Excel merge,
         <strong>one after another</strong>. Hundreds of PDFs can take <strong>hours</strong> (and may hit HTTP timeouts

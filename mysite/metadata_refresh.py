@@ -6,13 +6,16 @@ Purpose:
     - Placeholder rows (auto-recovered notes, empty case), or
     - Orphan ``pdfs`` rows (no ``metadata`` row at all).
 
-    Updates existing metadata or INSERTs a new row for orphans when extraction succeeds.
+    For each extracted JSON record, **upserts** by ``(pdf_id, case_number, date_stamped)``
+    (NULL-safe), matching SafeUpload dedup rules—supports **multi-letter / batch PDFs**
+    when ``ENABLE_BATCH_METADATA_EXPANSION`` is on (default in ``tagextraction``).
 
 Usage:
     - Run manually: python3 metadata_refresh.py
     - Large batches: run from PA console/scheduled task (not the web button).
 """
 
+import math
 import os
 import pymysql
 from datetime import datetime
@@ -32,6 +35,65 @@ DB_PASSWORD = os.getenv('DB_PASSWORD')
 DB_NAME = os.getenv('DB_NAME')
 ARCHIVE_DIR = os.getenv('ARCHIVE_DIR', '/home/RSCAP/shared/archive_directory')
 LOG_DIR = os.getenv('LOG_DIR', './logs')
+
+def _sanitize_for_mysql(value):
+    """
+    Coerce pandas/Excel NaN and numpy scalar NaN to None — PyMySQL rejects float('nan').
+    Matches intent of ``dbconnector.sanitize_value`` / SafeUpload.
+    """
+    if value is None:
+        return None
+    try:
+        import numpy as np
+
+        if isinstance(value, np.generic):
+            return _sanitize_for_mysql(value.item())
+    except ImportError:
+        pass
+    try:
+        import pandas as pd
+
+        if value is pd.NA:
+            return None
+        if not isinstance(value, (list, dict, str, bytes)):
+            try:
+                if pd.isna(value):
+                    return None
+            except (TypeError, ValueError):
+                pass
+    except ImportError:
+        pass
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+    try:
+        from decimal import Decimal
+
+        if isinstance(value, Decimal) and not value.is_finite():
+            return None
+    except (ImportError, AttributeError):
+        pass
+    return value
+
+
+def _resolve_open_pdf_path(filename: str, file_path: str):
+    """
+    Prefer DB ``file_path`` when the file exists; otherwise ``ARCHIVE_DIR/filename``.
+    Some rows were inserted with a developer machine path and break on the server.
+    """
+    if file_path and os.path.isfile(file_path):
+        return file_path, None
+    fallback = os.path.join(ARCHIVE_DIR, filename)
+    if os.path.isfile(fallback):
+        hint = None
+        if file_path and os.path.normpath(file_path) != os.path.normpath(fallback):
+            hint = (
+                f"using archive path (DB file_path missing or not on this host: "
+                f"{file_path!r} → {fallback!r})"
+            )
+        return fallback, hint
+    return file_path or fallback, None
+
 
 def get_files_needing_refresh():
     """
@@ -140,8 +202,74 @@ _FULL_METADATA_COLUMNS = (
 )
 
 
+def _delete_auto_recovered_placeholders(cursor, pdf_id: int) -> int:
+    """Remove shell metadata rows for this PDF so real batch rows can replace them."""
+    cursor.execute(
+        """
+        DELETE FROM metadata
+        WHERE pdf_id = %s
+          AND notes LIKE %s
+          AND (case_number IS NULL OR TRIM(case_number) = '')
+        """,
+        (pdf_id, "%Auto-recovered%"),
+    )
+    return cursor.rowcount
+
+
+def _upsert_all_extracted_metadata(cursor, pdf_id: int, metadata_list: list, per_file_note: str) -> tuple:
+    """
+    Insert or update one DB row per JSON object. Match key: pdf_id + case_number + date_stamped (NULL-safe).
+    Returns (insert_count, update_count).
+    """
+    inserted = 0
+    updated = 0
+    set_clause = """
+        date_stamped = %s, judge = %s, county = %s, address = %s,
+        convict_name = %s, cdcr_number = %s, case_number = %s, sentence_date = %s,
+        cohort = %s, pid_no = %s, institution = %s, old_release_date = %s,
+        documents_printed_date = %s, letter_creation_date = %s,
+        secretary_send_date = %s, sec_decision = %s, court_mail_date = %s,
+        court_response_date = %s, resentencing_hearing_date = %s, action_taken = %s,
+        days_reduced = %s, years_reduced = %s, cost_savings = %s, notes = %s,
+        completion_date = %s, post_release = %s, isl_dsl = %s,
+        parole_eligibility_date = %s, race = %s, ethnicity = %s
+    """
+    for i, metadata in enumerate(metadata_list):
+        note = per_file_note if len(metadata_list) == 1 else f"{per_file_note} (entry {i + 1}/{len(metadata_list)})"
+        row_vals = _full_metadata_tuple(metadata, note)
+        case_no = _sanitize_for_mysql(metadata.get("CASE NO"))
+        date_st = _sanitize_for_mysql(metadata.get("DATE STAMPED"))
+        cursor.execute(
+            """
+            SELECT id FROM metadata
+            WHERE pdf_id = %s AND case_number <=> %s AND date_stamped <=> %s
+            LIMIT 1
+            """,
+            (pdf_id, case_no, date_st),
+        )
+        found = cursor.fetchone()
+        if found:
+            meta_id = found[0]
+            cursor.execute(
+                f"UPDATE metadata SET {set_clause} WHERE id = %s",
+                row_vals + (meta_id,),
+            )
+            updated += 1
+        else:
+            placeholders = ", ".join(["%s"] * (1 + len(row_vals)))
+            cursor.execute(
+                f"""
+                INSERT INTO metadata (pdf_id, {_FULL_METADATA_COLUMNS})
+                VALUES ({placeholders})
+                """,
+                (pdf_id,) + row_vals,
+            )
+            inserted += 1
+    return inserted, updated
+
+
 def _full_metadata_tuple(metadata: dict, notes: str):
-    return (
+    raw = (
         metadata.get("DATE STAMPED"),
         metadata.get("JUDGE"),
         metadata.get("COUNTY"),
@@ -173,10 +301,11 @@ def _full_metadata_tuple(metadata: dict, notes: str):
         metadata.get("RACE"),
         metadata.get("ETHNICITY"),
     )
+    return tuple(_sanitize_for_mysql(v) for v in raw)
 
 
 def refresh_metadata_for_file(pdf_id, filename, file_path, metadata_row_exists=True):
-    """OCR + tag; UPDATE existing metadata or INSERT when ``metadata_row_exists`` is False."""
+    """OCR + tag; upsert every JSON record (batch-PDF safe). Placeholder shells removed when replacing."""
     print(f"Refreshing metadata for: {filename}", flush=True)
     
     temp_output_dir = f"temp_ocr_{pdf_id}"
@@ -188,8 +317,21 @@ def refresh_metadata_for_file(pdf_id, filename, file_path, metadata_row_exists=T
         
         # Copy the PDF to the temp directory (since extracttext expects a directory)
         import shutil
+        open_path, path_hint = _resolve_open_pdf_path(filename, file_path)
+        if path_hint:
+            print(f"  ℹ️  {path_hint}", flush=True)
+        if not open_path or not os.path.isfile(open_path):
+            print(
+                f"  ❌ PDF not found for {filename} (tried DB path and "
+                f"{os.path.join(ARCHIVE_DIR, filename)!r})",
+                flush=True,
+            )
+            if apply_filename_only_refresh(pdf_id, filename):
+                return True
+            return False
+
         temp_pdf_path = os.path.join(temp_output_dir, filename)
-        shutil.copy2(file_path, temp_pdf_path)
+        shutil.copy2(open_path, temp_pdf_path)
         
         # Step 2: Extract text from PDF using your existing OCR pipeline
         extracttext.extract_text_from_pdfs(temp_output_dir, temp_output_dir)
@@ -213,7 +355,7 @@ def refresh_metadata_for_file(pdf_id, filename, file_path, metadata_row_exists=T
                 return True
             return False
         
-        # Step 5: Update the database with new metadata
+        # Step 5: Upsert all extracted rows (same rules as SafeUpload: key = pdf + case + date_stamped)
         connection = pymysql.connect(
             host=DB_HOST,
             port=int(os.getenv('DB_PORT', 3306)),
@@ -221,43 +363,24 @@ def refresh_metadata_for_file(pdf_id, filename, file_path, metadata_row_exists=T
             password=DB_PASSWORD,
             database=DB_NAME
         )
-        
+
         try:
             with connection.cursor() as cursor:
-                metadata = metadata_list[0]
-                refreshed_note = f"Metadata refreshed on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                row_vals = _full_metadata_tuple(metadata, refreshed_note)
-
                 if metadata_row_exists:
-                    cursor.execute(
-                        f"""
-                        UPDATE metadata SET
-                            date_stamped = %s, judge = %s, county = %s, address = %s,
-                            convict_name = %s, cdcr_number = %s, case_number = %s, sentence_date = %s,
-                            cohort = %s, pid_no = %s, institution = %s, old_release_date = %s,
-                            documents_printed_date = %s, letter_creation_date = %s,
-                            secretary_send_date = %s, sec_decision = %s, court_mail_date = %s,
-                            court_response_date = %s, resentencing_hearing_date = %s, action_taken = %s,
-                            days_reduced = %s, years_reduced = %s, cost_savings = %s, notes = %s,
-                            completion_date = %s, post_release = %s, isl_dsl = %s,
-                            parole_eligibility_date = %s, race = %s, ethnicity = %s
-                        WHERE pdf_id = %s
-                        """,
-                        row_vals + (pdf_id,),
-                    )
-                else:
-                    placeholders = ", ".join(["%s"] * (1 + len(row_vals)))
-                    cursor.execute(
-                        f"""
-                        INSERT INTO metadata (pdf_id, {_FULL_METADATA_COLUMNS})
-                        VALUES ({placeholders})
-                        """,
-                        (pdf_id,) + row_vals,
-                    )
+                    removed = _delete_auto_recovered_placeholders(cursor, pdf_id)
+                    if removed:
+                        print(f"  🗑 Removed {removed} auto-recovered placeholder row(s) for {filename}", flush=True)
 
+                refreshed_note = f"Metadata refreshed on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                ins, upd = _upsert_all_extracted_metadata(
+                    cursor, pdf_id, metadata_list, refreshed_note
+                )
                 connection.commit()
-                action = "updated" if metadata_row_exists else "inserted"
-                print(f"  ✅ Successfully {action} metadata for {filename}")
+                print(
+                    f"  ✅ {filename}: inserted {ins}, updated {upd} metadata row(s) "
+                    f"({len(metadata_list)} from extraction)",
+                    flush=True,
+                )
                 return True
 
         finally:

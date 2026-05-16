@@ -126,7 +126,11 @@ def _extract_primary_fields(text, filename, months):
 
 
 def _extract_batch_candidates(text, base_outputdict):
-    candidates = []
+    """
+    Extra metadata rows when one PDF / OCR file lists multiple CDC numbers in-line.
+
+    See ``Documentation/BATCH_LETTERS_PDF.md`` for behavior, env flag, and refresh/ingest alignment.
+    """
     # Always keep primary candidate first.
     candidates.append(base_outputdict.copy())
 
@@ -208,12 +212,9 @@ def extract_metadata_from_text_files(input_folder, output_file):
             excel_dir = cwd_excel_dir
         else:
             excel_dir = "./Excel"
-    enable_batch_expansion = os.getenv("ENABLE_BATCH_METADATA_EXPANSION", "false").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+    # Default ON: one PDF may contain multiple CDC-tagged letters (see Documentation/BATCH_LETTERS_PDF.md).
+    _exp = (os.getenv("ENABLE_BATCH_METADATA_EXPANSION") or "true").strip().lower()
+    enable_batch_expansion = _exp not in {"0", "false", "no", "off"}
     for f in os.listdir(excel_dir):
         if "Race_Data" in f:
             RandE_excel=pd.read_excel(os.path.join(excel_dir, f))

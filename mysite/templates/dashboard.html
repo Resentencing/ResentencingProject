@@ -26,7 +26,7 @@
             <h3>⚠️ Missing / incomplete</h3>
             <p class="stat-number">{{ stats.missing_total }}</p>
             {% if stats.missing_no_row or stats.needs_refresh %}
-            <p class="stat-detail">{{ stats.missing_no_row }} no metadata row; {{ stats.needs_refresh }} need refresh</p>
+            <p class="stat-detail">{{ stats.missing_no_row }} no row; {{ stats.needs_refresh }} need refresh (placeholders + partial)</p>
             {% endif %}
         </div>
         <div class="stat-card">

@@ -1,6 +1,8 @@
 #!/home/RSCAP/.virtualenvs/myvenv/bin/python
 import os
 import json
+from datetime import datetime
+
 import pandas as pd
 import numpy as np
 import re
@@ -131,6 +133,7 @@ def _extract_batch_candidates(text, base_outputdict):
 
     See ``Documentation/BATCH_LETTERS_PDF.md`` for behavior, env flag, and refresh/ingest alignment.
     """
+    candidates = []
     # Always keep primary candidate first.
     candidates.append(base_outputdict.copy())
 
@@ -215,13 +218,35 @@ def extract_metadata_from_text_files(input_folder, output_file):
     # Default ON: one PDF may contain multiple CDC-tagged letters (see Documentation/BATCH_LETTERS_PDF.md).
     _exp = (os.getenv("ENABLE_BATCH_METADATA_EXPANSION") or "true").strip().lower()
     enable_batch_expansion = _exp not in {"0", "false", "no", "off"}
+    main_log_path = None
+    race_path = None
     for f in os.listdir(excel_dir):
-        if "Race_Data" in f:
-            RandE_excel=pd.read_excel(os.path.join(excel_dir, f))
+        path = os.path.join(excel_dir, f)
+        if not f.lower().endswith((".xlsx", ".xls", ".csv")):
+            continue
+        if "race" in f.lower():
+            if race_path is None or os.path.getmtime(path) > os.path.getmtime(race_path):
+                race_path = path
         else:
-            openwb=pd.read_excel(os.path.join(excel_dir, f),sheet_name='1170(d)(1)') #will need to change this line if the sheet name in the excel sheet changes in the future
+            if main_log_path is None or os.path.getmtime(path) > os.path.getmtime(main_log_path):
+                main_log_path = path
 
-    print(openwb.columns)
+    if main_log_path:
+        print(
+            f"Using main tracking log: {main_log_path} "
+            f"(modified {datetime.fromtimestamp(os.path.getmtime(main_log_path)).strftime('%Y-%m-%d %H:%M:%S')})",
+            flush=True,
+        )
+        openwb = pd.read_excel(main_log_path, sheet_name="1170(d)(1)")
+    else:
+        print(f"WARNING: no main tracking log .xlsx in {excel_dir}", flush=True)
+
+    if race_path:
+        print(f"Using race/ethnicity data: {race_path}", flush=True)
+        RandE_excel = pd.read_excel(race_path)
+
+    if openwb is not None:
+        print(openwb.columns)
 
     missedentry=open("./logs/Missedentries.json","a",encoding="utf-8")
     tagsjson=open(output_file,"w",encoding="utf-8")

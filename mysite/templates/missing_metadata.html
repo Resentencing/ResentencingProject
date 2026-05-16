@@ -5,7 +5,11 @@
 {% block content %}
 <div class="container">
     <h2>⚠️ Missing or incomplete metadata</h2>
-    <p>PDFs with <strong>no metadata row</strong> appear first. <strong>Auto-recovered</strong> rows with empty case number need a full metadata refresh.</p>
+    <p>
+        PDFs with <strong>no metadata row</strong> appear first.
+        <strong>Auto-recovered</strong> placeholders (empty case) need a full refresh.
+        <strong>Filename-only hints</strong> have CDCR/case from the basename but little or no Excel merge—after you update the CDC log in <code>mysite/Excel</code>, run <a href="{{ url_for('refresh_metadata') }}">Refresh Metadata</a> so tag extraction can merge the new row.
+    </p>
     
     {% if orphan_files %}
     <h3>No metadata row ({{ orphan_files|length }})</h3>
@@ -60,7 +64,41 @@
     </table>
     {% endif %}
 
-    {% if not orphan_files and not incomplete_files %}
+    {% if partial_files %}
+    <h3>Filename-only / partial merge ({{ partial_files|length }})</h3>
+    <div class="alert alert-warning">
+        These rows have notes <strong>Partial hints from filename</strong> — usually only CDCR (and sometimes case) from the PDF name, not the full 1170(d) Excel merge. Updating the Excel file and running
+        <a href="{{ url_for('refresh_metadata') }}">Refresh Metadata</a> re-runs OCR + tagging and fills cohort, dates, and other columns when the <strong>CDC #</strong> exists in the sheet.
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>CDCR</th>
+                <th>Case</th>
+                <th>Name (DB)</th>
+                <th>Judge</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in partial_files %}
+            <tr>
+                <td>{{ file.filename }}</td>
+                <td>{{ file.cdcr_number or '—' }}</td>
+                <td>{{ file.case_number or '—' }}</td>
+                <td>{{ file.convict_name or '—' }}</td>
+                <td>{{ file.judge or '—' }}</td>
+                <td>
+                    <a href="{{ url_for('download_file', filename=file.filename) }}" class="btn btn-sm btn-primary">Download</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if not orphan_files and not incomplete_files and not partial_files %}
     <div class="alert alert-success">
         <strong>Great!</strong> No missing or incomplete metadata rows matched these criteria.
     </div>

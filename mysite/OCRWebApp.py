@@ -1167,9 +1167,10 @@ def dashboard():
             stats['missing_no_row'] = cursor.fetchone()[0]
 
             cursor.execute(
-                "SELECT COUNT(*) FROM pdfs p JOIN metadata m ON p.id = m.pdf_id "
-                "WHERE m.notes LIKE %s AND (m.case_number IS NULL OR m.case_number = '')",
-                ("%Auto-recovered%",),
+                "SELECT COUNT(DISTINCT p.id) FROM pdfs p JOIN metadata m ON p.id = m.pdf_id "
+                "WHERE (m.notes LIKE %s AND (m.case_number IS NULL OR TRIM(m.case_number) = '')) "
+                "OR m.notes LIKE %s",
+                ("%Auto-recovered%", "%Partial hints from filename%"),
             )
             stats['needs_refresh'] = cursor.fetchone()[0]
 
@@ -1199,7 +1200,7 @@ def dashboard():
 
 @app.route('/missing_metadata')
 def missing_metadata():
-    """Show PDFs with no metadata row and rows that need metadata refresh."""
+    """Show PDFs with no metadata row, auto-recovered placeholders, and partial filename-only rows."""
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
@@ -1231,6 +1232,16 @@ def missing_metadata():
                 ORDER BY p.filename
             """, ("%Auto-recovered%",))
             incomplete_rows = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT p.filename, p.file_path, m.cdcr_number, m.case_number,
+                       m.convict_name, m.judge, m.notes
+                FROM pdfs p
+                JOIN metadata m ON p.id = m.pdf_id
+                WHERE m.notes LIKE %s
+                ORDER BY p.filename
+            """, ("%Partial hints from filename%",))
+            partial_rows = cursor.fetchall()
     finally:
         connection.close()
 
@@ -1242,11 +1253,24 @@ def missing_metadata():
         {"filename": row[0], "file_path": row[1], "notes": row[2]}
         for row in incomplete_rows
     ]
+    partial_files = [
+        {
+            "filename": row[0],
+            "file_path": row[1],
+            "cdcr_number": row[2],
+            "case_number": row[3],
+            "convict_name": row[4],
+            "judge": row[5],
+            "notes": row[6],
+        }
+        for row in partial_rows
+    ]
 
     return render_template(
         "missing_metadata.html",
         orphan_files=orphan_files,
         incomplete_files=incomplete_files,
+        partial_files=partial_files,
     )
 
 @app.route('/recent_uploads')
@@ -1373,11 +1397,12 @@ def dashboard_stats():
             missing_metadata_count = cursor.fetchone()[0]
 
             cursor.execute("""
-                SELECT COUNT(*)
+                SELECT COUNT(DISTINCT p.id)
                 FROM pdfs p
                 JOIN metadata m ON p.id = m.pdf_id
-                WHERE m.notes LIKE '%Auto-recovered%'
-                AND (m.case_number IS NULL OR m.case_number = '')
+                WHERE (m.notes LIKE '%Auto-recovered%'
+                       AND (m.case_number IS NULL OR m.case_number = ''))
+                   OR m.notes LIKE '%Partial hints from filename%'
             """)
             needs_refresh_count = cursor.fetchone()[0]
 
@@ -1396,7 +1421,7 @@ def dashboard_stats():
 
 @app.route('/refresh_metadata', methods=['GET', 'POST'])
 def refresh_metadata():
-    """OCR + tag for placeholder metadata and orphan PDFs (no metadata row)."""
+    """OCR + tag for placeholder metadata, partial filename-hint rows, and orphan PDFs."""
     if not session.get('logged_in'):
         return redirect(url_for('login'))
 
@@ -1448,6 +1473,11 @@ def refresh_metadata():
                     WHERE m.notes LIKE %s
                       AND (m.case_number IS NULL OR TRIM(m.case_number) = '')
                     UNION ALL
+                    SELECT p.filename, p.file_path, m.notes AS status_note
+                    FROM pdfs p
+                    INNER JOIN metadata m ON p.id = m.pdf_id
+                    WHERE m.notes LIKE %s
+                    UNION ALL
                     SELECT p.filename, p.file_path,
                            'No metadata row yet (orphan)' AS status_note
                     FROM pdfs p
@@ -1456,7 +1486,7 @@ def refresh_metadata():
                 ) AS cohort
                 ORDER BY filename
                 """,
-                ("%Auto-recovered%",),
+                ("%Auto-recovered%", "%Partial hints from filename%"),
             )
             results = cursor.fetchall()
     finally:

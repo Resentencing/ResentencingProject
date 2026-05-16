@@ -102,6 +102,17 @@ def test_missing_metadata_page(client):
     mock_cursor.fetchall.side_effect = [
         [("a.pdf", "/path/a.pdf", 1)],
         [("b.pdf", "/path/b.pdf", "Auto-recovered note")],
+        [
+            (
+                "c.pdf",
+                "/path/c.pdf",
+                "AB1234",
+                None,
+                None,
+                None,
+                "Partial hints from filename on …",
+            )
+        ],
     ]
     mock_ctx = MagicMock()
     mock_ctx.__enter__ = MagicMock(return_value=mock_cursor)
@@ -115,6 +126,7 @@ def test_missing_metadata_page(client):
         r = client.get("/missing_metadata")
     assert r.status_code == 200
     assert b"a.pdf" in r.data and b"b.pdf" in r.data
+    assert b"c.pdf" in r.data
 
 
 def test_run_consistency_check_requires_login(client):

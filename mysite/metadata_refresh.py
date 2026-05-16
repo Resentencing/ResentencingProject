@@ -4,6 +4,7 @@ Purpose:
     OCR + tag extraction for PDFs that need real metadata:
 
     - Placeholder rows (auto-recovered notes, empty case), or
+    - Partial rows (``Partial hints from filename`` after a failed merge / fallback), or
     - Orphan ``pdfs`` rows (no ``metadata`` row at all).
 
     For each extracted JSON record, **upserts** by ``(pdf_id, case_number, date_stamped)``
@@ -100,6 +101,7 @@ def get_files_needing_refresh():
     PDFs that should go through OCR + tagging:
 
     - Placeholder metadata (auto-recovered, no case), or
+    - Filename-only hint rows (notes contain ``Partial hints from filename``), or
     - No metadata row (orphan inventory rows).
     """
     connection = pymysql.connect(
@@ -121,6 +123,11 @@ def get_files_needing_refresh():
                     WHERE m.notes LIKE %s
                       AND (m.case_number IS NULL OR TRIM(m.case_number) = '')
                     UNION ALL
+                    SELECT p.id, p.filename, p.file_path, m.id AS metadata_id
+                    FROM pdfs p
+                    INNER JOIN metadata m ON p.id = m.pdf_id
+                    WHERE m.notes LIKE %s
+                    UNION ALL
                     SELECT p.id, p.filename, p.file_path, NULL AS metadata_id
                     FROM pdfs p
                     LEFT JOIN metadata m ON p.id = m.pdf_id
@@ -128,7 +135,7 @@ def get_files_needing_refresh():
                 ) AS cohort
                 ORDER BY filename
                 """,
-                ("%Auto-recovered%",),
+                ("%Auto-recovered%", "%Partial hints from filename%"),
             )
             return cursor.fetchall()
     finally:
@@ -200,6 +207,18 @@ _FULL_METADATA_COLUMNS = (
     "years_reduced, cost_savings, notes, completion_date, post_release, isl_dsl, "
     "parole_eligibility_date, race, ethnicity"
 )
+
+
+def _delete_partial_filename_hint_rows(cursor, pdf_id: int) -> int:
+    """Remove filename-only fallback metadata so a full Excel merge row can replace it cleanly."""
+    cursor.execute(
+        """
+        DELETE FROM metadata
+        WHERE pdf_id = %s AND notes LIKE %s
+        """,
+        (pdf_id, "%Partial hints from filename%"),
+    )
+    return cursor.rowcount
 
 
 def _delete_auto_recovered_placeholders(cursor, pdf_id: int) -> int:
@@ -367,6 +386,12 @@ def refresh_metadata_for_file(pdf_id, filename, file_path, metadata_row_exists=T
         try:
             with connection.cursor() as cursor:
                 if metadata_row_exists:
+                    removed_ph = _delete_partial_filename_hint_rows(cursor, pdf_id)
+                    if removed_ph:
+                        print(
+                            f"  🗑 Removed {removed_ph} partial filename-hint row(s) for {filename}",
+                            flush=True,
+                        )
                     removed = _delete_auto_recovered_placeholders(cursor, pdf_id)
                     if removed:
                         print(f"  🗑 Removed {removed} auto-recovered placeholder row(s) for {filename}", flush=True)

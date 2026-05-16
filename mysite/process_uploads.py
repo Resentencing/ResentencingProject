@@ -12,7 +12,7 @@ without needing this script for that file — they then use ``/upload_to_databas
     uploads/*.pdf  --(preprocess_pdf / OCR)-->   processed/corrected_*.pdf
     processed/     --(extracttext)-->            OCRextractions/*.txt
     OCRextractions --(tagextraction)-->          Jsontags/metadata.json
-    metadata.json  --(dbconnector.upload)-->     MySQL `metadata` table
+    metadata.json  --(SafeUploadPipeline / enhanced route)-->  MySQL `metadata`
                                                  (uploaded_at = NOW() auto)
 
 After a successful run the working folders are cleared.
@@ -149,13 +149,9 @@ def run_once(force: bool = False) -> dict:
         "duration_seconds": 0,
     }
 
-    # Lazy imports so importing this module is cheap (the manual route does
-    # `subprocess.Popen` so this only matters for in-process callers).
-    import mysql.connector
-
-    import dbconnector
-    import extracttext
-    import tagextraction
+    # Lazy imports so importing this module is cheap (the manual route uses
+    # subprocess for this script).
+    from enhanced_upload_route import enhanced_upload_to_database_route
     from OCRWebApp import preprocess_pdf  # OCR + correct + archive
 
     # 1) OCR / preprocess
@@ -176,48 +172,63 @@ def run_once(force: bool = False) -> dict:
         _write_status("error", **results)
         return results
 
-    # 2) Text extraction
-    log.info("Extracting text from %d corrected PDF(s)...", len(corrected))
-    extracttext.extract_text_from_pdfs(str(OUTPUT_FOLDER), str(EXTRACTIONS))
+    # 2–4) Text extract, tag extraction, safe DB upload (same path as POST /upload_to_database)
+    archive_dir = os.getenv("ARCHIVE_DIR", ARCHIVE_DIR)
+    if archive_dir.startswith("/home/RSCAP") and not os.path.exists("/home/RSCAP"):
+        archive_dir = str(SCRIPT_DIR.parent / "shared" / "archive_directory")
 
-    # 3) Tag extraction
-    log.info("Extracting metadata tags...")
-    tagextraction.extract_metadata_from_text_files(str(EXTRACTIONS), str(METADATA_FILE))
-
-    # 4) DB upload (uploaded_at auto-fills via DEFAULT CURRENT_TIMESTAMP)
-    log.info("Uploading metadata to database...")
     database_config = {
         "host": os.getenv("DB_HOST"),
         "user": os.getenv("DB_USER"),
         "password": os.getenv("DB_PASSWORD"),
         "database": os.getenv("DB_NAME"),
+        "port": int(os.getenv("DB_PORT", "3306")),
     }
-    conn = mysql.connector.connect(**database_config)
-    try:
-        dbconnector.upload_to_database(
-            conn,
-            os.getenv("ARCHIVE_DIR", ARCHIVE_DIR),
-            str(EXTRACTIONS),
-            str(METADATA_FILE),
-        )
-        # Best-effort lineage stamp for the Public Dashboard freshness card.
-        try:
-            from dataset_lineage import touch_dataset_source
-            cur = conn.cursor()
-            touch_dataset_source(cur, conn, "letters_db", detail="process_uploads")
-            cur.close()
-        except Exception as lineage_err:
-            log.warning("Lineage stamp skipped: %s", lineage_err)
-    finally:
-        conn.close()
 
-    # 5) Clear working folders so the next run starts clean
+    log.info(
+        "Running enhanced upload (extract → tag → SafeUploadPipeline) for %d corrected PDF(s)...",
+        len(corrected),
+    )
+    upload_result = enhanced_upload_to_database_route(
+        database_config=database_config,
+        output_folder=str(OUTPUT_FOLDER),
+        extractions_folder=str(EXTRACTIONS),
+        metadata_file=str(METADATA_FILE),
+        archive_dir=archive_dir,
+    )
+
+    for row in (upload_result.get("extract_stats") or {}).get("failed") or []:
+        results["pdfs_failed"].append(
+            {"file": row.get("file"), "stage": "extract_text", "error": row.get("error", "")}
+        )
+    if (upload_result.get("extract_stats") or {}).get("failed"):
+        log.warning(
+            "Text extraction skipped %d PDF(s) (corrupt/unreadable); see safety logs.",
+            len(upload_result["extract_stats"]["failed"]),
+        )
+
+    if not upload_result.get("success"):
+        results["status"] = "upload_failed"
+        results["message"] = upload_result.get("message", "")
+        results["errors"] = upload_result.get("errors") or []
+        results["duration_seconds"] = round(time.monotonic() - started, 1)
+        log.error("Enhanced upload did not succeed: %s", results.get("message"))
+        _write_status("error", **results)
+        return results
+
+    # 5) Clear working folders so the next run starts clean (queue + extractions; processed
+    #    PDFs are usually removed earlier by SafeUploadPipeline.safe_clear_files on success)
     for d in (UPLOAD_FOLDER, OUTPUT_FOLDER, EXTRACTIONS):
         shutil.rmtree(d, ignore_errors=True)
         d.mkdir(parents=True, exist_ok=True)
     log.info("Cleared working folders.")
 
     results["duration_seconds"] = round(time.monotonic() - started, 1)
+    results["upload"] = {
+        "files_processed": upload_result.get("files_processed"),
+        "files_succeeded": upload_result.get("files_succeeded"),
+        "files_failed": upload_result.get("files_failed"),
+    }
     log.info("Done. %s", results)
     _write_status("done", **results, last_finished=datetime.datetime.now(datetime.timezone.utc).isoformat())
     return results

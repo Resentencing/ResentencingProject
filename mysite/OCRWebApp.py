@@ -114,6 +114,15 @@ def require_auth_json():
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
+# Upload safety monitoring (/safety/status, /safety/dashboard, etc.)
+try:
+    from safety_routes import register_safety_routes
+
+    register_safety_routes(app)
+    logging.info("Registered upload safety routes (/safety/*).")
+except Exception as _safety_err:
+    logging.warning("Could not register upload safety routes: %s", _safety_err)
+
 # Temp Password
 PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 

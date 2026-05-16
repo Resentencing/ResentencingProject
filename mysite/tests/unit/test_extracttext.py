@@ -10,6 +10,8 @@ import shutil
 from unittest.mock import Mock, MagicMock, patch, mock_open
 from pathlib import Path
 
+from PyPDF2.errors import PdfReadError
+
 # Import the module to test
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
@@ -226,9 +228,10 @@ class TestExtractTextFromPdfs:
         
         call_count = 0
         
-        def mock_pdf_reader_side_effect(file_path):
+        def mock_pdf_reader_side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
+            file_path = args[0] if args else ""
             mock_reader = MagicMock()
             mock_page = MagicMock()
             mock_page.extract_text.return_value = f"Text from {os.path.basename(file_path)}"
@@ -245,4 +248,43 @@ class TestExtractTextFromPdfs:
         assert os.path.exists(os.path.join(output_folder, "file1.txt"))
         assert os.path.exists(os.path.join(output_folder, "file2.txt"))
         assert os.path.exists(os.path.join(output_folder, "file3.txt"))
+
+    def test_extract_pymupdf_fallback_when_pypdf_fails(self, temp_dir):
+        """PyPDF2 may reject marginally broken PDFs; later backends can still extract."""
+        input_folder = os.path.join(temp_dir, "input")
+        output_folder = os.path.join(temp_dir, "output")
+        os.makedirs(input_folder, exist_ok=True)
+        pdf_file = os.path.join(input_folder, "eof_bad.pdf")
+        with open(pdf_file, "wb") as f:
+            f.write(b"%PDF bogus")
+
+        with patch("extracttext._extract_with_pypdf", side_effect=PdfReadError("EOF marker not found")), patch(
+            "extracttext._extract_with_pymupdf", return_value="Recovered via PyMuPDF"
+        ), patch("extracttext._extract_with_pdfminer", side_effect=AssertionError("should not need pdfminer")):
+            stats = extract_text_from_pdfs(input_folder, output_folder)
+
+        out = os.path.join(output_folder, "eof_bad.txt")
+        assert os.path.exists(out)
+        with open(out, "r", encoding="utf-8") as f:
+            assert "Recovered via PyMuPDF" in f.read()
+        assert stats["extracted"] == 1
+        assert stats["failed"] == []
+
+    def test_extract_records_failure_when_all_backends_fail(self, temp_dir):
+        input_folder = os.path.join(temp_dir, "input")
+        output_folder = os.path.join(temp_dir, "output")
+        os.makedirs(input_folder, exist_ok=True)
+        pdf_file = os.path.join(input_folder, "dead.pdf")
+        with open(pdf_file, "wb") as f:
+            f.write(b"%PDF")
+
+        with patch("extracttext._extract_with_pypdf", side_effect=PdfReadError("x")), patch(
+            "extracttext._extract_with_pymupdf", side_effect=RuntimeError("y")
+        ), patch("extracttext._extract_with_pdfminer", side_effect=RuntimeError("z")):
+            stats = extract_text_from_pdfs(input_folder, output_folder)
+
+        assert stats["extracted"] == 0
+        assert len(stats["failed"]) == 1
+        assert stats["failed"][0]["file"] == "dead.pdf"
+        assert not os.path.exists(os.path.join(output_folder, "dead.txt"))
 

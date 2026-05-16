@@ -125,6 +125,28 @@ class TestProtectedRoutes:
         # Should either return 401/403 or process the query
         assert response.status_code in [200, 400, 401, 403, 500]
 
+    def test_safety_status_requires_login(self, client):
+        """Safety API requires a logged-in session."""
+        with client.session_transaction() as sess:
+            sess.pop("logged_in", None)
+        response = client.get("/safety/status")
+        assert response.status_code == 401
+        assert response.is_json
+        assert "error" in response.get_json()
+
+    def test_safety_status_ok_when_logged_in(self, client):
+        """Safety status returns JSON when authenticated."""
+        with client.session_transaction() as sess:
+            sess["logged_in"] = True
+        with patch(
+            "safety_routes.get_upload_safety_status",
+            return_value={"status": "healthy", "failed_uploads_count": 0},
+        ):
+            response = client.get("/safety/status")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data.get("status") == "healthy"
+
 
 class TestSessionManagement:
     """Tests for session management."""

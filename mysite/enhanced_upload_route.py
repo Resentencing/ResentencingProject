@@ -101,11 +101,14 @@ def _run_auto_recovery(connection, archive_dir: str) -> Dict:
         cursor.close()
 
 
-def enhanced_upload_to_database_route(database_config: Dict, 
-                                    output_folder: str = "processed",
-                                    extractions_folder: str = "OCRextractions",
-                                    metadata_file: str = "./Jsontags/metadata.json",
-                                    archive_dir: str = "/home/RSCAP/shared/archive_directory") -> Dict:
+def enhanced_upload_to_database_route(
+    database_config: Dict,
+    output_folder: str = "processed",
+    extractions_folder: str = "OCRextractions",
+    metadata_file: str = "./Jsontags/metadata.json",
+    archive_dir: str = "/home/RSCAP/shared/archive_directory",
+    skip_extract_and_tag: bool = False,
+) -> Dict:
     """
     Enhanced version of upload_to_database_route with comprehensive safety measures.
     
@@ -115,15 +118,18 @@ def enhanced_upload_to_database_route(database_config: Dict,
         extractions_folder: Folder containing text extractions
         metadata_file: Path to metadata JSON file
         archive_dir: Archive directory path
-        
+        skip_extract_and_tag: If True, assume text + ``metadata_file`` are already
+            built (caller ran extract/tag). Only DB upload, cleanup hooks, and
+            auto-recovery run.
+
     Returns:
         Dict containing upload results and status
     """
-    
+
     # Initialize safety systems
     safety_manager = UploadSafetyManager()
     upload_pipeline = SafeUploadPipeline(safety_manager)
-    
+
     results = {
         "success": False,
         "message": "",
@@ -131,7 +137,8 @@ def enhanced_upload_to_database_route(database_config: Dict,
         "files_succeeded": 0,
         "files_failed": 0,
         "errors": [],
-        "safety_report": None
+        "safety_report": None,
+        "extract_stats": None,
     }
     
     connection = None
@@ -141,36 +148,54 @@ def enhanced_upload_to_database_route(database_config: Dict,
     try:
         log_upload_step("Enhanced Upload Started", "SUCCESS", 
                        f"Processing files from {output_folder}")
-        
-        # Step 1: Extract text from PDFs
-        try:
-            from extracttext import extract_text_from_pdfs
-            extract_text_from_pdfs(output_folder, extractions_folder)
-            log_upload_step("Text Extraction", "SUCCESS", "Text extraction completed")
-        except Exception as e:
-            error_msg = f"Text extraction failed: {str(e)}"
-            log_upload_error("TEXT_EXTRACTION_FAILED", error_msg, traceback_info=str(e))
-            results["errors"].append(error_msg)
-            return results
-        
-        # Step 2: Extract metadata from text files
-        try:
-            from tagextraction import extract_metadata_from_text_files
-            text_files = os.listdir(extractions_folder) if os.path.exists(extractions_folder) else []
-            log_upload_step("Metadata Extraction Started", "SUCCESS", 
-                           f"Found {len(text_files)} text files for processing")
 
-            metadata_dir = os.path.dirname(metadata_file)
-            if metadata_dir:
-                os.makedirs(metadata_dir, exist_ok=True)
-            extract_metadata_from_text_files(extractions_folder, metadata_file)
-            log_upload_step("Metadata Extraction", "SUCCESS", "Metadata extraction completed")
-        except Exception as e:
-            error_msg = f"Metadata extraction failed: {str(e)}"
-            log_upload_error("METADATA_EXTRACTION_FAILED", error_msg, traceback_info=str(e))
-            results["errors"].append(error_msg)
-            return results
-        
+        if not skip_extract_and_tag:
+            # Step 1: Extract text from PDFs
+            try:
+                from extracttext import extract_text_from_pdfs
+                xt_stats = extract_text_from_pdfs(output_folder, extractions_folder)
+                results["extract_stats"] = xt_stats if isinstance(xt_stats, dict) else {}
+                failed_xt = (results["extract_stats"] or {}).get("failed") or []
+                if failed_xt:
+                    log_upload_step(
+                        "Text Extraction",
+                        "PARTIAL",
+                        f"Completed with {len(failed_xt)} PDF(s) unreadable — see logs",
+                    )
+                    for row in failed_xt[:50]:
+                        log_upload_error(
+                            "TEXT_EXTRACTION_SKIPPED",
+                            row.get("error", ""),
+                            row.get("file") or "",
+                        )
+                else:
+                    log_upload_step("Text Extraction", "SUCCESS", "Text extraction completed")
+            except Exception as e:
+                error_msg = f"Text extraction failed: {str(e)}"
+                log_upload_error("TEXT_EXTRACTION_FAILED", error_msg, traceback_info=str(e))
+                results["errors"].append(error_msg)
+                return results
+
+            # Step 2: Extract metadata from text files
+            try:
+                from tagextraction import extract_metadata_from_text_files
+                text_files = os.listdir(extractions_folder) if os.path.exists(extractions_folder) else []
+                log_upload_step("Metadata Extraction Started", "SUCCESS", 
+                               f"Found {len(text_files)} text files for processing")
+
+                metadata_dir = os.path.dirname(metadata_file)
+                if metadata_dir:
+                    os.makedirs(metadata_dir, exist_ok=True)
+                extract_metadata_from_text_files(extractions_folder, metadata_file)
+                log_upload_step("Metadata Extraction", "SUCCESS", "Metadata extraction completed")
+            except Exception as e:
+                error_msg = f"Metadata extraction failed: {str(e)}"
+                log_upload_error("METADATA_EXTRACTION_FAILED", error_msg, traceback_info=str(e))
+                results["errors"].append(error_msg)
+                return results
+        else:
+            log_upload_step("Extract/Tag", "SKIPPED", "skip_extract_and_tag=True")
+
         # Step 3: Connect to database
         try:
             connection = mysql.connector.connect(**database_config)

@@ -1152,24 +1152,18 @@ def api_public_summary():
             # Race data file mod date
             if not data_freshness.get("race_data", {}) or not (data_freshness.get("race_data") or {}).get("as_of"):
                 excel_dir = os.path.join(_PROJECT_ROOT, "mysite", "Excel")
-                if os.path.isdir(excel_dir):
-                    race_candidates = sorted(
-                        [f for f in os.listdir(excel_dir)
-                         if "race" in f.lower() and f.endswith(".xlsx")],
-                        reverse=True,
-                    )
-                    if race_candidates:
-                        rpath = os.path.join(excel_dir, race_candidates[0])
-                        try:
-                            rmtime = os.path.getmtime(rpath)
-                            data_freshness["race_data"] = {
-                                "as_of": datetime.datetime.fromtimestamp(
-                                    rmtime, tz=datetime.timezone.utc
-                                ).isoformat(),
-                                "source_file": race_candidates[0],
-                            }
-                        except Exception:
-                            pass
+                rpath = _pick_newest_excel_in_dir(excel_dir, race=True)
+                if rpath:
+                    try:
+                        rmtime = os.path.getmtime(rpath)
+                        data_freshness["race_data"] = {
+                            "as_of": datetime.datetime.fromtimestamp(
+                                rmtime, tz=datetime.timezone.utc
+                            ).isoformat(),
+                            "source_file": os.path.basename(rpath),
+                        }
+                    except Exception:
+                        pass
             # Letters DB — prefer MAX(uploaded_at) (real ingest time).
             # date_stamped is OCR-extracted text from the letter body, often varchar;
             # MAX(date_stamped) is lexical and wrong for "last synced".
@@ -1248,6 +1242,32 @@ _LOG_RECONCILE_CACHE: dict = {"data": None, "ts": 0.0}
 _LOG_RECONCILE_TTL = 3600  # rebuild at most once per hour
 
 
+def _pick_newest_excel_in_dir(excel_dir: str, *, race: bool) -> str | None:
+    """
+    Match mysite/tagextraction.py: pick the spreadsheet with the latest mtime.
+    race=False → main 1170(d) log; race=True → race/ethnicity file.
+    """
+    if not os.path.isdir(excel_dir):
+        return None
+    best_path = None
+    best_mtime = -1.0
+    for fname in os.listdir(excel_dir):
+        if not fname.lower().endswith((".xlsx", ".xls", ".csv")):
+            continue
+        is_race = "race" in fname.lower()
+        if is_race != race:
+            continue
+        path = os.path.join(excel_dir, fname)
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            continue
+        if mtime > best_mtime:
+            best_mtime = mtime
+            best_path = path
+    return best_path
+
+
 def _load_log_reconcile(force: bool = False) -> dict:
     """
     Parse the 1170(d) tracking log Excel and compare against the DB.
@@ -1257,16 +1277,9 @@ def _load_log_reconcile(force: bool = False) -> dict:
     if not force and _LOG_RECONCILE_CACHE["data"] and (now - _LOG_RECONCILE_CACHE["ts"]) < _LOG_RECONCILE_TTL:
         return _LOG_RECONCILE_CACHE["data"]
 
-    # Locate the most-recent 1170 tracking log in mysite/Excel/
+    # Newest main log by file mtime (same rule as tagextraction / metadata_refresh)
     excel_dir = os.path.join(_PROJECT_ROOT, "mysite", "Excel")
-    log_path = None
-    if os.path.isdir(excel_dir):
-        candidates = sorted(
-            [f for f in os.listdir(excel_dir) if "1170" in f and f.endswith(".xlsx")],
-            reverse=True,
-        )
-        if candidates:
-            log_path = os.path.join(excel_dir, candidates[0])
+    log_path = _pick_newest_excel_in_dir(excel_dir, race=False)
 
     if not log_path or not os.path.exists(log_path):
         result = {"error": "Tracking log not found", "log_filename": None}

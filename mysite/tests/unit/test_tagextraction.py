@@ -305,6 +305,42 @@ class TestAddressExtraction:
         assert "City, CA 12345" in address
 
 
+class TestCountyExtraction:
+    """Tests for County of <name> parsing (secretary letter layout)."""
+
+    def test_county_of_los_angeles_one_line(self):
+        import tagextraction
+
+        text = [
+            "March 18, 2026",
+            "The Honorable Terrance T. Lewis",
+            "Judge of the Superior Court",
+            "County of Los Angeles",
+            "14400 Erwin Street Mall",
+        ]
+        assert tagextraction._extract_county_from_text(text) == "Los Angeles"
+
+    def test_county_of_in_primary_fields(self):
+        import tagextraction
+
+        months = ["January", "March"]
+        text = [
+            "March 18, 2026",
+            "The Honorable Terrance T. Lewis",
+            "Judge of the Superior Court",
+            "County of Los Angeles",
+            "14400 Erwin Street Mall",
+            "Van Nuys, CA",
+            "Re: ROGERS, LARRY DEAN",
+            "CDCR No: AA5529",
+            "Case No: LA059597-01",
+            "Date of Sentence: July 20, 2009",
+        ]
+        out = tagextraction._extract_primary_fields(text, "Rogers_AA5529.txt", months)
+        assert out.get("COUNTY") == "Los Angeles"
+        assert out.get("CDCR NO") == "AA5529"
+
+
 class TestFilenameMetadataHints:
     """Tests for tagextraction.filename_metadata_hints (basename CDCR/case)."""
 

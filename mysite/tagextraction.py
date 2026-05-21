@@ -25,6 +25,12 @@ CASE_FILENAME_PATTERN = re.compile(
     r"(?<![A-Z0-9])([A-Z]\d{7,11})(?![0-9])",
     re.IGNORECASE,
 )
+# Secretary letters: "County of Los Angeles" (same line or near Honorable block).
+COUNTY_OF_PATTERN = re.compile(
+    r"County\s+of\s+([A-Za-z][A-Za-z\s\-']+?)"
+    r"(?:\s*,|\s+Superior|\s+Court|\s+Judge|\s+Department|\s+\d{5}|\s+CA\b|$)",
+    re.IGNORECASE,
+)
 
 
 def _clean(s):
@@ -65,6 +71,34 @@ def _apply_filename_hints(outputdict, filename_txt: str):
         outputdict["CASE NO"] = hints["CASE NO"]
 
 
+def _extract_county_from_text(text) -> str:
+    """
+    Find county from OCR text when fixed line offsets fail.
+    Handles "County of Los Angeles" on one line (common on secretary letters).
+    """
+    if isinstance(text, str):
+        lines = text.splitlines()
+    else:
+        lines = list(text)
+    blob = "\n".join(lines)
+    match = COUNTY_OF_PATTERN.search(blob)
+    if match:
+        return _clean(match.group(1))
+
+    for i, line in enumerate(lines):
+        if "Honorable" not in (line or "") and "Honorabie" not in (line or ""):
+            continue
+        for j in range(i + 1, min(i + 8, len(lines))):
+            near = lines[j] or ""
+            m = COUNTY_OF_PATTERN.search(near)
+            if m:
+                return _clean(m.group(1))
+            stripped = near.strip()
+            if stripped.endswith("County") and " of " not in stripped.lower():
+                return _clean(stripped.replace("County", ""))
+    return ""
+
+
 def _extract_primary_fields(text, filename, months):
     outputdict = {"filename": filename.replace(".txt", ".pdf")}
     for linenumber, _line in enumerate(text):
@@ -79,9 +113,18 @@ def _extract_primary_fields(text, filename, months):
             outputstring = outputstring.replace("Honorable", "").replace("Honorabie", "")
             outputdict["JUDGE"] = _clean(outputstring)
 
-            if linenumber + 2 < len(text):
-                county = text[linenumber + 2].replace("County", "").replace("of", "")
-                outputdict["COUNTY"] = _clean(county)
+            for offset in range(1, 7):
+                if linenumber + offset >= len(text):
+                    break
+                near = text[linenumber + offset] or ""
+                m = COUNTY_OF_PATTERN.search(near)
+                if m:
+                    outputdict["COUNTY"] = _clean(m.group(1))
+                    break
+                if not (outputdict.get("COUNTY") or "").strip() and "county" in near.lower():
+                    legacy = _clean(near.replace("County", "").replace("of", ""))
+                    if legacy and len(legacy) > 2:
+                        outputdict["COUNTY"] = legacy
 
             if linenumber + 4 < len(text):
                 address = text[linenumber + 3].replace("\n", ", ") + text[linenumber + 4].strip()
@@ -123,6 +166,10 @@ def _extract_primary_fields(text, filename, months):
                 )
             print("Extracted metadata for: " + filename)
             break
+    if not (outputdict.get("COUNTY") or "").strip():
+        county = _extract_county_from_text(text)
+        if county:
+            outputdict["COUNTY"] = county
     _apply_filename_hints(outputdict, filename)
     return outputdict
 

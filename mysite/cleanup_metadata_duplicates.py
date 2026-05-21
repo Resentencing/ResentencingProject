@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Daily cleanup: remove duplicate DB rows for corrected PDFs.
+Daily cleanup: remove duplicate DB rows for Drive \"Copy of\" corrected PDFs and junk filenames.
 
-1. Drive \"Copy of\" duplicates (``corrected_Copy_of_Foo.pdf`` vs ``corrected_Foo.pdf``).
-2. Same CDCR, different filename (legacy spaced name vs underscore ingest name).
+When ``corrected_Copy_of_Foo.pdf`` exists in ``pdfs`` and ``corrected_Foo.pdf`` already
+represents the same letter, drop the Copy row (``metadata`` / ``text_files`` CASCADE).
 
 Without ``--apply``, only logs what would be deleted (safe default).
 
@@ -26,9 +26,7 @@ from pathlib import Path
 import mysql.connector
 from dotenv import load_dotenv
 
-import tagextraction
-
-from drive_duplicate_names import canonical_corrected_pdf_filename, filename_preference_score
+from drive_duplicate_names import canonical_corrected_pdf_filename
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if os.getcwd() != str(SCRIPT_DIR):
@@ -56,63 +54,6 @@ def _meta_row(cursor, pdf_id: int):
         (pdf_id,),
     )
     return cursor.fetchone()
-
-
-def _all_meta_rows(cursor, pdf_id: int):
-    cursor.execute(
-        """
-        SELECT id, case_number, date_stamped, cdcr_number, county, notes
-        FROM metadata WHERE pdf_id = %s
-        """,
-        (pdf_id,),
-    )
-    return cursor.fetchall()
-
-
-def _metadata_quality_score(rows) -> int:
-    if not rows:
-        return 0
-    score = 0
-    for _id, _case, _date, _cdcr, county, notes in rows:
-        if county and str(county).strip():
-            score += 100
-        note = (notes or "") or ""
-        if "Partial hints from filename" not in note:
-            score += 40
-        score += 5
-    return score
-
-
-def _pick_canonical_pdf_with_meta(entries, meta_by_id):
-    return max(
-        entries,
-        key=lambda item: (
-            _metadata_quality_score(meta_by_id.get(item[0], [])),
-            filename_preference_score(item[1]),
-            -item[0],
-        ),
-    )
-
-
-def _rehome_metadata_to_canonical(cursor, dup_id: int, canon_id: int) -> int:
-    """Move metadata rows from duplicate pdf to canonical when keys do not collide."""
-    moved = 0
-    for row in _all_meta_rows(cursor, dup_id):
-        meta_id, case_no, date_st, cdcr, county, notes = row
-        cursor.execute(
-            """
-            SELECT id FROM metadata
-            WHERE pdf_id = %s AND case_number <=> %s AND date_stamped <=> %s
-            LIMIT 1
-            """,
-            (canon_id, case_no, date_st),
-        )
-        if cursor.fetchone():
-            cursor.execute("DELETE FROM metadata WHERE id = %s", (meta_id,))
-            continue
-        cursor.execute("UPDATE metadata SET pdf_id = %s WHERE id = %s", (canon_id, meta_id))
-        moved += 1
-    return moved
 
 
 def _meta_compatible(canonical_meta, dup_meta) -> bool:
@@ -207,111 +148,6 @@ def cleanup_copy_duplicates(conn, apply: bool, delete_archive_files: bool) -> di
     return stats
 
 
-def cleanup_same_cdcr_filename_duplicates(
-    conn, apply: bool, delete_archive_files: bool
-) -> dict:
-    """
-    Drop extra ``pdfs`` rows when the same CDCR appears under multiple corrected filenames
-    (e.g. spaced Drive name vs underscore ingest name).
-    """
-    archive_dir = os.getenv("ARCHIVE_DIR", "/home/RSCAP/shared/archive_directory")
-    stats = {
-        "groups": 0,
-        "would_delete": 0,
-        "deleted": 0,
-        "skipped": 0,
-        "metadata_moved": 0,
-    }
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            "SELECT id, filename, file_path FROM pdfs WHERE filename LIKE 'corrected_%'"
-        )
-        rows = cursor.fetchall()
-        by_cdcr: dict[str, list] = {}
-        for pdf_id, filename, file_path in rows:
-            hints = tagextraction.filename_metadata_hints(filename)
-            cdcr = (hints.get("CDCR NO") or "").strip().upper()
-            if not cdcr:
-                continue
-            by_cdcr.setdefault(cdcr, []).append((pdf_id, filename, file_path))
-
-        for cdcr, group in by_cdcr.items():
-            if len(group) < 2:
-                continue
-            stats["groups"] += 1
-            entries = [(pdf_id, filename) for pdf_id, filename, _ in group]
-            meta_by_id = {
-                pdf_id: _all_meta_rows(cursor, pdf_id) for pdf_id, _, _ in group
-            }
-            canon_id, canon_name = _pick_canonical_pdf_with_meta(entries, meta_by_id)
-            for pdf_id, filename, file_path in group:
-                if pdf_id == canon_id:
-                    continue
-                canon_meta = meta_by_id.get(canon_id, [])
-                dup_meta = meta_by_id.get(pdf_id, [])
-                if canon_meta and dup_meta:
-                    c0 = canon_meta[0]
-                    d0 = dup_meta[0]
-                    if not _meta_compatible(
-                        (c0[1], c0[2], c0[3]),
-                        (d0[1], d0[2], d0[3]),
-                    ):
-                        stats["skipped"] += 1
-                        logging.warning(
-                            "Skip same-CDCR delete %s: metadata differs from canonical %s (CDC %s)",
-                            filename,
-                            canon_name,
-                            cdcr,
-                        )
-                        continue
-
-                stats["would_delete"] += 1
-                path_to_unlink = file_path if delete_archive_files else None
-                if path_to_unlink and not os.path.isfile(path_to_unlink):
-                    alt = os.path.join(archive_dir, os.path.basename(filename))
-                    if os.path.isfile(alt):
-                        path_to_unlink = alt
-                    else:
-                        path_to_unlink = None
-
-                if apply:
-                    moved = _rehome_metadata_to_canonical(cursor, pdf_id, canon_id)
-                    stats["metadata_moved"] += moved
-                    cursor.execute("DELETE FROM pdfs WHERE id = %s", (pdf_id,))
-                    if path_to_unlink:
-                        try:
-                            os.unlink(path_to_unlink)
-                            logging.info("Removed archive file %s", path_to_unlink)
-                        except OSError as e:
-                            logging.warning("Could not unlink %s: %s", path_to_unlink, e)
-                    stats["deleted"] += 1
-                    logging.info(
-                        "Deleted same-CDCR duplicate id=%s %s (kept id=%s %s, CDC %s)",
-                        pdf_id,
-                        filename,
-                        canon_id,
-                        canon_name,
-                        cdcr,
-                    )
-                else:
-                    logging.info(
-                        "[dry-run] Would delete id=%s %s (keep id=%s %s, CDC %s)",
-                        pdf_id,
-                        filename,
-                        canon_id,
-                        canon_name,
-                        cdcr,
-                    )
-        if apply:
-            conn.commit()
-        else:
-            conn.rollback()
-    finally:
-        cursor.close()
-    return stats
-
-
 def cleanup_junk_filenames(conn, apply: bool, delete_archive_files: bool) -> dict:
     """Remove pdfs whose filename indicates non-letters (e.g. __DISREGARD)."""
     patterns = ("%DISREGARD%",)
@@ -379,9 +215,6 @@ def main() -> int:
     conn = _connect()
     try:
         dup_stats = cleanup_copy_duplicates(conn, args.apply, args.delete_archive_files)
-        cdcr_stats = cleanup_same_cdcr_filename_duplicates(
-            conn, args.apply, args.delete_archive_files
-        )
         junk_stats = cleanup_junk_filenames(conn, args.apply, args.delete_archive_files)
         logging.info(
             "Copy-style duplicates: candidates=%s deleted=%s skipped=%s dry_would=%s",
@@ -389,15 +222,6 @@ def main() -> int:
             dup_stats["deleted"],
             dup_stats["skipped"],
             dup_stats["would_delete"],
-        )
-        logging.info(
-            "Same-CDCR filename duplicates: groups=%s deleted=%s skipped=%s "
-            "dry_would=%s metadata_moved=%s",
-            cdcr_stats["groups"],
-            cdcr_stats["deleted"],
-            cdcr_stats["skipped"],
-            cdcr_stats["would_delete"],
-            cdcr_stats["metadata_moved"],
         )
         logging.info(
             "Junk filenames: candidates=%s deleted=%s",

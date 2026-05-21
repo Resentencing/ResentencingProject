@@ -49,16 +49,6 @@ def upload_basename_variants(filename: str) -> List[str]:
     return variants
 
 
-def filename_preference_score(filename: str) -> tuple:
-    """
-    Higher is better when picking one PDF row for the same CDCR.
-
-    Prefer underscore ingest names over legacy spaced Drive names.
-    """
-    base = os.path.basename(filename or "")
-    return (base.count("_"), -base.count(" "), len(base))
-
-
 def canonical_corrected_pdf_filename(filename: str) -> Optional[str]:
     """
     If ``filename`` is ``corrected_<Drive-duplicate-style>.pdf``, return the

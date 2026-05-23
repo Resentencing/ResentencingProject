@@ -1,340 +1,552 @@
 # Resentencing Project
 
-## Quick Setup
+A small open-source Flask stack that powers a research database of California Penal Code §1170(d)(1) resentencing recall letters, plus a public dashboard and a gated Tool Hub.
 
-1. **Clone the repository**
-   ```sh
-   git clone <repository-url>
-   cd ResentencingProject
-   ```
+The project is developed by student developers under faculty supervision as part of a university research initiative. Letters are stored as OCR'd PDFs, their case-level metadata is extracted and reconciled against tracking spreadsheets, and the resulting database powers both public aggregate charts and authenticated case-level lookups.
 
-2. **Create and activate a virtual environment**
-   - On Windows (PowerShell):
-     ```powershell
-     python -m venv .venv
-     .\.venv\Scripts\Activate.ps1
-     ```
-   - On macOS/Linux:
-     ```bash
-     python3 -m venv .venv
-     source .venv/bin/activate
-     ```
+The system recognises four roles:
 
-3. **Install dependencies**
-   ```sh
-   pip install -r requirements.txt
-   ```
+- **Developer** — student dev (or future maintainer) with full repo + server access.
+- **Faculty supervisor** — the research lead; can do everything an admin/developer can do on the deployed system.
+- **Public user** — anyone visiting the public site. No login. Sees aggregate charts only.
+- **Tool Hub approved user** — a visitor who has been approved via the magic-link access flow. Can use the gated lookup / browse / variable / AI / reconciliation tools.
 
-4. **Copy the environment template and edit your secrets**
-   - On Windows (PowerShell):
-     ```powershell
-     Copy-Item env.template .env
-     ```
-   - On macOS/Linux:
-     ```bash
-     cp env.template .env
-     ```
-   - Then open `.env` and fill in your credentials.
-
-5. **Run the backend**
-   ```powershell
-   cd mysite
-   $env:FLASK_APP = "OCRWebApp.py"
-   $env:FLASK_ENV = "development"
-   flask run
-   ```
-
-6. **Run the frontend (if needed)**
-   ```powershell
-   cd ../frontend
-   python flask_app.py
-   ```
-
-## Database Testing with Jupyter Notebook
-
-A Jupyter notebook is provided for interactive database access and testing:
-
-- **File:** `mysite/test_db_connection.ipynb`
-- **Purpose:** Connect to the project database and run/test SQL queries interactively, without modifying the main app.
-- **How to use:**
-  1. Activate your virtual environment (see Quick Setup).
-  2. Install Jupyter if needed:
-     ```sh
-     pip install notebook
-     ```
-  3. Start Jupyter:
-     ```sh
-     jupyter notebook
-     ```
-  4. Open `mysite/test_db_connection.ipynb` in your browser.
-  5. Run the cells to connect and test queries on the database.
-
-This is useful for team members who want to safely experiment with database queries or troubleshoot connection issues.
+This README is the single source of technical truth on GitHub. The full team handoff package — a transition memo, a deep system maintainer guide, and a non-technical frontend user guide — lives in the project's Google Drive and is shared with new contributors by the faculty supervisor.
 
 ---
 
-**Note:**
-- Always activate your `.venv` before running any Python or Flask commands.
-- Never commit your `.env` or `.venv` folders to git.
+## Table of contents
 
-# Features
+1. [What this repo contains](#1-what-this-repo-contains)
+2. [System architecture](#2-system-architecture)
+3. [Quick start — local development](#3-quick-start--local-development)
+4. [Production deployment — PythonAnywhere](#4-production-deployment--pythonanywhere)
+5. [Letter upload pipeline](#5-letter-upload-pipeline)
+6. [Metadata refresh (bulk repair)](#6-metadata-refresh-bulk-repair)
+7. [Bulk OCR escape hatch](#7-bulk-ocr-escape-hatch)
+8. [Public site & gated Tool Hub](#8-public-site--gated-tool-hub)
+9. [Database schema](#9-database-schema)
+10. [Migrations](#10-migrations)
+11. [Scheduled tasks](#11-scheduled-tasks)
+12. [Common operations — top commands](#12-common-operations--top-commands)
+13. [Troubleshooting](#13-troubleshooting)
+14. [Security & secrets](#14-security--secrets)
+15. [Further documentation](#15-further-documentation)
+16. [License & acknowledgments](#16-license--acknowledgments)
 
-A Flask-based web application for processing and analyzing resentencing documents with AI-powered database queries.
+---
 
-- **PDF Processing**: Upload and process PDF documents with OCR
-- **Database Integration**: Store and query case metadata (when running on PythonAnywhere)
-- **AI-Powered Queries**: Natural language database queries using OpenAI
-- **File Management**: Upload, process, and manage documents
-- **Secure Authentication**: Password-protected access
-
-## Prerequisites
-
-- Python 3.8 or higher
-- PythonAnywhere account (paid plan for SSH access)
-- OpenAI API key
-- MySQL database (hosted on PythonAnywhere)
-
-## Installation
-
-### Quick Team Setup
-
-For new team members, run these commands:
-
-```bash
-git clone <repository-url>
-cd ResentencingProject
-pip install -r requirements.txt
-cp env.template .env
-# Edit .env with your credentials
-python mysite/OCRWebApp.py  # Backend
-python frontend/flask_app.py # Frontend
-```
-
-### Detailed Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd ResentencingProject
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp env.template .env
-   ```
-   
-   Edit `.env` file with your credentials:
-   ```env
-   # PythonAnywhere Database Configuration
-   PYTHONANYWHERE_USERNAME=your_username
-   PYTHONANYWHERE_PASSWORD=your_website_password
-   PYTHONANYWHERE_DB_PASSWORD=your_mysql_password
-   PYTHONANYWHERE_DB_NAME=your_username$your_database_name
-   
-   # OpenAI Configuration
-   OPENAI_API_KEY=your_openai_api_key
-   
-   # Flask Configuration
-   FLASK_SECRET_KEY=your_flask_secret_key
-   FLASK_DEBUG=True
-   ```
-
-## Configuration
-
-### PythonAnywhere Setup
-
-1. **Database Configuration**
-   - Go to PythonAnywhere → Databases
-   - Note your database hostname, username, and password
-   - Ensure you have a paid plan for SSH access
-
-2. **SSH Access**
-   - Required for local development
-   - Use your PythonAnywhere website login password for SSH
-   - Database password is different from website password
-
-### OpenAI Setup
-
-1. **Get API Key**
-   - Visit [OpenAI Platform](https://platform.openai.com/api-keys)
-   - Create a new API key
-   - Add to your `.env` file
-
-## Usage
-
-### Running the Application
-
-1. **Start the backend server**
-   ```bash
-   python mysite/OCRWebApp.py
-   ```
-
-2. **Start the frontend server**
-   ```bash
-   python frontend/flask_app.py
-   ```
-
-3. **Access the application**
-   - Backend: http://127.0.0.1:5000
-   - Frontend: http://127.0.0.1:5001 (or as configured)
-   - Login password: `password` (default)
-
-### Database Access
-
-**Current Status**: Database connection from local machine is being troubleshooted.
-
-**Working Options**:
-- ✅ **PythonAnywhere**: Full database access when running on PythonAnywhere servers
-- ❌ **Local Development**: SSH tunnel connection needs troubleshooting
-
-**To test database connection locally**:
-```bash
-python mysite/dbconnector_ssh.py
-```
-
-**Note**: If local database connection fails, you can still:
-- Test all other features (file upload, OCR, etc.)
-- Run the full application on PythonAnywhere where database works
-- Use the AI features with sample data
-
-### File Structure
+## 1. What this repo contains
 
 ```
 ResentencingProject/
-├── mysite/                 # Backend Flask application
-│   ├── OCRWebApp.py       # Main Flask app
-│   ├── dbconnector.py     # Database connector (PythonAnywhere)
-│   ├── dbconnector_ssh.py # SSH tunnel connector (local) - IN DEVELOPMENT
-│   └── templates/         # HTML templates
-├── frontend/              # Frontend Flask application
-│   ├── flask_app.py      # Frontend Flask app
-│   └── templates/        # Frontend templates
-├── shared/               # Shared resources
-│   └── archive_directory/ # PDF archive
-├── uploads/              # Upload directory
-├── processed/            # Processed files
-├── .env                  # Environment variables (create from template)
-├── env.template          # Environment template
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
+├── mysite/                # Backend (developer / faculty supervisor): OCR webapp, dashboard, ingest API
+│   ├── OCRWebApp.py       # Main Flask app (default port 5000)
+│   ├── process_uploads.py # Drains the upload queue → archive + DB
+│   ├── metadata_refresh.py# Repairs partial / placeholder rows from OCR + Excel
+│   ├── dbconnector.py     # MySQL access layer
+│   ├── add_*_column.py    # One-time schema migrations
+│   ├── Excel/             # Tracking workbooks read by metadata refresh
+│   ├── logs/              # Pipeline logs
+│   └── templates/         # Backend UI (developer / faculty supervisor)
+├── frontend/              # Public site + gated Tool Hub (default port 5001)
+│   ├── flask_app.py       # Public + authenticated routes
+│   ├── audit.log          # Per-session search/download audit (sensitive)
+│   └── templates/         # Public UI + Tool Hub
+├── shared/
+│   └── archive_directory/ # Source of truth for processed letter PDFs
+├── uploads/               # Transient: PDFs awaiting OCR + ingest
+├── processed/             # Transient: post-OCR PDFs awaiting metadata extraction
+├── OCRextractions/        # Transient: OCR'd text awaiting tag extraction
+├── DATABASE_SCHEMA.sql    # Canonical MySQL schema
+├── env.template           # Reference for required environment variables
+├── requirements.txt       # Pinned Python dependencies
+└── README.md              # This file
 ```
 
-## Database Schema
+Working notes, design docs, and the team's Google-Drive-facing handoff documents are kept in a local `Documentation/` directory that is intentionally not published to GitHub.
 
-### Tables
+---
 
-1. **pdfs**: PDF file references
-   - `id` (int, Primary Key, auto_increment)
-   - `filename` (varchar(255), NOT NULL, UNIQUE)
-   - `file_path` (varchar(500), NOT NULL)
+## 2. System architecture
 
-2. **metadata**: Case information and resentencing data
-   - `id` (int, Primary Key, auto_increment)
-   - `pdf_id` (int, NOT NULL, Foreign Key to pdfs)
-   - `date_stamped` (varchar(50))
-   - `judge` (varchar(255))
-   - `county` (varchar(255))
-   - `address` (text)
-   - `_______` (varchar(255))
-   - `cdcr_number` (varchar(50))
-   - `case_number` (varchar(50))
-   - `sentence_date` (varchar(50))
-   - `cohort` (varchar(255))
-   - `pid_no` (varchar(50))
-   - `institution` (varchar(255))
-   - `old_release_date` (varchar(50))
-   - `documents_printed_date` (varchar(50))
-   - `letter_creation_date` (varchar(50))
-   - `secretary_send_date` (varchar(50))
-   - `sec_decision` (varchar(255))
-   - `court_mail_date` (varchar(50))
-   - `court_response_date` (varchar(50))
-   - `resentencing_hearing_date` (varchar(50))
-   - `action_taken` (varchar(255))
-   - `days_reduced` (int)
-   - `years_reduced` (int)
-   - `cost_savings` (decimal(10,2))
-   - `notes` (text)
-   - `completion_date` (varchar(50))
-   - `post_release` (varchar(255))
-   - `isl_dsl` (varchar(50))
-   - `parole_eligibility_date` (varchar(50))
-   - `race` (varchar(100))
-   - `ethnicity` (varchar(100))
+```
+                    ┌─────────────────────────────┐
+                    │   Google Drive (letters)    │
+                    └──────────────┬──────────────┘
+                                   │ Apps Script `checkForNewFiles()`
+                                   │ runs every ~10 minutes
+                                   ▼
+              POST /queue_pdfs  (X-API-Key required)
+                                   │
+                                   ▼
+                    ┌─────────────────────────────┐
+                    │  PythonAnywhere — backend   │
+                    │   (mysite/OCRWebApp.py)     │
+                    │                             │
+                    │   uploads/  ◀── queued PDFs │
+                    │       │                     │
+                    │       │ process_uploads.py  │
+                    │       ▼                     │
+                    │   processed/ → archive/     │ ──► shared/archive_directory/
+                    │       ▼                     │
+                    │   MySQL (pdfs, metadata)    │
+                    └──────────────┬──────────────┘
+                                   │
+              ┌────────────────────┴────────────────────┐
+              ▼                                         ▼
+   ┌──────────────────────┐                ┌─────────────────────────┐
+   │  Frontend Flask app  │ ── /api/stats ─│   Public visitors        │
+   │  (frontend/)         │                │   (no login)             │
+   │                      │                │   Aggregate charts only  │
+   │   Tool Hub (gated)   │                └─────────────────────────┘
+   │   Browse / Lookup    │ ── magic link ─┌─────────────────────────┐
+   │   Variable / AI      │                │  Tool Hub approved users │
+   │   Reconciliation     │                │  (magic-link login)      │
+   └──────────────────────┘                └─────────────────────────┘
+              ▲
+              │ Google Form → Sheet → Apps Script magic-link email
+```
 
-3. **text_files**: Extracted text file references
-   - `id` (int, Primary Key, auto_increment)
-   - `pdf_id` (int, NOT NULL, Foreign Key to pdfs)
-   - `text_file_path` (varchar(500), NOT NULL)
+### Durable design decisions
 
-### Relationships
-- `metadata.pdf_id` → `pdfs.id`
-- `text_files.pdf_id` → `pdfs.id`
+- **Two Flask processes**, even in development. The developer/faculty backend (`mysite/`) and the public/Tool-Hub frontend (`frontend/`) are separated for security and so they can be hosted on different services if needed.
+- **Python 3.11 recommended**, 3.10 acceptable. Python 3.12 may break pinned numpy; 3.9 is too old for some pinned libs.
+- `OPENAI_API_KEY` is required at import time — the backend exits on startup if it is missing.
+- The **AI assistant classifies questions first**, then either generates a safe `SELECT`-only SQL query and runs it, or replies in general-chat mode. There is no vector store or external RAG in this repo.
+- **The archive directory is the source of truth for PDFs.** Everything else (`uploads/`, `processed/`, `OCRextractions/`) is transient.
+- **`mysite/uploads/` is only cleared after a fully successful `process_uploads.py` run**, so the queue is resumable when something fails partway.
 
-## AI Query Examples
+---
 
-The application supports natural language queries like:
-- "How many cases are in the database?"
-- "Show me all judges"
-- "What counties are represented?"
-- "How many cases were processed in 2023?"
+## 3. Quick start — local development
 
-**Note**: AI queries require database connection to work properly.
+### Prerequisites
 
-## Troubleshooting
+- Git
+- Python **3.10+** (3.11 recommended)
+- MySQL access (the project DB, a local MySQL, or any compatible test DB)
+- An OpenAI API key
+- macOS: `brew install tesseract` (for local OCR via `ocrmypdf`)
+- Linux: install Tesseract and Ghostscript via your package manager
+- Windows: install Tesseract and Ghostscript from official Windows builds
 
-### Common Issues
+### Clone and create a virtual environment
 
-1. **Database Connection Failed**
-   - Verify PythonAnywhere credentials in `.env`
-   - Ensure you have a paid PythonAnywhere plan
-   - SSH tunnel connection is being troubleshooted
-   - **Workaround**: Run application on PythonAnywhere
+```bash
+git clone git@github.com:Resentencing/ResentencingProject.git
+cd ResentencingProject
 
-2. **OpenAI API Errors**
-   - Verify API key in `.env`
-   - Check API key permissions and billing
+python3.11 -m venv .venv
+source .venv/bin/activate                 # macOS / Linux
+# Windows PowerShell:  .\.venv\Scripts\Activate.ps1
+# Windows cmd:         .venv\Scripts\activate.bat
 
-3. **File Upload Issues**
-   - Ensure upload directories exist
-   - Check file permissions
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python -m pip install Flask-Cors
+```
 
-### SSH Tunnel Issues (Currently Being Troubleshooted)
+### Configure environment variables
 
-If SSH tunnel connection fails:
-1. Verify PythonAnywhere username and password
-2. Ensure paid account for SSH access
-3. Check firewall settings
-4. Try different local ports if 3306 is in use
-5. **Current Issue**: MySQL user permissions for external connections
+```bash
+cp env.template .env
+# Windows PowerShell:  Copy-Item env.template .env
+```
 
-### Development Workflow
+Open `.env` and fill in real values. The variables you must set for the app to start are:
 
-**For full functionality**:
-1. Develop locally (file upload, OCR, etc.)
-2. Deploy to PythonAnywhere for database testing
-3. SSH tunnel connection being resolved
+| Variable | Purpose |
+|----------|---------|
+| `OPENAI_API_KEY` | AI assistant; backend will not start without it |
+| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MySQL connection used by both apps |
+| `FLASK_SECRET_KEY` | Flask session signing |
+| `ADMIN_PASSWORD` | Login gate for the backend (developer / faculty supervisor only) — **set a real value; never ship the template default** |
+| `ARCHIVE_DIR` | Absolute path to where processed PDFs live on this machine |
+| `LOG_DIR` | Absolute path for pipeline logs on this machine |
 
-## Security Notes
+Optional / context-dependent:
 
-- Never commit `.env` file to version control
-- Use strong passwords for all services
-- Regularly rotate API keys
-- Keep dependencies updated
+| Variable | Purpose |
+|----------|---------|
+| `INGEST_API_KEY` / `API_KEY` | Shared secret for `X-API-Key` on `/queue_pdfs` and a few internal endpoints |
+| `PYTHONANYWHERE_USERNAME`, `PYTHONANYWHERE_PASSWORD`, `SSH_HOST`, `PYTHONANYWHERE_DB_*` | Only needed if you use the SSH-tunnel helper scripts |
+| `BACKEND_BASE_URL` | URL the frontend uses to call the backend (default `http://127.0.0.1:5000`) |
+| `METADATA_REFRESH_TIMEOUT_SEC` | Max wall-clock for an in-browser metadata refresh |
+| `ACCESS_HANDOFF_SECRET`, `APPS_SCRIPT_WEB_APP_EXEC_URL`, `STREAMLIT_*` | Only needed if you use the Streamlit RAG handoff |
+| `ROLE_LIMITS_JSON`, `UNLIMITED_ACCESS_ROLE` | Override default per-role download rate limits |
+| `PUBLIC_FRESHNESS_*` | Fallback "data as of" strings shown on the public homepage |
 
-## Support
+`.env` is gitignored. Never commit it.
 
-For issues related to:
-- **PythonAnywhere**: Check their documentation
-- **OpenAI API**: Visit OpenAI platform
-- **Application**: Check logs and error messages
-- **Database Connection**: Team is troubleshooting SSH tunnel access
+### Run both apps
 
-## License
+   ```bash
+# Terminal A — backend (developer / faculty supervisor), default port 5000
+   cd ResentencingProject
+python mysite/OCRWebApp.py
 
-[Add your license information here] 
+# Terminal B — frontend (public site + Tool Hub), default port 5001
+cd ResentencingProject/frontend
+python flask_app.py
+   ```
+
+Health check:
+
+   ```bash
+curl http://127.0.0.1:5001/ping
+# {"ok": true}
+   ```
+
+### Run the test suite
+
+   ```bash
+cd ResentencingProject
+pytest
+# Or just the backend suite:
+cd mysite && pytest
+```
+
+---
+
+## 4. Production deployment — PythonAnywhere
+
+The reference deployment runs both apps on PythonAnywhere (paid plan, for the always-on tasks and SSH). The current production replica is at `rscap.pythonanywhere.com`.
+
+Throughout this section `<your_pa_user>` is the PythonAnywhere account name. Substitute your own.
+
+### Recommended layout
+
+| Item | Path |
+|------|------|
+| Backend code | `/home/<your_pa_user>/mysite/` |
+| Frontend code | `/home/<your_pa_user>/frontend/` |
+| Virtual environment | `/home/<your_pa_user>/.virtualenvs/myvirtualenv/` |
+| Archive of processed PDFs | `/home/<your_pa_user>/shared/archive_directory/` |
+| Pipeline logs | `/home/<your_pa_user>/mysite/logs/` |
+| WSGI entry (backend) | `OCRWebApp.py` under `mysite/` |
+
+### Standard deploy
+
+```bash
+ssh <your_pa_user>@ssh.pythonanywhere.com
+cd /home/<your_pa_user>/mysite
+git pull
+source ~/.virtualenvs/myvirtualenv/bin/activate
+
+# Run any one-time migrations announced for this commit (most deploys: none).
+# Examples:
+# python add_uploaded_at_column.py
+# python add_manual_review_columns.py
+```
+
+Then in the PythonAnywhere **Web** tab:
+
+1. Find each web app (backend; frontend if hosted on PA).
+2. Click **Reload**.
+3. Confirm the "Web app was reloaded" timestamp updated.
+
+**Code changes do not take effect until you reload.** If `git pull` reports "Already up to date" but the branch should have new commits, check `git status`, `git fetch`, and that you are on `main`.
+
+### Production environment variables
+
+All variables from § 3 plus the production-only items below. Set these in the PythonAnywhere **Web** tab → "Environment variables" for each web app (not in `.env` on the server).
+
+- `INGEST_API_KEY` — must match the value stored in the Apps Script that posts new PDFs.
+- `FLASK_SECRET_KEY` — rotated only when you mean to invalidate every session.
+- `ADMIN_PASSWORD` — change from any historical or template value.
+- `ARCHIVE_DIR`, `LOG_DIR` — set to the production paths above.
+
+---
+
+## 5. Letter upload pipeline
+
+### End-to-end flow
+
+```
+Drive new PDF
+  → Apps Script (every ~10 min) → POST /queue_pdfs  (X-API-Key)
+  → mysite/uploads/   (HTTP 200, JSON: {saved, skipped})
+  → process_uploads.py  (scheduled and/or manual)
+      1. preprocess_pdf  → corrected_*.pdf in processed/
+      2. extracttext     → OCRextractions/*.txt
+      3. tagextraction   → Jsontags/metadata.json
+      4. dbconnector.upload_to_database → MySQL  (uploaded_at = NOW())
+      5. ON FULL SUCCESS ONLY: clear uploads/, processed/, OCRextractions/
+```
+
+### Manual run
+
+   ```bash
+cd /home/<your_pa_user>/mysite
+source ~/.virtualenvs/myvirtualenv/bin/activate
+python process_uploads.py
+
+# Or from the backend home page: "Run OCR & upload to database"
+# That kicks /run_process_uploads (HTTP 202 + a status JSON the browser polls).
+```
+
+### Apps Script (Drive automation)
+
+A Google Apps Script bound to the team Drive folder uploads new PDFs to the backend. The script lives outside this repo (in the Google Apps Script project). It expects:
+
+| Script Property | Value |
+|-----------------|-------|
+| `FLASK_URL` | The backend base URL, no trailing slash |
+| `INGEST_API_KEY` | Same secret as the backend environment |
+| `DRIVE_FOLDER_ID` | The watched Drive folder |
+
+Trigger: `checkForNewFiles` every 10 minutes. Optional monthly: `monthlyMaintenance` (Drive dedupe, Excel sync). Manual recovery: `clearProcessedCache()` resets the script's "already processed" memory if a sync failed and files need to be re-driven after the server is fixed.
+
+### Recovery cheat sheet
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| New uploads never appear | Apps Script trigger paused | Re-enable the trigger and run `checkForNewFiles` manually |
+| `/queue_pdfs` returns 401 | `INGEST_API_KEY` mismatch | Sync the values; reload the web app |
+| `uploads/` keeps growing | OCR or DB step failing | Read `process_uploads.status.json` and `logs/process_uploads.last.log`; fix; rerun |
+| Stale lock present | `process_uploads.lock` left behind | Confirm no Python process is running, then remove the lock file |
+| PDF >~50 pages is killed | PA worker memory/CPU limits | OCR offline (see § 7), rsync into the archive, then run `metadata_refresh.py` |
+| **`unable to load configuration from metadata_refresh.py`** (browser Refresh Metadata) | uWSGI `sys.executable` used as subprocess interpreter | Deploy current `OCRWebApp.py` (`_pipeline_python()`); reload web app; or run `metadata_refresh.py` from Bash (§ 6) |
+
+`process_uploads.status.json` statuses are `idle`, `running`, `done`, `error`, and `no_corrected_pdfs`. Always read this file before kicking another run.
+
+---
+
+## 6. Metadata refresh (bulk repair)
+
+Run `metadata_refresh.py` when many rows have placeholder metadata, after rsyncing a batch into the archive, or after updating the tracking spreadsheets in `mysite/Excel/` (Excel changes do **not** automatically refresh DB rows).
+
+   ```bash
+cd /home/<your_pa_user>/mysite
+source ~/.virtualenvs/myvirtualenv/bin/activate
+
+# Small cohort:
+python metadata_refresh.py
+
+# Big cohort — wrap in screen/tmux so an SSH drop doesn't kill the run:
+screen -S refresh
+python metadata_refresh.py 2>&1 | tee -a logs/MetadataRefresh_manual_$(date +%F).log
+# detach with Ctrl-A D; reattach later with: screen -r refresh
+```
+
+For very large batches, **do not** kick the refresh from the backend's browser route — even with a generous `METADATA_REFRESH_TIMEOUT_SEC`, the browser or the PA proxy can cut you off. Use the console.
+
+On PythonAnywhere, `/refresh_metadata` must spawn the venv Python, not uwsgi (`sys.executable` under uWSGI). Optional env: `PYTHON_EXECUTABLE=~/.virtualenvs/myvirtualenv/bin/python3`.
+
+### What gets written
+
+| File | Contents |
+|------|----------|
+| `logs/MetadataRefresh_full_YYYY-MM-DD_HH-MM-SS.log` | Full stdout/stderr — OCR, Excel warnings, success/failure per file |
+| `logs/MetadataRefresh_results_YYYY-MM-DD_HH-MM-SS.jsonl` | One JSON line per file (`filename`, `ok`, `pdf_id`, timestamp) |
+| `logs/MetadataRefresh_YYYY-MM-DD.log` | Short summary appended at the end of each run |
+
+Rows are committed **per file**. If a job dies at file 60 of 565, files 1–59 are already in MySQL.
+
+### Problem rows after refresh
+
+Rows that still cannot be confidently filled in (no CDC number in filename or OCR, no Excel row, batch PDFs the heuristics could not split, poor scans) appear in the backend **Missing Metadata** screen. **Refresh Metadata** after a new CDCR log re-merges log + PDF extraction. A Manual Review hand-edit UI was **deferred** — the CDCR log and OCR already supply metadata automatically; see handoff Transition Memo § II.E.
+
+---
+
+## 7. Bulk OCR escape hatch
+
+PythonAnywhere's per-task CPU and memory ceilings make OCR of hundreds or thousands of PDFs at once impractical. The escape hatch is: OCR offline on a workstation, then rsync the results into the archive.
+
+```bash
+# 1) On a workstation with ocrmypdf + Tesseract installed:
+python batch_ocr_parallel.py --input ./raw --output ./corrected --workers 8
+
+# 2) rsync the corrected_<original>.pdf files into the production archive:
+rsync -avz ./corrected/ <your_pa_user>@ssh.pythonanywhere.com:/home/<your_pa_user>/shared/archive_directory/
+
+# 3) On PA, repair / attach DB rows:
+cd /home/<your_pa_user>/mysite && source ~/.virtualenvs/myvirtualenv/bin/activate
+python metadata_refresh.py 2>&1 | tee -a logs/MetadataRefresh_bulk_$(date +%F).log
+```
+
+This workflow does **not** drain `mysite/uploads/`. If the queue is also stuck, drain it via `process_uploads.py` (§ 5) — that is a separate concern.
+
+For brand-new files that do not yet have a `pdfs` row, either run a one-time `file_recovery_auto.py` to insert inventory rows (placeholder metadata off by default — it just creates the `pdfs` row), or use a small inventory script that scans the archive and does `INSERT IGNORE`. After that, `metadata_refresh.py` can pick them up.
+
+---
+
+## 8. Public site & gated Tool Hub
+
+### Public surfaces (no login)
+
+- **Home** — overview, dataset freshness, §1170(d) reconciliation summary, stat cards, Letters by County chart, request-access CTA, Privacy/Terms links.
+- **Charts** — aggregate only. **No personal names ever leave the public API.**
+- **Request access** — a Google Form linked from the home page and `/access`.
+- **About / Privacy / Terms / Contact** — static text.
+
+### Gated Tool Hub (magic-link login)
+
+- **Browse** — aggregate counts by category. No names, no downloads.
+- **Lookup** — search by case number or CDCR number → details and a signed download URL (15-minute expiry); a "Download all letters for this person" action zips them.
+- **Variable Explorer** — build comparison charts from chosen variables.
+- **AI assistant** — natural-language Q&A; answers should always be verified against source PDFs.
+- **Letter reconciliation** — compares the tracking log to the DB; surfaces matched / pending counts.
+
+### Access flow
+
+1. A visitor submits the public request-access Google Form.
+2. A response row lands in a Google Sheet.
+3. A bound Apps Script reads the row, auto-approves trusted domains (configurable list — typically `.edu`, `.gov`, etc.), and emails everyone else's request to the faculty supervisor for manual approval.
+4. On approval the script emails the requester a signed magic link. The link routes through the public site first (which avoids Gmail's URL rewriting) and exchanges the token for a Flask session.
+5. The requester's `role` column in the sheet determines their download rate limits.
+
+### Rate limits (defaults)
+
+- ~10 downloads/hour, 50/day, 3 ZIPs/day per session.
+- Role overrides via the access sheet — trusted institutional domains or explicitly flagged `priority_access` roles get higher limits.
+
+### Audit log
+
+`frontend/audit.log` records one line per search and per download: email, IP, timestamp, action, target. Treat it as **sensitive personal data**: never publish raw audit logs, never commit them, never paste them into chat without redaction.
+
+---
+
+## 9. Database schema
+
+Full schema and example queries: `DATABASE_SCHEMA.sql` at the repo root.
+
+| Table | Purpose | Key columns |
+|-------|---------|-------------|
+| `pdfs` | Inventory of letter PDFs | `id`, `filename` (unique), `file_path` |
+| `metadata` | Extracted case-level data | `pdf_id` (FK), `cdcr_number`, `case_number`, `county`, `judge`, all date / sentence / cohort / cost-savings fields, `notes`, `uploaded_at`, `manual_review_needed`, `manual_review_reason` |
+| `text_files` | OCR'd text references | `pdf_id` (FK), `text_file_path` |
+| `dataset_source_refresh` | UTC "data as of" stamps for the public homepage | `source_key`, `refreshed_at`, `detail` |
+
+### Safe console queries
+
+Read-only when poking around:
+
+```sql
+SELECT id, filename FROM pdfs ORDER BY id DESC LIMIT 20;
+
+SELECT pdf_id, cdcr_number, case_number, county, manual_review_needed
+FROM metadata
+WHERE manual_review_needed = 1
+LIMIT 50;
+```
+
+Never run `UPDATE` / `DELETE` / `DROP` against the production DB without taking a snapshot first — PythonAnywhere does not auto-snapshot MySQL.
+
+---
+
+## 10. Migrations
+
+Run once per environment after pulling code that introduces them:
+
+```bash
+cd /home/<your_pa_user>/mysite
+source ~/.virtualenvs/myvirtualenv/bin/activate
+
+python add_uploaded_at_column.py        # adds metadata.uploaded_at
+python add_manual_review_columns.py     # adds manual_review_needed + manual_review_reason
+```
+
+Migration scripts are idempotent — running them a second time is a no-op if the column already exists.
+
+---
+
+## 11. Scheduled tasks
+
+A typical PythonAnywhere → **Tasks** schedule, staggered so jobs don't collide:
+
+| Order | Task | Frequency | Purpose |
+|------:|------|-----------|---------|
+| 1 | `Missedentryclear.py` | every 24 h | Housekeeping for `Jsontags/Metadata.json` |
+| 2 | `fileconsistencycheck.py` | nightly ~02:00 | DB ↔ archive consistency report + email alert |
+| 3 | `file_recovery_auto.py` | nightly ~02:30 | Insert `pdfs` rows for orphaned archive files (placeholders off by default) |
+| 4 | `process_uploads.py` | daily ~10:00 UTC | Drain the Drive queue → archive + DB |
+| 5 | `cleanup_metadata_duplicates.py --apply` | weekly | Drop Drive `Copy_of …` duplicates |
+| 6 | `metadata_refresh.py` | as needed | Bulk repair; usually manual after Excel updates or rsync batches |
+
+Example scheduled-task command:
+
+```bash
+cd /home/<your_pa_user>/mysite && /home/<your_pa_user>/.virtualenvs/myvirtualenv/bin/python3 process_uploads.py
+```
+
+Always `cd` into `mysite/` first so relative paths resolve the same way they do when the web app reads them.
+
+---
+
+## 12. Common operations — top commands
+
+```bash
+# Drain the Drive queue
+cd /home/<your_pa_user>/mysite && source ~/.virtualenvs/myvirtualenv/bin/activate
+python process_uploads.py
+
+# Fix partial / placeholder rows
+python metadata_refresh.py 2>&1 | tee -a logs/MetadataRefresh_manual_$(date +%F).log
+
+# Duplicate cleanup — always dry-run first
+python cleanup_metadata_duplicates.py
+python cleanup_metadata_duplicates.py --apply --delete-archive-files
+
+# Inspect what's stuck in the queue
+ls /home/<your_pa_user>/mysite/uploads/ | wc -l
+cat /home/<your_pa_user>/mysite/process_uploads.status.json
+tail -80 /home/<your_pa_user>/mysite/logs/process_uploads.last.log
+
+# Check the last 100 audit log entries
+tail -100 /home/<your_pa_user>/frontend/audit.log
+```
+
+---
+
+## 13. Troubleshooting
+
+| Symptom | Likely cause | What to check / do |
+|---------|--------------|--------------------|
+| Backend won't start | Missing `OPENAI_API_KEY`; broken venv; wrong Python version | PA Web tab error log; confirm `.env` on disk; reactivate venv |
+| Frontend `/api/stats` returns 500 | DB connection failed; `metadata.uploaded_at` not migrated | Check the error log; run `add_uploaded_at_column.py`; verify `DB_*` |
+| Public homepage shows "0 letters" | Frontend can't reach the DB, or `metadata` is empty in this env | Hit `/api/stats` directly; verify `DB_*` in the frontend's environment |
+| Magic-link sign-in fails with "Invalid token" | Token expired; `FLASK_SECRET_KEY` rotated since the link was issued | Re-issue link; rotate `FLASK_SECRET_KEY` only when you mean to invalidate sessions |
+| Tool Hub Lookup returns no rows for a known CDCR # | Search-form parameter mismatch; backend filter regression; signed-URL issue | Reproduce against `/api/lookup` directly; inspect the Network tab |
+| ZIP download fails partway | Per-session ZIP cap exceeded; or a source PDF missing from archive | Check rate-limit headers; verify the PDF exists in `archive_directory/` |
+| AI returns nonsense | LLM hallucination, or DB has placeholder values the model trusts | Always verify against source PDFs; consider RAG for future |
+| `nan can not be used with MySQL` | NaN sanitizer not in the bind path | Confirm latest code is deployed; redeploy and rerun |
+| `process_uploads.py` ended but `uploads/` didn't clear | Final status was not `done`; failure in OCR or DB step | Re-read `status.json`; check `logs/process_uploads.last.log` |
+| Apps Script can't see the Drive folder | Wrong folder ID, or scope missing | Check Script Properties; re-grant Drive scope |
+| Sheet rows don't trigger emails | Trigger not installed, or daily quota exhausted | Apps Script → Triggers; confirm `onFormSubmit` exists; rerun manually |
+| Tool Hub session expires too quickly | Cookie TTL too short, or `FLASK_SECRET_KEY` rotated | Adjust TTL; only rotate `FLASK_SECRET_KEY` intentionally |
+| `git pull` fails on PA with a merge conflict | Something was edited directly on the server | Stash or discard the local edit, then pull again |
+| Tests fail with "no module named X" | Wrong venv active, or `requirements.txt` updated without reinstall | Reactivate the venv; reinstall requirements |
+| `ocrmypdf` complains about Ghostscript / jbig2enc | Missing system dependency | Install via the OS package manager (apt / brew / Chocolatey) |
+| Apps Script "Service invoked too many times" | Hitting Google quota | Wait the cooldown; reduce trigger frequency; batch differently |
+
+---
+
+## 14. Security & secrets
+
+- `.env` is gitignored. **Never** commit it.
+- Use `env.template` as the reference for which variables must exist. Do **not** put real values in the template.
+- Always change `ADMIN_PASSWORD` away from any historical or template value before exposing the backend.
+- Rotate `OPENAI_API_KEY` and `INGEST_API_KEY` if they have been shared too broadly or shown up in any public log or screenshot.
+- `frontend/audit.log` contains personal data (emails, IPs). Treat it as sensitive: do not export, commit, or share without redaction.
+- Download rate limits and the audit log are intentional anti-abuse measures. Disable them only with explicit supervision approval.
+- For new contributors, share secrets via a password manager. Never paste secrets into chat, email, or issue trackers.
+
+---
+
+## 15. Further documentation
+
+This README is intentionally the only developer documentation published to GitHub. Deeper materials — the project transition memo, a longer system maintainer guide with full operations procedures, a non-technical frontend user guide, internal policy memos, and the team's working notes — are maintained in the project's Google Drive and are shared with new contributors by the faculty supervisor.
+
+If you have forked or cloned this repository and need access to the deeper handoff materials, please contact the faculty supervisor.
+
+---
+
+## 16. License & acknowledgments
+
+This project is a university research initiative. Source code is published here so the system can be audited and so the methodology can be replicated by other research teams.
+
+Built and maintained by student developers under faculty supervision.
+
+If you reuse this code or methodology in your own work, please cite the project and credit the research team.

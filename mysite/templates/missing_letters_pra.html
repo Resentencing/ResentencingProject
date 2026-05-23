@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Missing Letters{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Missing Letters — Log vs Database</h2>
+    <p>
+        Compares the <strong>1170(d) Main Tracking Log</strong> against letter records in the database.
+        Matching is by CDCR&nbsp;# first, then Case&nbsp;#, then last name + county.
+        Only rows where <strong>Date Letter Created</strong> is filled in are counted.
+    </p>
+    <p>
+        <strong>Missing from database</strong> = on the tracking log (letter was generated) but no matching letter in the database yet —
+        typically letters requested from CDCR and still outstanding (~500 rows).
+    </p>
+
+    <div class="actions-section" style="margin: 1rem 0;">
+        <a href="{{ url_for('missing_letters_pra_download') }}" class="btn btn-primary">
+            Download missing letters (.xlsx — all log columns)
+        </a>
+        <button type="button" id="reconcile-refresh-btn" class="btn btn-info">Refresh</button>
+        <span id="reconcile-status" style="margin-left: 0.5rem;"></span>
+    </div>
+
+    <div id="reconcile-error" class="alert alert-error" style="display:none;"></div>
+
+    <div id="reconcile-summary" class="stats-grid" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
+        <div class="stat-card" style="min-width:140px;flex:1;">
+            <h3>Letters generated</h3>
+            <p class="stat-number" id="recon-total">—</p>
+        </div>
+        <div class="stat-card" style="min-width:140px;flex:1;">
+            <h3>In database</h3>
+            <p class="stat-number" id="recon-matched">—</p>
+        </div>
+        <div class="stat-card" style="min-width:140px;flex:1;">
+            <h3>Missing from DB</h3>
+            <p class="stat-number" id="recon-missing">—</p>
+        </div>
+        <div class="stat-card" style="min-width:140px;flex:1;">
+            <h3>DB-only records</h3>
+            <p class="stat-number" id="recon-extra">—</p>
+        </div>
+    </div>
+
+    <p id="reconcile-meta" class="stat-detail" style="margin-bottom: 1rem;"></p>
+    <div id="reconcile-filter-note" style="display:none;margin-bottom:0.5rem;font-size:0.9rem;color:#555;"></div>
+
+    <h3>Missing from database</h3>
+    <p style="margin-top:0;">Full list below. Use the download button for every column from the tracking log.</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
+        <input id="reconcile-search" type="search" placeholder="Search CDCR #, name, case, county…"
+            style="flex:1;min-width:200px;padding:0.4rem 0.6rem;">
+        <span id="reconcile-row-count" style="font-size:0.9rem;color:#555;"></span>
+    </div>
+
+    <table class="table" id="reconcile-missing-table">
+        <thead>
+            <tr>
+                <th class="recon-sortable" data-col="0" style="cursor:pointer;">CDCR # ↕</th>
+                <th class="recon-sortable" data-col="1" style="cursor:pointer;">Last Name ↕</th>
+                <th class="recon-sortable" data-col="2" style="cursor:pointer;">Case # ↕</th>
+                <th class="recon-sortable" data-col="3" style="cursor:pointer;">Category ↕</th>
+                <th class="recon-sortable" data-col="4" style="cursor:pointer;">County ↕</th>
+                <th class="recon-sortable" data-col="5" style="cursor:pointer;">Institution ↕</th>
+            </tr>
+        </thead>
+        <tbody id="reconcile-missing-tbody">
+            <tr><td colspan="6">Loading…</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+(function () {
+    let reconAllRows = [];
+    let reconSortCol = -1;
+    let reconSortAsc = true;
+    let reconSearchTerm = "";
+
+    const RECON_COLS = ["cdcr", "name", "case", "category", "county", "institution"];
+
+    function reconRender() {
+        const tbody = document.getElementById("reconcile-missing-tbody");
+        let rows = reconAllRows.slice();
+        if (reconSearchTerm) {
+            const q = reconSearchTerm.toLowerCase();
+            rows = rows.filter(r =>
+                RECON_COLS.some(k => (r[k] || "").toLowerCase().includes(q))
+            );
+        }
+        if (reconSortCol >= 0) {
+            const key = RECON_COLS[reconSortCol];
+            rows.sort((a, b) => {
+                const av = (a[key] || "").toLowerCase();
+                const bv = (b[key] || "").toLowerCase();
+                return reconSortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+            });
+        }
+        tbody.innerHTML = "";
+        const rowCount = document.getElementById("reconcile-row-count");
+        if (rows.length === 0) {
+            const msg = reconAllRows.length === 0
+                ? "No missing entries — all log rows matched."
+                : "No rows match your search.";
+            tbody.innerHTML = `<tr><td colspan="6">${msg}</td></tr>`;
+            if (rowCount) rowCount.textContent = "";
+        } else {
+            rows.forEach(r => {
+                const tr = document.createElement("tr");
+                tr.innerHTML =
+                    `<td>${r.cdcr || "—"}</td><td>${r.name || "—"}</td><td>${r.case || "—"}</td>` +
+                    `<td>${r.category || "—"}</td><td>${r.county || "—"}</td><td>${r.institution || "—"}</td>`;
+                tbody.appendChild(tr);
+            });
+            if (rowCount) {
+                rowCount.textContent = rows.length < reconAllRows.length
+                    ? `Showing ${rows.length.toLocaleString()} of ${reconAllRows.length.toLocaleString()}`
+                    : `${rows.length.toLocaleString()} entries`;
+            }
+        }
+    }
+
+    async function loadReconcile(force) {
+        const statusEl = document.getElementById("reconcile-status");
+        const errEl = document.getElementById("reconcile-error");
+        const refreshBtn = document.getElementById("reconcile-refresh-btn");
+        statusEl.textContent = "Loading…";
+        refreshBtn.disabled = true;
+        errEl.style.display = "none";
+        try {
+            const url = force ? "{{ url_for('api_log_reconcile') }}?refresh=1" : "{{ url_for('api_log_reconcile') }}";
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.error) {
+                errEl.textContent = data.error;
+                errEl.style.display = "block";
+                statusEl.textContent = "";
+                return;
+            }
+            document.getElementById("recon-total").textContent = (data.total_log ?? "—").toLocaleString();
+            document.getElementById("recon-matched").textContent = (data.matched ?? "—").toLocaleString();
+            document.getElementById("recon-missing").textContent = (data.missing_count ?? "—").toLocaleString();
+            document.getElementById("recon-extra").textContent = (data.extra_in_db_count ?? "—").toLocaleString();
+
+            let meta = `Log file: <strong>${data.log_filename || "—"}</strong>`;
+            if (data.log_file_modified) {
+                meta += ` · last modified ${new Date(data.log_file_modified).toLocaleString()}`;
+            }
+            if (data.matched != null) {
+                meta += `<br>Matched breakdown: ${data.match_by_cdcr} by CDCR#, ${data.match_by_case} by Case#, ${data.match_by_name_county} by name+county.`;
+            }
+            document.getElementById("reconcile-meta").innerHTML = meta;
+
+            const filterNote = document.getElementById("reconcile-filter-note");
+            if (data.letter_created_filter && data.total_log_raw != null) {
+                filterNote.style.display = "block";
+                filterNote.textContent =
+                    `Showing ${data.total_log.toLocaleString()} rows where a letter was generated ` +
+                    `(filtered from ${data.total_log_raw.toLocaleString()} total log rows with a CDCR or Case #).`;
+            } else {
+                filterNote.style.display = "none";
+            }
+
+            reconAllRows = data.missing || [];
+            reconRender();
+            statusEl.textContent = "Updated " + new Date().toLocaleTimeString();
+        } catch (e) {
+            errEl.textContent = String(e);
+            errEl.style.display = "block";
+            statusEl.textContent = "";
+        } finally {
+            refreshBtn.disabled = false;
+        }
+    }
+
+    document.getElementById("reconcile-refresh-btn").addEventListener("click", () => loadReconcile(true));
+    document.getElementById("reconcile-search").addEventListener("input", e => {
+        reconSearchTerm = e.target.value.trim();
+        reconRender();
+    });
+    document.querySelectorAll(".recon-sortable").forEach(th => {
+        th.addEventListener("click", () => {
+            const col = parseInt(th.dataset.col, 10);
+            if (reconSortCol === col) {
+                reconSortAsc = !reconSortAsc;
+            } else {
+                reconSortCol = col;
+                reconSortAsc = true;
+            }
+            reconRender();
+        });
+    });
+
+    loadReconcile(false);
+})();
+</script>
+{% endblock %}

@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 from OCRWebApp import (  # noqa: E402
     _latest_consistency_check_stamp,
     _load_dashboard_recent_activity,
+    _pipeline_python,
     app,
 )
 
@@ -172,3 +173,19 @@ def test_load_dashboard_activity_parses_log():
     assert len(acts) == 1
     assert acts[0]["type"] == "SUCCESS"
     assert "Enhanced Upload" in acts[0]["description"]
+
+
+def test_pipeline_python_avoids_uwsgi_executable(tmp_path, monkeypatch):
+    """uWSGI sets sys.executable to uwsgi; pipeline scripts need real Python."""
+    venv_py = tmp_path / "python3"
+    venv_py.write_text("#!/bin/sh\nexit 0\n")
+    venv_py.chmod(0o755)
+    monkeypatch.delenv("PYTHON_EXECUTABLE", raising=False)
+    monkeypatch.setattr("OCRWebApp._sys.executable", "/usr/bin/uwsgi")
+    with patch("OCRWebApp._virtualenv_python_candidates", return_value=(str(venv_py),)):
+        assert _pipeline_python() == str(venv_py)
+
+
+def test_pipeline_python_honors_explicit_env(monkeypatch):
+    monkeypatch.setenv("PYTHON_EXECUTABLE", "/custom/python3.11")
+    assert _pipeline_python() == "/custom/python3.11"

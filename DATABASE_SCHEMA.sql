@@ -25,10 +25,10 @@ CREATE TABLE pdfs (
     INDEX idx_file_path (file_path)
 );
 
--- Sample data:
--- INSERT INTO pdfs (filename, file_path) VALUES 
--- ('corrected_Gonzalez-G46407_Rodarte.pdf', '/home/RSCAP/shared/archive_directory/corrected_Gonzalez-G46407_Rodarte.pdf'),
--- ('corrected_Gonzalez-G49528_Navarro.pdf', '/home/RSCAP/shared/archive_directory/corrected_Gonzalez-G49528_Navarro.pdf');
+-- Sample row shape (illustrative only — no real identifiers):
+-- INSERT INTO pdfs (filename, file_path) VALUES
+-- ('corrected_<lastname>-<cdcr_number>_<judge>.pdf',
+--  '/home/<your_pa_user>/shared/archive_directory/corrected_<lastname>-<cdcr_number>_<judge>.pdf');
 
 -- =====================================================
 -- TABLE: metadata
@@ -83,9 +83,24 @@ CREATE TABLE metadata (
     INDEX idx_ethnicity (ethnicity)
 );
 
--- Sample data:
--- INSERT INTO metadata (pdf_id, date_stamped, judge, county, address, convict_name, cdcr_number, case_number, sentence_date, cohort, pid_no, institution, old_release_date, documents_printed_date, letter_creation_date, secretary_send_date, sec_decision, court_mail_date, court_response_date, resentencing_hearing_date, action_taken, days_reduced, years_reduced, cost_savings, notes, completion_date, post_release, isl_dsl, parole_eligibility_date, race, ethnicity) VALUES 
--- (1, 'July 16, 2018', 'Michael L. Schuur', 'Los Angeles', '12720 Norwalk Boulevard, Norwalk, CA 90650', 'Rodarte Jr. Jose Luis', 'G46407', 'VA106941-02', 'December 11. 2008', 'vs. Gonzalez', '11639215', 'SATF-Facility D', '2022-07-12 00:00:00', '2018-06-19 00:00:00', '2018-06-19 00:00:00', '2018-07-11 00:00:00', 'Approved', '2018-07-18 00:00:00', NULL, NULL, NULL, NULL, NULL, NULL, 'Paroled on 12/28/2021', '2022-08-10 00:00:00', NULL, 'DSL', '2021-12-15 00:00:00', 'Hispanic', 'Hispanic');
+-- Sample row shape (illustrative only — no real identifiers):
+-- INSERT INTO metadata (
+--   pdf_id, date_stamped, judge, county, address, convict_name,
+--   cdcr_number, case_number, sentence_date, cohort, pid_no, institution,
+--   old_release_date, documents_printed_date, letter_creation_date,
+--   secretary_send_date, sec_decision, court_mail_date, court_response_date,
+--   resentencing_hearing_date, action_taken, days_reduced, years_reduced,
+--   cost_savings, notes, completion_date, post_release, isl_dsl,
+--   parole_eligibility_date, race, ethnicity
+-- ) VALUES (
+--   1, '<letter_date>', '<redacted_judge>', '<county>', '<redacted_address>', '<redacted_name>',
+--   '<cdcr_number>', '<case_number>', '<original_sentence_date>', '<cohort_label>', '<pid_no>', '<institution>',
+--   '<release_date>', '<print_date>', '<creation_date>',
+--   '<secretary_send_date>', 'Approved | Denied | …', '<court_mail_date>', '<court_response_date>',
+--   '<hearing_date>', '<action>', NULL, NULL,
+--   NULL, '<notes>', '<completion_date>', '<post_release_status>', 'DSL | ISL',
+--   '<parole_eligibility_date>', '<race>', '<ethnicity>'
+-- );
 
 -- =====================================================
 -- TABLE: dataset_source_refresh
@@ -131,52 +146,52 @@ FROM pdfs p
 LEFT JOIN metadata m ON p.id = m.pdf_id
 WHERE m.pdf_id IS NULL;
 
--- Get files by judge
+-- Get files by judge (substring match)
 SELECT p.filename, m.date_stamped, m.convict_name, m.case_number
 FROM pdfs p
 JOIN metadata m ON p.id = m.pdf_id
-WHERE m.judge LIKE '%Schuur%'
+WHERE m.judge LIKE '%<judge_lastname>%'
 ORDER BY m.date_stamped;
 
 -- Get files by county
 SELECT p.filename, m.judge, m.convict_name, m.case_number
 FROM pdfs p
 JOIN metadata m ON p.id = m.pdf_id
-WHERE m.county = 'Los Angeles'
+WHERE m.county = '<County>'
 ORDER BY p.filename;
 
 -- Get files by CDCR number
 SELECT p.filename, m.date_stamped, m.judge, m.convict_name, m.case_number
 FROM pdfs p
 JOIN metadata m ON p.id = m.pdf_id
-WHERE m.cdcr_number = 'G46407';
+WHERE m.cdcr_number = '<CDCR_NUMBER>';
 
 -- Get files by case number
 SELECT p.filename, m.date_stamped, m.judge, m.convict_name, m.cdcr_number
 FROM pdfs p
 JOIN metadata m ON p.id = m.pdf_id
-WHERE m.case_number = 'VA106941-02';
+WHERE m.case_number = '<CASE_NUMBER>';
 
--- Get files by date range
+-- Get files by date range (string-comparable date format)
 SELECT p.filename, m.judge, m.convict_name, m.case_number
 FROM pdfs p
 JOIN metadata m ON p.id = m.pdf_id
-WHERE m.date_stamped >= 'July 1, 2018'
-AND m.date_stamped <= 'July 31, 2018'
+WHERE m.date_stamped >= '<start_date>'
+  AND m.date_stamped <= '<end_date>'
 ORDER BY m.date_stamped;
 
 -- Get files by action taken
 SELECT p.filename, m.date_stamped, m.judge, m.convict_name, m.case_number
 FROM pdfs p
 JOIN metadata m ON p.id = m.pdf_id
-WHERE m.action_taken = 'Approved'
+WHERE m.action_taken = '<action>'   -- e.g. 'Approved', 'Denied'
 ORDER BY m.date_stamped;
 
--- Get files by race/ethnicity
+-- Get files by race / ethnicity
 SELECT p.filename, m.date_stamped, m.judge, m.convict_name, m.race, m.ethnicity
 FROM pdfs p
 JOIN metadata m ON p.id = m.pdf_id
-WHERE m.race = 'Hispanic'
+WHERE m.race = '<race>'
 ORDER BY m.date_stamped;
 
 -- Count files by judge

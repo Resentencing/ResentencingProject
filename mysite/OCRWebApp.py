@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, jsonify, abort, send_file
 import os
+import io
 import mysql
 import openai
 from werkzeug.utils import secure_filename
@@ -129,8 +130,51 @@ def _archive_dir_resolved():
     return archive_dir
 
 
+def _virtualenv_python_candidates():
+    """Known PythonAnywhere venv paths (PA sets sys.executable to uwsgi, not Python)."""
+    home = os.path.expanduser("~")
+    return (
+        os.path.join(home, ".virtualenvs", "myvirtualenv", "bin", "python3"),
+        os.path.join(home, ".virtualenvs", "myvirtualenv", "bin", "python"),
+        "/home/RSCAP/.virtualenvs/myvirtualenv/bin/python3",
+        "/home/RSCAP/.virtualenvs/myvirtualenv/bin/python",
+    )
+
+
 def _pipeline_python():
-    return os.environ.get("PYTHON_EXECUTABLE") or _sys.executable
+    """
+    Interpreter for pipeline scripts (metadata_refresh, fileconsistencycheck).
+
+    Under uWSGI on PythonAnywhere, sys.executable is the uwsgi binary. Spawning
+    [sys.executable, "metadata_refresh.py"] makes uwsgi treat the script as a
+    config file ("unable to load configuration from metadata_refresh.py").
+    """
+    explicit = (os.environ.get("PYTHON_EXECUTABLE") or "").strip()
+    if explicit:
+        return explicit
+
+    exe = _sys.executable or ""
+    base = os.path.basename(exe).lower()
+    if base.startswith("python"):
+        return exe
+    if "uwsgi" not in base:
+        if os.path.isfile(exe) and os.access(exe, os.X_OK):
+            return exe
+
+    for candidate in _virtualenv_python_candidates():
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+
+    return exe or "python3"
+
+
+def _pipeline_subprocess_env():
+    """Subprocess env with venv bin on PATH (dotenv vars from the web app)."""
+    env = os.environ.copy()
+    bin_dir = os.path.dirname(_pipeline_python())
+    if bin_dir:
+        env["PATH"] = bin_dir + os.pathsep + env.get("PATH", "")
+    return env
 
 
 def _load_dashboard_recent_activity(max_items=10):
@@ -1351,6 +1395,7 @@ def run_consistency_check():
             capture_output=True,
             text=True,
             cwd=_mysite_dir(),
+            env=_pipeline_subprocess_env(),
             timeout=3600,
         )
 
@@ -1434,6 +1479,7 @@ def refresh_metadata():
                 capture_output=True,
                 text=True,
                 cwd=_mysite_dir(),
+                env=_pipeline_subprocess_env(),
                 timeout=refresh_timeout,
             )
 
@@ -1502,6 +1548,47 @@ def refresh_metadata():
     ]
 
     return render_template("refresh_metadata.html", files=files)
+
+
+@app.route('/missing_letters_pra')
+def missing_letters_pra():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return render_template("missing_letters_pra.html")
+
+
+@app.route('/api/log_reconcile')
+def api_log_reconcile():
+    if not session.get('logged_in'):
+        return jsonify({"error": "Login required"}), 403
+    from log_reconcile import load_log_reconcile
+
+    try:
+        refresh = request.args.get("refresh", "").lower() in ("1", "true", "yes")
+        return jsonify(load_log_reconcile(force=refresh)), 200
+    except Exception as exc:
+        logging.error("log_reconcile error: %s", exc)
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/missing_letters_pra/download.xlsx')
+def missing_letters_pra_download():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    from log_reconcile import export_reconcile_xlsx
+
+    try:
+        data, fname = export_reconcile_xlsx(missing_only=True)
+    except Exception as exc:
+        logging.error("missing_letters_pra export error: %s", exc)
+        return jsonify({"error": str(exc)}), 500
+    return send_file(
+        io.BytesIO(data),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=fname,
+    )
+
 
 if __name__ == '__main__':
     app.run(debug=True)

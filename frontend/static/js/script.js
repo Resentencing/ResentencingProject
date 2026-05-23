@@ -168,11 +168,11 @@ document.addEventListener("DOMContentLoaded", () => {
         coverageHtml =
           `<strong>1170(d) log coverage:</strong> ` +
           `${dbLetters.toLocaleString()} letters in our database · ` +
-          `CDCR tracking log shows ${logTotal.toLocaleString()} generated · ` +
-          `${logMatched.toLocaleString()} matched` +
+          `CDCR tracking log shows ${logTotal.toLocaleString()} approved-and-sent · ` +
+          `${logMatched.toLocaleString()} with a PDF on file` +
           (logMissing > 0
-            ? ` · <strong>${logMissing.toLocaleString()} still pending</strong> — requested from CDCR, will be added as received`
-            : " · all log entries matched");
+            ? ` · <strong>${logMissing.toLocaleString()} missing PDF</strong> — approved on the log, not on disk yet`
+            : " · all in-scope log entries have a PDF on file");
       } else if (dbLetters > 0) {
         coverageHtml =
           `<strong>Letter coverage:</strong> ${dbLetters.toLocaleString()} letters in our database · ` +

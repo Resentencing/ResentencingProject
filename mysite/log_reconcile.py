@@ -1,7 +1,11 @@
 """
-1170(d) tracking log vs database reconciliation.
+1170(d) tracking log vs letter PDFs on disk.
 
-Used by the backend Missing Letters page (mirrors frontend Tool Hub log reconcile).
+Used by the backend Missing Letters page. Compares approved-and-sent log rows
+against PDFs in the archive, upload queue (uploads/), and post-OCR staging
+(processed/). Matching uses CDCR # / case # parsed from filenames. A letter
+counts as present if we have the PDF anywhere in those folders, even when it
+is not yet in MySQL.
 """
 
 from __future__ import annotations
@@ -12,9 +16,8 @@ import os
 import time
 from pathlib import Path
 
-import mysql.connector
 import pandas as pd
-from dbconnector import database_config
+from tagextraction import CASE_FILENAME_PATTERN, CDCR_FILENAME_PATTERN
 
 MYSITE_DIR = Path(__file__).resolve().parent
 EXCEL_DIR = MYSITE_DIR / "Excel"
@@ -101,49 +104,131 @@ def _clean_id(series: pd.Series) -> pd.Series:
     )
 
 
-def _load_db_match_sets() -> tuple[set[str], set[str], set[tuple[str, str]], list[dict]]:
-    conn = mysql.connector.connect(**database_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        "SELECT UPPER(TRIM(cdcr_number)) AS cdcr, "
-        "       UPPER(TRIM(case_number)) AS case_num, "
-        "       UPPER(TRIM(convict_name)) AS cname, "
-        "       UPPER(TRIM(county)) AS county "
-        "FROM metadata "
-        "WHERE cdcr_number IS NOT NULL OR case_number IS NOT NULL OR convict_name IS NOT NULL"
-    )
-    db_rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
+def _resolve_pdf_dirs() -> list[Path]:
+    """
+    All folders scanned for letter PDFs:
 
-    db_cdcr = {r["cdcr"] for r in db_rows if r.get("cdcr")}
-    db_case = {r["case_num"] for r in db_rows if r.get("case_num")}
-    db_name_county: set[tuple[str, str]] = set()
-    for r in db_rows:
-        cname = (r.get("cname") or "").strip()
-        county = (r.get("county") or "").strip()
-        if cname and county:
-            db_name_county.add((cname.split()[-1], county))
-    return db_cdcr, db_case, db_name_county, db_rows
+    - ARCHIVE_DIR (processed letters)
+    - mysite/uploads/ (Drive / queue_pdfs ingest queue)
+    - mysite/processed/ (post-OCR, pre-archive)
+    - LOG_RECONCILE_EXTRA_DIRS (optional, os.pathsep-separated)
+    """
+    dirs: list[Path] = []
+    seen: set[str] = set()
+
+    def _add(path: Path) -> None:
+        resolved = str(path.resolve())
+        if resolved in seen:
+            return
+        if path.is_dir():
+            seen.add(resolved)
+            dirs.append(path)
+
+    primary = os.getenv("ARCHIVE_DIR", "/home/RSCAP/shared/archive_directory")
+    primary_path = Path(primary)
+    if not primary_path.is_absolute():
+        primary_path = MYSITE_DIR / primary
+    _add(primary_path)
+    if not dirs:
+        _add(MYSITE_DIR.parent / "shared" / "archive_directory")
+
+    # Queue and staging (same paths as process_uploads.py)
+    _add(MYSITE_DIR / "uploads")
+    _add(MYSITE_DIR / "processed")
+
+    extra = os.getenv("LOG_RECONCILE_EXTRA_DIRS", "").strip()
+    if extra:
+        for part in extra.split(os.pathsep):
+            part = part.strip()
+            if part:
+                _add(Path(part))
+
+    return dirs
+
+
+# Back-compat alias for tests / callers
+_resolve_archive_dirs = _resolve_pdf_dirs
+
+
+def _ids_from_pdf_basename(fname: str) -> tuple[set[str], set[str]]:
+    base_u = fname.upper()
+    if base_u.endswith(".PDF"):
+        base_u = base_u[:-4]
+    cdcrs = {m.group(1).upper() for m in CDCR_FILENAME_PATTERN.finditer(base_u)}
+    cases: set[str] = set()
+    for m in CASE_FILENAME_PATTERN.finditer(base_u):
+        cand = m.group(1).upper()
+        if cand not in cdcrs:
+            cases.add(cand)
+    return cdcrs, cases
+
+
+def _count_archive_pdfs_not_on_log(
+    log_cdcrs: set[str], log_cases: set[str], archive_dirs: list[Path]
+) -> int:
+    """PDFs in archive whose CDCR/case does not appear on the approved-and-sent log."""
+    extra = 0
+    for adir in archive_dirs:
+        for root, _, files in os.walk(adir):
+            for fname in files:
+                if not fname.lower().endswith(".pdf"):
+                    continue
+                cdcrs, cases = _ids_from_pdf_basename(fname)
+                on_log = bool(cdcrs and any(c in log_cdcrs for c in cdcrs))
+                on_log = on_log or bool(cases and any(c in log_cases for c in cases))
+                if not on_log:
+                    extra += 1
+    return extra
+
+
+def _load_archive_match_sets() -> tuple[set[str], set[str], int, list[str], str | None]:
+    """
+    Scan archive directories for PDFs; collect CDCR # and case # from filenames.
+
+    Returns (file_cdcr, file_case, pdf_count, scanned_dir_strings, error).
+    """
+    archive_dirs = _resolve_pdf_dirs()
+    if not archive_dirs:
+        return set(), set(), 0, [], "No letter PDF folders found (set ARCHIVE_DIR or add PDFs under uploads/)"
+
+    file_cdcr: set[str] = set()
+    file_case: set[str] = set()
+    pdf_count = 0
+    scanned: list[str] = []
+
+    for adir in archive_dirs:
+        scanned.append(str(adir))
+        for root, _, files in os.walk(adir):
+            for fname in files:
+                if not fname.lower().endswith(".pdf"):
+                    continue
+                pdf_count += 1
+                cdcrs, cases = _ids_from_pdf_basename(fname)
+                file_cdcr |= cdcrs
+                file_case |= cases
+
+    if pdf_count == 0:
+        return (
+            file_cdcr,
+            file_case,
+            0,
+            scanned,
+            "No PDFs found in archive, uploads/, or processed/ (add letters or set ARCHIVE_DIR)",
+        )
+
+    return file_cdcr, file_case, pdf_count, scanned, None
 
 
 def _match_row(
     cdcr: str,
     case: str,
-    name: str,
-    county: str,
-    db_cdcr: set[str],
-    db_case: set[str],
-    db_name_county: set[tuple[str, str]],
+    file_cdcr: set[str],
+    file_case: set[str],
 ) -> tuple[bool, str | None]:
-    if cdcr and cdcr in db_cdcr:
+    if cdcr and cdcr in file_cdcr:
         return True, "cdcr"
-    if case and case in db_case:
+    if case and case in file_case:
         return True, "case"
-    log_last = name.strip().upper().split()[-1] if name.strip() else ""
-    log_county = county.strip().upper() if county else ""
-    if log_last and log_county and (log_last, log_county) in db_name_county:
-        return True, "name+county"
     return False, None
 
 
@@ -185,14 +270,13 @@ def _read_tracking_log() -> tuple[pd.DataFrame, pd.DataFrame, str | None, str | 
             df[col] = df[col].astype(str).str.strip().replace({"nan": "", "None": "", "NaN": ""})
 
     df = df[(df[CDCR_COL] != "") | (df[CASE_COL] != "")].copy()
-    total_log_raw = len(df)
     df_letters = df[_approved_and_sent_mask(df)].copy()
 
     return df, df_letters, log_path, None
 
 
 def load_log_reconcile(force: bool = False) -> dict:
-    """Compare the 1170(d) tracking log against the database (JSON-serializable)."""
+    """Compare the 1170(d) tracking log against letter PDFs on disk (JSON-serializable)."""
     now = time.time()
     if not force and _LOG_RECONCILE_CACHE["data"] and (now - _LOG_RECONCILE_CACHE["ts"]) < _LOG_RECONCILE_TTL:
         return _LOG_RECONCILE_CACHE["data"]
@@ -204,7 +288,19 @@ def load_log_reconcile(force: bool = False) -> dict:
         _LOG_RECONCILE_CACHE["ts"] = now
         return result
 
-    db_cdcr, db_case, db_name_county, db_rows = _load_db_match_sets()
+    file_cdcr, file_case, pdf_count, archive_dirs, archive_err = _load_archive_match_sets()
+    archive_dirs_paths = [Path(d) for d in archive_dirs]
+    if archive_err:
+        result = {
+            "error": archive_err,
+            "log_filename": os.path.basename(log_path),
+            "archive_dirs": archive_dirs,
+            "archive_pdf_count": pdf_count,
+        }
+        _LOG_RECONCILE_CACHE["data"] = result
+        _LOG_RECONCILE_CACHE["ts"] = now
+        return result
+
     total_log_raw = len(_df_all)
     total_letter_created = int(_letter_created_mask(_df_all).sum())
     total_log = len(df)
@@ -220,7 +316,7 @@ def load_log_reconcile(force: bool = False) -> dict:
         county = row.get(COUNTY_COL, "") if COUNTY_COL in df.columns else ""
         institution = row.get(INSTITUTION_COL, "") if INSTITUTION_COL in df.columns else ""
 
-        in_db, match_method = _match_row(cdcr, case, name, county, db_cdcr, db_case, db_name_county)
+        have_pdf, match_method = _match_row(cdcr, case, file_cdcr, file_case)
         entry = {
             "cdcr": cdcr,
             "case": case,
@@ -229,18 +325,13 @@ def load_log_reconcile(force: bool = False) -> dict:
             "county": county,
             "institution": institution,
             "match_method": match_method,
-            "in_db": in_db,
+            "have_pdf": have_pdf,
         }
-        (matched if in_db else missing).append(entry)
+        (matched if have_pdf else missing).append(entry)
 
     log_cdcrs = {r for r in df[CDCR_COL].values if r}
     log_cases = {r for r in df[CASE_COL].values if r}
-    extra_in_db = sum(
-        1
-        for r in db_rows
-        if (not r.get("cdcr") or r["cdcr"] not in log_cdcrs)
-        and (not r.get("case_num") or r["case_num"] not in log_cases)
-    )
+    extra_archive_pdfs = _count_archive_pdfs_not_on_log(log_cdcrs, log_cases, archive_dirs_paths)
 
     log_file_modified = None
     try:
@@ -252,6 +343,11 @@ def load_log_reconcile(force: bool = False) -> dict:
     result = {
         "log_filename": os.path.basename(log_path),
         "log_file_modified": log_file_modified,
+        "compare_target": "letter_pdfs_on_disk",
+        "archive_dirs": archive_dirs,
+        "pdf_dirs": archive_dirs,
+        "archive_pdf_count": pdf_count,
+        "pdf_count": pdf_count,
         "total_log": total_log,
         "total_log_raw": total_log_raw,
         "total_letter_created": total_letter_created,
@@ -264,9 +360,9 @@ def load_log_reconcile(force: bool = False) -> dict:
         "matched": len(matched),
         "match_by_cdcr": sum(1 for r in matched if r["match_method"] == "cdcr"),
         "match_by_case": sum(1 for r in matched if r["match_method"] == "case"),
-        "match_by_name_county": sum(1 for r in matched if r["match_method"] == "name+county"),
+        "match_by_name_county": 0,
         "missing_count": len(missing),
-        "extra_in_db_count": extra_in_db,
+        "extra_archive_pdf_count": extra_archive_pdfs,
         "missing": missing,
         "columns_detected": {
             "cdcr": CDCR_COL,
@@ -283,25 +379,26 @@ def load_log_reconcile(force: bool = False) -> dict:
 
 
 def _annotate_log_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    db_cdcr, db_case, db_name_county, _ = _load_db_match_sets()
-    in_db_list = []
+    file_cdcr, file_case, _, _, archive_err = _load_archive_match_sets()
+    if archive_err:
+        raise RuntimeError(archive_err)
+
+    have_pdf_list = []
     method_list = []
     for _, row in df.iterrows():
         cdcr = row.get(CDCR_COL, "")
         case = row.get(CASE_COL, "")
-        name = row.get(NAME_COL, "") if NAME_COL in df.columns else ""
-        county = row.get(COUNTY_COL, "") if COUNTY_COL in df.columns else ""
-        in_db, method = _match_row(cdcr, case, name, county, db_cdcr, db_case, db_name_county)
-        in_db_list.append("Yes" if in_db else "No")
+        have_pdf, method = _match_row(cdcr, case, file_cdcr, file_case)
+        have_pdf_list.append("Yes" if have_pdf else "No")
         method_list.append(method or "")
     out = df.copy()
-    out["In Database"] = in_db_list
+    out["Have PDF on disk"] = have_pdf_list
     out["Match Method"] = method_list
     return out
 
 
 def build_export_dataframe(*, missing_only: bool = True) -> tuple[pd.DataFrame, str | None]:
-    """Full tracking-log columns (+ In Database / Match Method) for download."""
+    """Full tracking-log columns (+ Have PDF / Match Method) for download."""
     _df_all, df, log_path, err = _read_tracking_log()
     if err:
         raise RuntimeError(err)
@@ -309,7 +406,7 @@ def build_export_dataframe(*, missing_only: bool = True) -> tuple[pd.DataFrame, 
     export_df = _annotate_log_dataframe(df)
 
     if missing_only:
-        export_df = export_df[export_df["In Database"] == "No"].copy()
+        export_df = export_df[export_df["Have PDF on disk"] == "No"].copy()
 
     return export_df, os.path.basename(log_path) if log_path else None
 
@@ -319,7 +416,7 @@ def export_reconcile_xlsx(*, missing_only: bool = True) -> tuple[bytes, str]:
     export_df, log_name = build_export_dataframe(missing_only=missing_only)
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        export_df.to_excel(writer, index=False, sheet_name="Missing from DB")
+        export_df.to_excel(writer, index=False, sheet_name="Missing PDFs")
         meta = pd.DataFrame(
             [
                 {"Field": "Source log", "Value": log_name or ""},
@@ -329,7 +426,8 @@ def export_reconcile_xlsx(*, missing_only: bool = True) -> tuple[bytes, str]:
                     "Field": "Filter",
                     "Value": (
                         "Approved-and-sent scope (letter created + sent to Secretary + "
-                        "Secretary approved), missing from database"
+                        "Secretary approved), no matching PDF on disk "
+                        "(archive + uploads queue + processed; CDCR/case from filename)"
                     ),
                 },
             ]

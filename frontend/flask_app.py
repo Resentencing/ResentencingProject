@@ -1238,8 +1238,27 @@ def api_public_summary():
         return jsonify({"error": str(e)}), 500
 
 
-_LOG_RECONCILE_CACHE: dict = {"data": None, "ts": 0.0}
-_LOG_RECONCILE_TTL = 3600  # rebuild at most once per hour
+_MYSITE_DIR = os.path.join(_PROJECT_ROOT, "mysite")
+if _MYSITE_DIR not in sys.path:
+    sys.path.insert(0, _MYSITE_DIR)
+from log_reconcile import load_log_reconcile as _log_reconcile_core  # noqa: E402
+
+_LOG_RECONCILE_API_MISSING_CAP = 1000
+
+
+def _load_log_reconcile(force: bool = False) -> dict:
+    """Tool Hub wrapper: same logic as backend Missing Letters (mysite/log_reconcile.py)."""
+    data = _log_reconcile_core(force=force)
+    if not isinstance(data, dict):
+        return data
+    missing = data.get("missing")
+    if isinstance(missing, list) and len(missing) > _LOG_RECONCILE_API_MISSING_CAP:
+        out = dict(data)
+        out["missing"] = missing[:_LOG_RECONCILE_API_MISSING_CAP]
+        out["missing_truncated"] = True
+        out["missing_total"] = len(missing)
+        return out
+    return data
 
 
 def _pick_newest_excel_in_dir(excel_dir: str, *, race: bool) -> str | None:
@@ -1268,203 +1287,10 @@ def _pick_newest_excel_in_dir(excel_dir: str, *, race: bool) -> str | None:
     return best_path
 
 
-def _load_log_reconcile(force: bool = False) -> dict:
-    """
-    Parse the 1170(d) tracking log Excel and compare against the DB.
-    Results are cached for up to _LOG_RECONCILE_TTL seconds.
-    """
-    now = time.time()
-    if not force and _LOG_RECONCILE_CACHE["data"] and (now - _LOG_RECONCILE_CACHE["ts"]) < _LOG_RECONCILE_TTL:
-        return _LOG_RECONCILE_CACHE["data"]
-
-    # Newest main log by file mtime (same rule as tagextraction / metadata_refresh)
-    excel_dir = os.path.join(_PROJECT_ROOT, "mysite", "Excel")
-    log_path = _pick_newest_excel_in_dir(excel_dir, race=False)
-
-    if not log_path or not os.path.exists(log_path):
-        result = {"error": "Tracking log not found", "log_filename": None}
-        _LOG_RECONCILE_CACHE["data"] = result
-        _LOG_RECONCILE_CACHE["ts"] = now
-        return result
-
-    # Use the same sheet and column names as tagextraction.py
-    SHEET_NAME = "1170(d)(1)"
-    try:
-        df = pd.read_excel(log_path, sheet_name=SHEET_NAME)
-    except Exception as sheet_err:
-        result = {
-            "error": f"Could not read sheet '{SHEET_NAME}': {sheet_err}",
-            "log_filename": os.path.basename(log_path),
-        }
-        _LOG_RECONCILE_CACHE["data"] = result
-        _LOG_RECONCILE_CACHE["ts"] = now
-        return result
-
-    df.columns = [str(c).replace("\n", " ").strip() for c in df.columns]
-
-    cdcr_col = "CDC #"
-    case_col = "Case #"
-    name_col = "Inmate's Last Name"
-    category_col = "Category"
-    county_col = "County"
-    institution_col = "Institution"
-    letter_created_col = "Date Letter Created"  # normalized from "Date Letter\nCreated"
-
-    if cdcr_col not in df.columns and case_col not in df.columns:
-        result = {
-            "error": f"Expected columns not found. Columns in sheet: {list(df.columns)}",
-            "log_filename": os.path.basename(log_path),
-        }
-        _LOG_RECONCILE_CACHE["data"] = result
-        _LOG_RECONCILE_CACHE["ts"] = now
-        return result
-
-    def _clean(series):
-        return (
-            series.astype(str)
-            .str.strip()
-            .str.upper()
-            .replace({"NAN": "", "NONE": "", "N/A": "", "NA": ""})
-        )
-
-    df[cdcr_col] = _clean(df[cdcr_col]) if cdcr_col in df.columns else pd.Series([""] * len(df))
-    df[case_col] = _clean(df[case_col]) if case_col in df.columns else pd.Series([""] * len(df))
-    # Keep name/county/institution in original case for display
-    for col in (name_col, category_col, county_col, institution_col):
-        if col and col in df.columns:
-            df[col] = df[col].astype(str).str.strip().replace({"nan": "", "None": "", "NaN": ""})
-
-    df = df[(df[cdcr_col] != "") | (df[case_col] != "")].copy()
-
-    # Only count rows where a letter was actually generated.
-    # This mirrors the "Date Created" filter CKH applied in the prior reconciliation
-    # that reduced the count from 1,813 raw → 933 → 828/829 final.
-    # Rows where no letter was ever created (Secretary declined, etc.) are not
-    # letters we should have in the DB, so they must not show as "missing."
-    total_log_raw = len(df)
-    if letter_created_col in df.columns:
-        df_letters = df[df[letter_created_col].notna() & (df[letter_created_col].astype(str).str.strip().str.upper() != "NAN") & (df[letter_created_col].astype(str).str.strip() != "")].copy()
-    else:
-        df_letters = df.copy()
-    total_log = len(df_letters)
-    df = df_letters
-
-    # Pull all existing DB identifiers (cdcr, case, and name+county for fallback matching)
-    conn = mysql.connector.connect(**database_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(
-        "SELECT UPPER(TRIM(cdcr_number)) AS cdcr, "
-        "       UPPER(TRIM(case_number)) AS case_num, "
-        "       UPPER(TRIM(convict_name)) AS cname, "
-        "       UPPER(TRIM(county)) AS county "
-        "FROM metadata "
-        "WHERE cdcr_number IS NOT NULL OR case_number IS NOT NULL OR convict_name IS NOT NULL"
-    )
-    db_rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    db_cdcr = {r["cdcr"] for r in db_rows if r.get("cdcr")}
-    db_case = {r["case_num"] for r in db_rows if r.get("case_num")}
-
-    # Build (last_name, county) pairs from the DB for name+county fallback.
-    # convict_name is stored as "FIRSTNAME [MIDDLE] LASTNAME" so we take the last token.
-    db_name_county: set[tuple[str, str]] = set()
-    for r in db_rows:
-        cname = (r.get("cname") or "").strip()
-        county = (r.get("county") or "").strip()
-        if cname and county:
-            last = cname.split()[-1]  # last word = surname
-            db_name_county.add((last, county))
-
-    matched = []
-    missing = []
-
-    for _, row in df.iterrows():
-        cdcr = row.get(cdcr_col, "")
-        case = row.get(case_col, "")
-        name = row.get(name_col, "") if name_col else ""
-        category = row.get(category_col, "") if category_col else ""
-        county = row.get(county_col, "") if county_col else ""
-        institution = row.get(institution_col, "") if institution_col else ""
-
-        if cdcr and cdcr in db_cdcr:
-            match_method = "cdcr"
-            in_db = True
-        elif case and case in db_case:
-            match_method = "case"
-            in_db = True
-        else:
-            # Last-resort: last name + county.
-            # Normalise the log's last name (log stores full last name in name_col).
-            log_last = name.strip().upper().split()[-1] if name.strip() else ""
-            log_county = county.strip().upper() if county else ""
-            if log_last and log_county and (log_last, log_county) in db_name_county:
-                match_method = "name+county"
-                in_db = True
-            else:
-                match_method = None
-                in_db = False
-
-        entry = {
-            "cdcr": cdcr,
-            "case": case,
-            "name": name,
-            "category": category,
-            "county": county,
-            "institution": institution,
-            "match_method": match_method,
-        }
-        (matched if in_db else missing).append(entry)
-
-    log_cdcrs = {r for r in df[cdcr_col].values if r}
-    log_cases = {r for r in df[case_col].values if r}
-    extra_in_db = sum(
-        1 for r in db_rows
-        if (not r.get("cdcr") or r["cdcr"] not in log_cdcrs)
-        and (not r.get("case_num") or r["case_num"] not in log_cases)
-    )
-
-    log_file_modified = None
-    try:
-        mtime = os.path.getmtime(log_path)
-        log_file_modified = datetime.datetime.fromtimestamp(
-            mtime, tz=datetime.timezone.utc
-        ).isoformat()
-    except Exception:
-        pass
-
-    result = {
-        "log_filename": os.path.basename(log_path),
-        "log_file_modified": log_file_modified,
-        "total_log": total_log,            # rows where a letter was actually created
-        "total_log_raw": total_log_raw,    # all rows with a CDCR/case number (unfiltered)
-        "letter_created_filter": total_log != total_log_raw,  # True if filter actually changed the count
-        "matched": len(matched),
-        "match_by_cdcr": sum(1 for r in matched if r["match_method"] == "cdcr"),
-        "match_by_case": sum(1 for r in matched if r["match_method"] == "case"),
-        "match_by_name_county": sum(1 for r in matched if r["match_method"] == "name+county"),
-        "missing_count": len(missing),
-        "extra_in_db_count": extra_in_db,
-        "missing": missing[:1000],
-        "columns_detected": {
-            "cdcr": cdcr_col,
-            "case": case_col,
-            "name": name_col,
-            "category": category_col,
-            "county": county_col,
-            "institution": institution_col,
-        },
-    }
-    _LOG_RECONCILE_CACHE["data"] = result
-    _LOG_RECONCILE_CACHE["ts"] = now
-    return result
-
-
 @app.route('/api/log_reconcile')
 def api_log_reconcile():
     """
-    Compare the 1170(d) tracking log against the database.
+    Compare the 1170(d) tracking log against letter PDFs on disk (read-only).
     Requires an active session (Tool Hub access).
     """
     if not _session_email():

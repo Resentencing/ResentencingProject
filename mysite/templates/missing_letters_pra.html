@@ -8,7 +8,9 @@
     <p>
         Compares the <strong>1170(d) Main Tracking Log</strong> against letter records in the database.
         Matching is by CDCR&nbsp;# first, then Case&nbsp;#, then last name + county.
-        Only rows where <strong>Date Letter Created</strong> is filled in are counted.
+        Only <strong>approved-and-sent</strong> rows are counted: <strong>Date Letter Created</strong> filled,
+        <strong>Date Letter Sent to Secretary's Office</strong> filled, and <strong>Secretary's Decision = Approved</strong>.
+        Declined or no-letter rows are excluded (they were never in scope for a PDF request).
     </p>
     <p>
         <strong>Missing from database</strong> = on the tracking log (letter was generated) but no matching letter in the database yet.
@@ -162,11 +164,16 @@
             document.getElementById("reconcile-meta").innerHTML = meta;
 
             const filterNote = document.getElementById("reconcile-filter-note");
-            if (data.letter_created_filter && data.total_log_raw != null) {
+            if (data.request_scope_description) {
                 filterNote.style.display = "block";
+                const lc = data.total_letter_created != null ? data.total_letter_created : data.total_log;
                 filterNote.textContent =
-                    `Showing ${data.total_log.toLocaleString()} rows where a letter was generated ` +
-                    `(filtered from ${data.total_log_raw.toLocaleString()} total log rows with a CDCR or Case #).`;
+                    `Showing ${data.total_log.toLocaleString()} approved-and-sent rows ` +
+                    `(${data.request_scope_description}). ` +
+                    (data.total_letter_created != null && data.total_log_raw != null
+                        ? `Log has ${data.total_letter_created.toLocaleString()} rows with Date Letter Created ` +
+                          `and ${data.total_log_raw.toLocaleString()} total rows with CDCR/Case #.`
+                        : "");
             } else {
                 filterNote.style.display = "none";
             }

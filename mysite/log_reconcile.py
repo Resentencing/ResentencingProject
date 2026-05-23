@@ -27,6 +27,8 @@ CATEGORY_COL = "Category"
 COUNTY_COL = "County"
 INSTITUTION_COL = "Institution"
 LETTER_CREATED_COL = "Date Letter Created"
+SECRETARY_SENT_COL = "Date Letter Sent to Secretary's Office"
+SECRETARY_DECISION_COL = "Secretary's Decision"
 
 _LOG_RECONCILE_CACHE: dict = {"data": None, "ts": 0.0}
 _LOG_RECONCILE_TTL = 3600
@@ -53,6 +55,41 @@ def _pick_newest_excel_in_dir(excel_dir: str | Path, *, race: bool) -> str | Non
             best_mtime = mtime
             best_path = path
     return best_path
+
+
+def _column_filled(df: pd.DataFrame, col: str) -> pd.Series:
+    if col not in df.columns:
+        return pd.Series(False, index=df.index)
+    return (
+        df[col].notna()
+        & (df[col].astype(str).str.strip().str.upper() != "NAN")
+        & (df[col].astype(str).str.strip() != "")
+    )
+
+
+def _letter_created_mask(df: pd.DataFrame) -> pd.Series:
+    """Rows where a letter was actually generated (Date Letter Created filled)."""
+    if LETTER_CREATED_COL not in df.columns:
+        return pd.Series(True, index=df.index)
+    return _column_filled(df, LETTER_CREATED_COL)
+
+
+def _approved_and_sent_mask(df: pd.DataFrame) -> pd.Series:
+    """
+    Actionable letters-to-request scope (professor / PRA baseline).
+
+    Matches Letter Rebuild approved-scope: letter created, sent to Secretary,
+    and Secretary's Decision = Approved. Excludes declined / no-letter rows that
+    still have Date Letter Created filled (~400+ false \"missing\" otherwise).
+    """
+    mask = _letter_created_mask(df)
+    if SECRETARY_SENT_COL in df.columns:
+        mask &= _column_filled(df, SECRETARY_SENT_COL)
+    if SECRETARY_DECISION_COL in df.columns:
+        mask &= (
+            df[SECRETARY_DECISION_COL].astype(str).str.strip().str.lower() == "approved"
+        )
+    return mask
 
 
 def _clean_id(series: pd.Series) -> pd.Series:
@@ -149,16 +186,7 @@ def _read_tracking_log() -> tuple[pd.DataFrame, pd.DataFrame, str | None, str | 
 
     df = df[(df[CDCR_COL] != "") | (df[CASE_COL] != "")].copy()
     total_log_raw = len(df)
-
-    if LETTER_CREATED_COL in df.columns:
-        mask = (
-            df[LETTER_CREATED_COL].notna()
-            & (df[LETTER_CREATED_COL].astype(str).str.strip().str.upper() != "NAN")
-            & (df[LETTER_CREATED_COL].astype(str).str.strip() != "")
-        )
-        df_letters = df[mask].copy()
-    else:
-        df_letters = df.copy()
+    df_letters = df[_approved_and_sent_mask(df)].copy()
 
     return df, df_letters, log_path, None
 
@@ -178,6 +206,7 @@ def load_log_reconcile(force: bool = False) -> dict:
 
     db_cdcr, db_case, db_name_county, db_rows = _load_db_match_sets()
     total_log_raw = len(_df_all)
+    total_letter_created = int(_letter_created_mask(_df_all).sum())
     total_log = len(df)
 
     matched = []
@@ -225,7 +254,13 @@ def load_log_reconcile(force: bool = False) -> dict:
         "log_file_modified": log_file_modified,
         "total_log": total_log,
         "total_log_raw": total_log_raw,
-        "letter_created_filter": total_log != total_log_raw,
+        "total_letter_created": total_letter_created,
+        "letter_created_filter": total_letter_created != total_log_raw,
+        "request_scope_filter": "approved_and_sent",
+        "request_scope_description": (
+            "Date Letter Created filled; Date Letter Sent to Secretary's Office filled; "
+            "Secretary's Decision = Approved"
+        ),
         "matched": len(matched),
         "match_by_cdcr": sum(1 for r in matched if r["match_method"] == "cdcr"),
         "match_by_case": sum(1 for r in matched if r["match_method"] == "case"),
@@ -290,7 +325,13 @@ def export_reconcile_xlsx(*, missing_only: bool = True) -> tuple[bytes, str]:
                 {"Field": "Source log", "Value": log_name or ""},
                 {"Field": "Exported (UTC)", "Value": datetime.datetime.now(datetime.timezone.utc).isoformat()},
                 {"Field": "Row count", "Value": len(export_df)},
-                {"Field": "Filter", "Value": "Tracking log rows missing from database"},
+                {
+                    "Field": "Filter",
+                    "Value": (
+                        "Approved-and-sent scope (letter created + sent to Secretary + "
+                        "Secretary approved), missing from database"
+                    ),
+                },
             ]
         )
         meta.to_excel(writer, index=False, sheet_name="Export info")

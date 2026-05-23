@@ -177,6 +177,30 @@ def _pipeline_subprocess_env():
     return env
 
 
+def _log_reconcile_summary():
+    """Counts for Missing Letters page (no full missing[] list — loaded via API)."""
+    from log_reconcile import load_log_reconcile
+
+    data = load_log_reconcile()
+    if not isinstance(data, dict):
+        return {}
+    keys = (
+        "error",
+        "log_filename",
+        "log_file_modified",
+        "total_log",
+        "total_log_raw",
+        "letter_created_filter",
+        "matched",
+        "missing_count",
+        "extra_in_db_count",
+        "match_by_cdcr",
+        "match_by_case",
+        "match_by_name_county",
+    )
+    return {k: data[k] for k in keys if k in data}
+
+
 def _load_dashboard_recent_activity(max_items=10):
     """Parse tail of ``upload_safety.log`` into activity rows (most recent first)."""
     path = os.path.join(_dashboard_logs_dir(), "upload_safety.log")
@@ -1554,7 +1578,10 @@ def refresh_metadata():
 def missing_letters_pra():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
-    return render_template("missing_letters_pra.html")
+    return render_template(
+        "missing_letters_pra.html",
+        reconcile=_log_reconcile_summary(),
+    )
 
 
 @app.route('/api/log_reconcile')

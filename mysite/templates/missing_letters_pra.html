@@ -11,8 +11,15 @@
         Only rows where <strong>Date Letter Created</strong> is filled in are counted.
     </p>
     <p>
-        <strong>Missing from database</strong> = on the tracking log (letter was generated) but no matching letter in the database yet —
-        typically letters requested from CDCR and still outstanding (~500 rows).
+        <strong>Missing from database</strong> = on the tracking log (letter was generated) but no matching letter in the database yet.
+        {% if reconcile and not reconcile.get('error') and reconcile.get('missing_count') is not none %}
+        As of the latest reconcile: <strong>{{ "{:,}".format(reconcile.missing_count) }}</strong> missing
+        ({{ "{:,}".format(reconcile.matched) }} matched of {{ "{:,}".format(reconcile.total_log) }} letters on the log).
+        {% elif reconcile and reconcile.get('error') %}
+        <span class="alert alert-warning" style="display:inline-block;margin-top:0.5rem;">Could not load counts: {{ reconcile.error }}</span>
+        {% else %}
+        Counts load below after reconcile runs.
+        {% endif %}
     </p>
 
     <div class="actions-section" style="margin: 1rem 0;">
@@ -28,19 +35,19 @@
     <div id="reconcile-summary" class="stats-grid" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
         <div class="stat-card" style="min-width:140px;flex:1;">
             <h3>Letters generated</h3>
-            <p class="stat-number" id="recon-total">—</p>
+            <p class="stat-number" id="recon-total">{% if reconcile and reconcile.get('total_log') is not none %}{{ "{:,}".format(reconcile.total_log) }}{% else %}—{% endif %}</p>
         </div>
         <div class="stat-card" style="min-width:140px;flex:1;">
             <h3>In database</h3>
-            <p class="stat-number" id="recon-matched">—</p>
+            <p class="stat-number" id="recon-matched">{% if reconcile and reconcile.get('matched') is not none %}{{ "{:,}".format(reconcile.matched) }}{% else %}—{% endif %}</p>
         </div>
         <div class="stat-card" style="min-width:140px;flex:1;">
             <h3>Missing from DB</h3>
-            <p class="stat-number" id="recon-missing">—</p>
+            <p class="stat-number" id="recon-missing">{% if reconcile and reconcile.get('missing_count') is not none %}{{ "{:,}".format(reconcile.missing_count) }}{% else %}—{% endif %}</p>
         </div>
         <div class="stat-card" style="min-width:140px;flex:1;">
             <h3>DB-only records</h3>
-            <p class="stat-number" id="recon-extra">—</p>
+            <p class="stat-number" id="recon-extra">{% if reconcile and reconcile.get('extra_in_db_count') is not none %}{{ "{:,}".format(reconcile.extra_in_db_count) }}{% else %}—{% endif %}</p>
         </div>
     </div>
 

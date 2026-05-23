@@ -328,33 +328,32 @@
           </section>
           <section id="subtab-logreconcile" class="rad-subtab-pane">
             <div class="rad-toolhub-card">
-              <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">1170(d) Log vs. PDFs on Disk</h2>
+              <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">1170(d) Log vs. Database</h2>
               <p class="rad-toolhub-muted">
-                Compares the 1170(d) Main Tracking Log (Excel) against letter PDFs on disk
-                (archive, upload queue, and processed staging). Matching uses CDCR&nbsp;# or Case&nbsp;#
-                parsed from filenames. Letters marked <em>missing</em> are approved on the log but we do
-                not have a matching PDF yet — candidates for CDCR re-request.
-                <strong>Approved-and-sent scope only:</strong> letter created, sent to the Secretary,
-                and Secretary approved (declined / no-letter rows excluded).
-                Queued PDFs count as received even if not yet in the public database.
+                Compares the 1170(d) Main Tracking Log (Excel) against letter records in the database.
+                Matching is done by CDCR&nbsp;# first, then Case&nbsp;# as a fallback.
+                Letters marked <em>missing</em> are in the log but not yet in the database — we have
+                requested these letters from CDCR and are still waiting to receive them.
+                <strong>Approved-and-sent scope:</strong> Date Letter Created filled, sent to the
+                Secretary, and Secretary's Decision = Approved (declined / no-letter rows excluded).
               </p>
               <div id="reconcile-filter-note" class="rad-toolhub-muted" style="margin-bottom:0.5rem;display:none;"></div>
 
               <div id="reconcile-summary" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
-                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="Approved-and-sent rows on the tracking log.">
-                  <div class="rad-stat-label">On log (scope)</div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="Rows where a letter was actually generated (Date Letter Created is filled in).">
+                  <div class="rad-stat-label">Letters generated</div>
                   <div id="recon-total" class="rad-stat-value">--</div>
                 </div>
-                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#22c55e;" title="Log entries with a matching PDF on disk.">
-                  <div class="rad-stat-label">Have PDF</div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#22c55e;" title="Log entries that have a matching record in the database.">
+                  <div class="rad-stat-label">In database</div>
                   <div id="recon-matched" class="rad-stat-value" style="color:#15803d;">--</div>
                 </div>
-                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#f59e0b;" title="Approved on the log but no matching PDF in archive, queue, or processed folders.">
-                  <div class="rad-stat-label">Missing PDF</div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#f59e0b;" title="Log entries with no matching record in the database. These letters have been requested from CDCR but may not yet be received or processed.">
+                  <div class="rad-stat-label">Missing from DB</div>
                   <div id="recon-missing" class="rad-stat-value" style="color:#b45309;">--</div>
                 </div>
-                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="Total PDF files scanned across archive, uploads, and processed.">
-                  <div class="rad-stat-label">PDFs scanned</div>
+                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="DB records that have no matching entry in the tracking log.">
+                  <div class="rad-stat-label">DB-only records</div>
                   <div id="recon-extra" class="rad-stat-value">--</div>
                 </div>
               </div>
@@ -366,8 +365,8 @@
                 <span id="reconcile-status" class="rad-toolhub-muted"></span>
               </div>
 
-              <h3 class="wp-block-heading" style="margin-top:0;">Missing PDF (not on disk)</h3>
-              <p class="rad-toolhub-muted" style="margin-top:0;">Approved-and-sent log entries with no matching PDF filename (view only; staff export is on the backend site).</p>
+              <h3 class="wp-block-heading" style="margin-top:0;">Missing from Database</h3>
+              <p class="rad-toolhub-muted" style="margin-top:0;">Entries in the 1170(d) log that have no matching letter in the database.</p>
 
               <!-- Search + match-method filter toolbar -->
               <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
@@ -385,6 +384,10 @@
                   <button class="recon-method-btn" data-method="case"
                     style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
                     Case# matched
+                  </button>
+                  <button class="recon-method-btn" data-method="name+county"
+                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
+                    Name+County matched
                   </button>
                 </div>
                 <span id="reconcile-row-count" class="rad-toolhub-muted" style="white-space:nowrap;"></span>
@@ -511,7 +514,7 @@
       const rowCount = document.getElementById("reconcile-row-count");
       if (rows.length === 0) {
         const msg = reconAllRows.length === 0
-          ? "No missing entries — all in-scope log rows have a PDF on disk."
+          ? "No missing entries — all log rows matched!"
           : "No rows match your search.";
         tbody.innerHTML = `<tr><td colspan="6" class="rad-toolhub-muted">${msg}</td></tr>`;
         if (rowCount) rowCount.textContent = "";
@@ -547,42 +550,36 @@
         document.getElementById("recon-total").textContent = (data.total_log ?? "--").toLocaleString();
         document.getElementById("recon-matched").textContent = (data.matched ?? "--").toLocaleString();
         document.getElementById("recon-missing").textContent = (data.missing_count ?? "--").toLocaleString();
-        const pdfN = data.pdf_count != null ? data.pdf_count : data.archive_pdf_count;
-        document.getElementById("recon-extra").textContent = (pdfN ?? "--").toLocaleString();
+        document.getElementById("recon-extra").textContent = (data.extra_in_db_count ?? "--").toLocaleString();
 
         const pct = data.total_log ? Math.round((data.matched / data.total_log) * 100) : "--";
         const byCdcr = data.match_by_cdcr ?? 0;
         const byCase = data.match_by_case ?? 0;
-        let meta =
+        const byName = data.match_by_name_county ?? 0;
+        document.getElementById("reconcile-meta").innerHTML =
           "Log file: <strong>" + (data.log_filename || "unknown") + "</strong>" +
           " &nbsp;·&nbsp; Coverage: <strong>" + pct + "%</strong>" +
           " &nbsp;·&nbsp; Matched by: " +
           `CDCR# <strong>${byCdcr.toLocaleString()}</strong>, ` +
-          `Case# <strong>${byCase.toLocaleString()}</strong>`;
-        const dirs = data.pdf_dirs || data.archive_dirs;
-        if (dirs && dirs.length) {
-          meta += "<br>Scanned folders: <code style=\"font-size:0.85em;\">" +
-            dirs.join("; ") + "</code>";
-        }
-        if (data.missing_truncated) {
-          meta += "<br><em>Showing first 1,000 of " +
-            (data.missing_total || data.missing_count).toLocaleString() +
-            " missing rows.</em>";
-        }
-        document.getElementById("reconcile-meta").innerHTML = meta;
+          `Case# <strong>${byCase.toLocaleString()}</strong>, ` +
+          `Name+County <strong>${byName.toLocaleString()}</strong>`;
 
+        // Update match-method filter button labels with live counts
         document.querySelector('.recon-method-btn[data-method="cdcr"]').textContent =
           `CDCR# matched (${byCdcr.toLocaleString()})`;
         document.querySelector('.recon-method-btn[data-method="case"]').textContent =
           `Case# matched (${byCase.toLocaleString()})`;
+        document.querySelector('.recon-method-btn[data-method="name+county"]').textContent =
+          `Name+County matched (${byName.toLocaleString()})`;
 
+        // Filter note
         const filterNote = document.getElementById("reconcile-filter-note");
-        if (filterNote && data.request_scope_description) {
+        if (filterNote && data.total_log_raw != null) {
+          const excluded = data.total_log_raw - data.total_log;
           filterNote.textContent =
-            `${data.total_log.toLocaleString()} approved-and-sent rows (${data.request_scope_description}).`;
+            `Filtered to ${data.total_log.toLocaleString()} rows where "Date Letter Created" is filled in ` +
+            `(${excluded.toLocaleString()} rows excluded — no letter generated).`;
           filterNote.style.display = "";
-        } else if (filterNote) {
-          filterNote.style.display = "none";
         }
 
         reconAllRows = data.missing || [];

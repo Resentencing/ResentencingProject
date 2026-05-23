@@ -4,22 +4,19 @@
 
 {% block content %}
 <div class="container">
-    <h2>Missing Letters — Log vs PDFs on Disk</h2>
+    <h2>Missing Letters — Log vs Database</h2>
     <p>
-        Compares the <strong>1170(d) Main Tracking Log</strong> against <strong>letter PDFs on disk</strong>:
-        <strong>archive</strong>, <strong>upload queue</strong> (<code>uploads/</code>), and <strong>processed</strong>
-        (<code>processed/</code>). Matching is by <strong>CDCR&nbsp;#</strong> or <strong>Case&nbsp;#</strong>
-        parsed from each PDF filename (same rules as OCR ingest).
+        Compares the <strong>1170(d) Main Tracking Log</strong> against letter records in the database.
+        Matching is by CDCR&nbsp;# first, then Case&nbsp;#, then last name + county.
         Only <strong>approved-and-sent</strong> rows are counted: <strong>Date Letter Created</strong> filled,
         <strong>Date Letter Sent to Secretary's Office</strong> filled, and <strong>Secretary's Decision = Approved</strong>.
-        If the PDF is queued or not in the database yet, it still counts as <strong>have the letter</strong>.
+        Declined or no-letter rows are excluded (they were never in scope for a PDF request).
     </p>
     <p>
-        <strong>Missing PDF</strong> = on the tracking log (letter was generated and approved) but no matching PDF
-        in any of those folders. Use this list for PRA / CDCR re-requests — not the database-only gap.
+        <strong>Missing from database</strong> = on the tracking log (letter was generated) but no matching letter in the database yet.
         {% if reconcile and not reconcile.get('error') and reconcile.get('missing_count') is not none %}
         As of the latest reconcile: <strong>{{ "{:,}".format(reconcile.missing_count) }}</strong> missing
-        ({{ "{:,}".format(reconcile.matched) }} have a PDF of {{ "{:,}".format(reconcile.total_log) }} letters on the log).
+        ({{ "{:,}".format(reconcile.matched) }} matched of {{ "{:,}".format(reconcile.total_log) }} letters on the log).
         {% elif reconcile and reconcile.get('error') %}
         <span class="alert alert-warning" style="display:inline-block;margin-top:0.5rem;">Could not load counts: {{ reconcile.error }}</span>
         {% else %}
@@ -39,27 +36,27 @@
 
     <div id="reconcile-summary" class="stats-grid" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
         <div class="stat-card" style="min-width:140px;flex:1;">
-            <h3>On log (scope)</h3>
+            <h3>Letters generated</h3>
             <p class="stat-number" id="recon-total">{% if reconcile and reconcile.get('total_log') is not none %}{{ "{:,}".format(reconcile.total_log) }}{% else %}—{% endif %}</p>
         </div>
         <div class="stat-card" style="min-width:140px;flex:1;">
-            <h3>Have PDF</h3>
+            <h3>In database</h3>
             <p class="stat-number" id="recon-matched">{% if reconcile and reconcile.get('matched') is not none %}{{ "{:,}".format(reconcile.matched) }}{% else %}—{% endif %}</p>
         </div>
         <div class="stat-card" style="min-width:140px;flex:1;">
-            <h3>Missing PDF</h3>
+            <h3>Missing from DB</h3>
             <p class="stat-number" id="recon-missing">{% if reconcile and reconcile.get('missing_count') is not none %}{{ "{:,}".format(reconcile.missing_count) }}{% else %}—{% endif %}</p>
         </div>
         <div class="stat-card" style="min-width:140px;flex:1;">
-            <h3>Archive PDFs</h3>
-            <p class="stat-number" id="recon-extra">{% if reconcile and reconcile.get('archive_pdf_count') is not none %}{{ "{:,}".format(reconcile.archive_pdf_count) }}{% else %}—{% endif %}</p>
+            <h3>DB-only records</h3>
+            <p class="stat-number" id="recon-extra">{% if reconcile and reconcile.get('extra_in_db_count') is not none %}{{ "{:,}".format(reconcile.extra_in_db_count) }}{% else %}—{% endif %}</p>
         </div>
     </div>
 
     <p id="reconcile-meta" class="stat-detail" style="margin-bottom: 1rem;"></p>
     <div id="reconcile-filter-note" style="display:none;margin-bottom:0.5rem;font-size:0.9rem;color:#555;"></div>
 
-    <h3>Missing PDF (not on disk)</h3>
+    <h3>Missing from database</h3>
     <p style="margin-top:0;">Full list below. Use the download button for every column from the tracking log.</p>
 
     <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
@@ -115,7 +112,7 @@
         const rowCount = document.getElementById("reconcile-row-count");
         if (rows.length === 0) {
             const msg = reconAllRows.length === 0
-                ? "No missing entries — all log rows have a matching PDF on disk."
+                ? "No missing entries — all log rows matched."
                 : "No rows match your search.";
             tbody.innerHTML = `<tr><td colspan="6">${msg}</td></tr>`;
             if (rowCount) rowCount.textContent = "";
@@ -155,26 +152,21 @@
             document.getElementById("recon-total").textContent = (data.total_log ?? "—").toLocaleString();
             document.getElementById("recon-matched").textContent = (data.matched ?? "—").toLocaleString();
             document.getElementById("recon-missing").textContent = (data.missing_count ?? "—").toLocaleString();
-            document.getElementById("recon-extra").textContent = (data.archive_pdf_count ?? "—").toLocaleString();
+            document.getElementById("recon-extra").textContent = (data.extra_in_db_count ?? "—").toLocaleString();
 
             let meta = `Log file: <strong>${data.log_filename || "—"}</strong>`;
             if (data.log_file_modified) {
                 meta += ` · last modified ${new Date(data.log_file_modified).toLocaleString()}`;
             }
-            const dirs = data.pdf_dirs || data.archive_dirs;
-            const pdfN = data.pdf_count != null ? data.pdf_count : data.archive_pdf_count;
-            if (dirs && dirs.length) {
-                meta += `<br>Scanned ${pdfN != null ? pdfN.toLocaleString() + " PDFs in: " : ""}`;
-                meta += `<code style="font-size:0.85em;">${dirs.join("; ")}</code>`;
-            }
             if (data.matched != null) {
-                meta += `<br>Matched breakdown: ${data.match_by_cdcr} by CDCR#, ${data.match_by_case} by Case#.`;
+                meta += `<br>Matched breakdown: ${data.match_by_cdcr} by CDCR#, ${data.match_by_case} by Case#, ${data.match_by_name_county} by name+county.`;
             }
             document.getElementById("reconcile-meta").innerHTML = meta;
 
             const filterNote = document.getElementById("reconcile-filter-note");
             if (data.request_scope_description) {
                 filterNote.style.display = "block";
+                const lc = data.total_letter_created != null ? data.total_letter_created : data.total_log;
                 filterNote.textContent =
                     `Showing ${data.total_log.toLocaleString()} approved-and-sent rows ` +
                     `(${data.request_scope_description}). ` +

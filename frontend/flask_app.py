@@ -1290,7 +1290,7 @@ def _pick_newest_excel_in_dir(excel_dir: str, *, race: bool) -> str | None:
 @app.route('/api/log_reconcile')
 def api_log_reconcile():
     """
-    Compare the 1170(d) tracking log against letter PDFs on disk (read-only).
+    Compare the 1170(d) tracking log against the database (read-only).
     Requires an active session (Tool Hub access).
     """
     if not _session_email():

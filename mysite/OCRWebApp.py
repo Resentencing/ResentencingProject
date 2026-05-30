@@ -32,6 +32,8 @@ try:
 except Exception:
     enhanced_upload_to_database_route = None
 
+from site_help_knowledge import format_site_help_context, select_site_help_pages
+
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -579,13 +581,104 @@ def _parse_query_classification(raw: str) -> str:
     Normalize classifier output. Models often wrap the label in quotes or add prose.
     """
     cleaned = (raw or "").strip().strip('"').strip("'")
-    match = re.search(r"\b(SQL_QUERY|NATURAL_RESPONSE)\b", cleaned, re.IGNORECASE)
+    match = re.search(r"\b(SQL_QUERY|SITE_HELP|OFF_TOPIC|NATURAL_RESPONSE)\b", cleaned, re.IGNORECASE)
     if match:
-        return match.group(1).upper()
+        label = match.group(1).upper()
+        if label == "NATURAL_RESPONSE":
+            return "OFF_TOPIC"
+        return label
     upper = cleaned.upper()
-    if upper in {"SQL_QUERY", "NATURAL_RESPONSE"}:
+    if upper in {"SQL_QUERY", "SITE_HELP", "OFF_TOPIC"}:
         return upper
+    if upper == "NATURAL_RESPONSE":
+        return "OFF_TOPIC"
     raise ValueError(f"Unexpected classification response: {raw!r}")
+
+
+_PUBLIC_SITE_BASE_URL = os.getenv("PUBLIC_SITE_BASE_URL", "https://rscap.pythonanywhere.com").rstrip("/")
+
+_OUT_OF_SCOPE_MESSAGE = (
+    "I can answer (1) questions about cases and letters in the database — try "
+    "\"How many cases are in the database?\" — or (2) questions about this website, "
+    "methods, and how metrics are calculated — try \"What does this website do?\" or "
+    f"\"How are cost savings calculated?\" See [{_PUBLIC_SITE_BASE_URL}/how-to-use-tools]"
+    f"({_PUBLIC_SITE_BASE_URL}/how-to-use-tools) and "
+    f"[{_PUBLIC_SITE_BASE_URL}/methods]({_PUBLIC_SITE_BASE_URL}/methods)."
+)
+
+
+def _prefers_site_help_query(user_query: str) -> bool:
+    """Questions about the public site, methods, definitions — not live DB counts."""
+    q = (user_query or "").strip().lower()
+    if not q:
+        return False
+    if _prefers_database_query(user_query):
+        return False
+    site_patterns = (
+        r"\b(what does (this|the) (website|site)|what is (this|the) (website|site|project)|"
+        r"how does (this|the) (website|site))\b",
+        r"\b(tool hub|how to use|four tools|request access|magic link)\b",
+        r"\b(methods|variables|what we measure|data sources?|github)\b",
+        r"\b(cost saving|cost savings|calculated|calculation method|unallocated|marginal|per capita)\b",
+        r"\b(success rate|case progression)\b.*\b(calculated|defined|mean|measured)\b",
+        r"\b(how (are|is)|what (is|does)|explain|define)\b.*\b(success|cost|progression|measured|calculated)\b",
+        r"\b(1172\.?1|penal code|cdcr-initiated)\b",
+        r"\btell me about\b.*\b(law|laws|project|website|methods|resentenc)\b",
+        r"\b(about (the )?project|who (built|made)|privacy|terms)\b",
+    )
+    return any(re.search(p, q) for p in site_patterns)
+
+
+def _prefers_database_query(user_query: str) -> bool:
+    """Heuristic: Tool Hub questions about letters/cases/counts should use SQL, not open chat."""
+    q = (user_query or "").strip().lower()
+    if not q:
+        return False
+    if re.search(
+        r"\b(how (are|is)|what (is|does)|explain|define)\b.*\b(success|cost saving|calculated|measured)\b",
+        q,
+    ):
+        return False
+    count_terms = r"(how many|how much|count|number of|total|list|show|breakdown|compare|rate|percentage|average|sum)"
+    db_terms = (
+        r"(database|cases?|letters?|records?|pdfs?|metadata|county|counties|judge|cohort|"
+        r"cdcr|outcomes?|outcome|action taken|years reduced|cost savings|sec decision)"
+    )
+    if re.search(count_terms, q) and re.search(db_terms, q):
+        return True
+    if re.search(r"\b(in (the|our) database|from (the|our) database|in metadata)\b", q):
+        return True
+    if re.search(r"\bcase (number|#)|cdcr|rif\d", q):
+        return True
+    return False
+
+
+def _answer_site_help_query(user_query: str) -> str:
+    """Answer from curated public website copy; cite source page links."""
+    pages = select_site_help_pages(user_query)
+    context = format_site_help_context(pages, _PUBLIC_SITE_BASE_URL)
+    system_message = f"""
+You help users understand the Resentencing Accountability Dashboard (RAD) public website.
+
+Rules:
+- Answer ONLY using the website excerpts below. Do not invent policies, numbers, or legal facts.
+- If the excerpts do not fully answer the question, say what is missing and point to the closest page.
+- Do NOT answer live database counts here (those require a database question).
+- Keep answers concise (2–4 short paragraphs max).
+- End with a **Sources:** section listing markdown links [Page Title](URL) for every excerpt you used.
+  Use the exact URL lines from the excerpts.
+
+Website excerpts:
+{context}
+"""
+    chat_completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_query},
+        ],
+    )
+    return _ai_completion_text(chat_completion, "site help")
 
 
 def _sanitize_ai_sql(raw_sql: str) -> str:
@@ -640,61 +733,62 @@ def query_ai():
 
     try:
         # **Step 1: Classify Query Type**
-        system_message_classification = """
-        You are an AI assistant that determines whether a user query requires
-        a database query or is a general natural language question.
+        if _prefers_database_query(user_query):
+            query_type = "SQL_QUERY"
+            logging.info("Query routed to SQL via database heuristic")
+        elif _prefers_site_help_query(user_query):
+            query_type = "SITE_HELP"
+            logging.info("Query routed to site help via heuristic")
+        else:
+            system_message_classification = """
+            You classify Tool Hub questions for the RAD resentencing website.
 
-        **Rules:**
-        - A query should be classified as `"SQL_QUERY"` if it meets **at least one** of the following:
-           **The question can be directly answered using existing database columns.**
-           **The question is explicitly defined in your instructions as a database-related query.**
+            Reply with exactly one label: SQL_QUERY, SITE_HELP, or OFF_TOPIC.
 
-        - If neither condition is met, classify the query as `"NATURAL_RESPONSE"`.
+            **SQL_QUERY** — answer requires live data from MySQL (`pdfs`, `metadata`):
+            counts, lookups, aggregates, county/outcome breakdowns from the letter database.
+            "Letters" means resentencing letter PDFs / case records, not spelling.
 
-        **Examples:**
-        - `"How many cases are in the database?"` → `"SQL_QUERY"` (Explicitly defined + column count)
-        - `"What is the success rate of resentencing?"` → `"SQL_QUERY"` (Interpreted from database columns)
-        - `"Which judge presided over case RIF102091?"` → `"SQL_QUERY"` (Column-based query)
-        - `"Tell me about the history of resentencing laws?"` → `"NATURAL_RESPONSE"` (No database match)
-        - `"Explain the ethical implications of AI in law."` → `"NATURAL_RESPONSE"` (Not database-related)
+            **SITE_HELP** — answer is on the public website (no live DB count needed):
+            what the site/tools do, methods, Penal Code 1172.1 scope, variables, how cost savings
+            or success rates are defined/calculated, data sources, access/login, about the project.
 
-        **Now classify this user query:**
-        """
+            **OFF_TOPIC** — unrelated (homework, jokes, generic legal advice outside this project).
 
-        classification_response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_message_classification},
-                {"role": "user", "content": user_query}
-            ],
-        )
+            **Examples:**
+            - "How many cases are in the database?" → SQL_QUERY
+            - "How many letters in our database?" → SQL_QUERY
+            - "What does this website do?" → SITE_HELP
+            - "How are cost savings calculated?" → SITE_HELP
+            - "Tell me about resentencing laws" → SITE_HELP (project scope on /methods)
+            - "Write my homework essay" → OFF_TOPIC
 
-        try:
-            query_type = _parse_query_classification(_ai_completion_text(classification_response, "classification"))
-        except ValueError as exc:
-            logging.error("Classification parse failed: %s", exc)
-            return jsonify({"error": "Failed to classify query. Try again later."}), 500
+            **Now classify this user query:**
+            """
 
-        logging.info(f"Query Classification: {query_type}")
-
-        # **Handle General AI Response (Non-SQL)**
-        if query_type == "NATURAL_RESPONSE":
-            logging.info("Processing as a general AI response.")
-            chat_completion = client.chat.completions.create(
+            classification_response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are a helpful legal assistant."},
+                    {"role": "system", "content": system_message_classification},
                     {"role": "user", "content": user_query}
                 ],
             )
 
-            if not chat_completion.choices:
-                logging.error("AI response failed.")
-                return jsonify({"error": "Failed to generate AI response. Try again later."}), 500
+            try:
+                query_type = _parse_query_classification(_ai_completion_text(classification_response, "classification"))
+            except ValueError as exc:
+                logging.error("Classification parse failed: %s", exc)
+                return jsonify({"error": "Failed to classify query. Try again later."}), 500
 
-            response_message = _ai_completion_text(chat_completion, "natural response")
-            logging.debug(f"AI Response: {response_message}")
-            return jsonify({"response": response_message})  # **EARLY RETURN**
+            logging.info(f"Query Classification: {query_type}")
+
+        if query_type == "SITE_HELP":
+            logging.info("Processing as website help (grounded in public pages).")
+            return jsonify({"response": _answer_site_help_query(user_query)})
+
+        if query_type == "OFF_TOPIC":
+            logging.info("Out-of-scope query; returning guidance.")
+            return jsonify({"response": _OUT_OF_SCOPE_MESSAGE})
 
         # **If AI Cannot Determine a Query Type, Alert the User**
         if query_type == "INVALID":
@@ -707,6 +801,10 @@ def query_ai():
 
             system_message_generate_sql = """
             You are an SQL assistant. Your task is to generate **ONLY valid, safe SQL queries**.
+
+            **Vocabulary:** In this project, "letters", "letter PDFs", "cases", and "records" usually mean rows in
+            `pdfs` (one PDF per letter) and/or joined `metadata`. Count letters with `COUNT(*)` or `COUNT(DISTINCT ...)`
+            on `pdfs` unless the question needs metadata fields.
 
             **RULES:**
             - **You must ONLY use these tables and columns:**

@@ -393,12 +393,6 @@
               <strong>Verify every answer.</strong> This assistant can make mistakes. Use it to explore the data, then confirm important facts against the letter PDF or a case lookup.
             </div>
             <p class="rad-toolhub-muted">Type a question in plain language. Works best for counts and comparisons (how many, which county, outcomes by cohort). For one person, use <strong>Look up a case</strong>.</p>
-            {% if streamlit_rag_enabled %}
-              <div>
-                <a href="{{ url_for('launch_rag') }}" target="_blank" rel="noopener" class="rad-toolhub-btn rad-toolhub-linkbtn">Open advanced letter chat &#x2197;</a>
-                <span class="rad-toolhub-muted">Optional beta tool in a new tab. Link is single-use and expires quickly.</span>
-              </div>
-            {% endif %}
             <div class="rad-ai-grid">
               <div>
                 <label for="ai-query"><strong>Your question</strong></label>
@@ -536,11 +530,22 @@
           body: JSON.stringify({ query }),
         });
         const data = await res.json();
-        responseEl.textContent = data.response || data.error || "No response.";
+        const text = data.response || data.error || "No response.";
+        responseEl.innerHTML = formatAiAnswer(text);
       } catch (err) {
         responseEl.textContent = "Request failed: " + err;
       }
     };
+
+    function formatAiAnswer(text) {
+      const escaped = String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return escaped
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+        .replace(/\n/g, "<br>");
+    }
 
     document.getElementById("ai-submit").addEventListener("click", submitAiQuery);
     document.querySelectorAll(".rad-ai-preset-btn").forEach((btn) => {

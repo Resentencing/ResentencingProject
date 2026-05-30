@@ -642,7 +642,8 @@ def _prefers_database_query(user_query: str) -> bool:
     count_terms = r"(how many|how much|count|number of|total|list|show|breakdown|compare|rate|percentage|average|sum)"
     db_terms = (
         r"(database|cases?|letters?|records?|pdfs?|metadata|county|counties|judge|cohort|"
-        r"cdcr|outcomes?|outcome|action taken|years reduced|cost savings|sec decision)"
+        r"cdcr|people|persons|individuals|incarcerated|outcomes?|outcome|action taken|years reduced|"
+        r"cost savings|sec decision)"
     )
     if re.search(count_terms, q) and re.search(db_terms, q):
         return True
@@ -679,6 +680,79 @@ Website excerpts:
         ],
     )
     return _ai_completion_text(chat_completion, "site help")
+
+
+_COUNTY_ALIASES = {
+    "la": "Los Angeles",
+    "l.a.": "Los Angeles",
+    "los angeles": "Los Angeles",
+    "sf": "San Francisco",
+    "san francisco": "San Francisco",
+    "oc": "Orange",
+    "orange county": "Orange",
+    "sd": "San Diego",
+    "san diego": "San Diego",
+}
+
+
+def _metadata_people_count_expr(alias: str = "m") -> str:
+    """Same person key as Tool Hub summary counts (frontend flask_app._browse_search)."""
+    return (
+        f"COUNT(DISTINCT COALESCE(NULLIF({alias}.cdcr_number, ''), "
+        f"NULLIF({alias}.case_number, ''), NULLIF({alias}.convict_name, ''), "
+        f"CAST({alias}.pdf_id AS CHAR)))"
+    )
+
+
+def _resolve_place_filter(place: str) -> tuple[str, str]:
+    """Return (SQL LIKE pattern, display label) for a county/place phrase."""
+    cleaned = re.sub(r"[^\w\s\-'.]", "", (place or "").strip()).strip()
+    if not cleaned:
+        return "", ""
+    key = cleaned.lower()
+    label = _COUNTY_ALIASES.get(key, cleaned)
+    if key not in _COUNTY_ALIASES and len(key) <= 3:
+        for county_name in set(_COUNTY_ALIASES.values()):
+            if county_name.lower().startswith(key):
+                label = county_name
+                break
+    pattern = label.replace("'", "''")
+    return pattern, label
+
+
+def _try_builtin_count_sql(user_query: str) -> str | None:
+    """
+    Deterministic counts for common Tool Hub phrasing (e.g. how many people in LA).
+    Avoids bad LLM SQL on county abbreviations.
+    """
+    q = (user_query or "").strip()
+    match = re.search(
+        r"\bhow many (people|persons|individuals|letters|letter|cases|case|records|pdfs)\b"
+        r"(?:\s+\w+){0,4}?\s+(?:in|from)\s+(.+?)[?.!]*$",
+        q,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+
+    metric = match.group(1).lower()
+    place_raw = match.group(2).strip().lower()
+    if re.fullmatch(r"(the|our|this)?\s*database", place_raw):
+        return None
+    pattern, _label = _resolve_place_filter(match.group(2))
+    if not pattern:
+        return None
+
+    where = f"m.county LIKE '%{pattern}%'"
+    if metric in {"people", "persons", "individuals"}:
+        return (
+            f"SELECT {_metadata_people_count_expr('m')} AS people_count "
+            f"FROM metadata m WHERE {where}"
+        )
+    return (
+        f"SELECT COUNT(*) AS letter_count, {_metadata_people_count_expr('m')} AS people_count "
+        f"FROM metadata m WHERE {where}"
+    )
 
 
 def _sanitize_ai_sql(raw_sql: str) -> str:
@@ -802,37 +876,42 @@ def query_ai():
             system_message_generate_sql = """
             You are an SQL assistant. Your task is to generate **ONLY valid, safe SQL queries**.
 
-            **Vocabulary:** In this project, "letters", "letter PDFs", "cases", and "records" usually mean rows in
-            `pdfs` (one PDF per letter) and/or joined `metadata`. Count letters with `COUNT(*)` or `COUNT(DISTINCT ...)`
-            on `pdfs` unless the question needs metadata fields.
+            **Vocabulary:**
+            - "letters", "cases", "records" = rows in `metadata` (one row per letter PDF).
+            - "people" / "individuals" = COUNT(DISTINCT COALESCE(NULLIF(m.cdcr_number,''), NULLIF(m.case_number,''), NULLIF(m.convict_name,''), CAST(m.pdf_id AS CHAR))) from `metadata m`.
+            - County names in the database are full names like "Los Angeles", not "LA". Use `m.county LIKE '%Los Angeles%'` when the user says LA or Los Angeles.
 
             **RULES:**
             - **You must ONLY use these tables and columns:**
               - `pdfs` (columns: `id`, `filename`, `file_path`)
               - `metadata` (columns: `id`, `pdf_id`, `date_stamped`, `judge`, `county`, `address`, `convict_name`, `cdcr_number`, `case_number`, `sentence_date`, `cohort`, `pid_no`, `institution`, `old_release_date`, `documents_printed_date`, `letter_creation_date`, `secretary_send_date`, `sec_decision`, `court_mail_date`, `court_response_date`, `resentencing_hearing_date`, `action_taken`, `days_reduced`, `years_reduced`, `cost_savings`, `notes`, `completion_date`, `post_release`, `isl_dsl`, `parole_eligibility_date`, "race", "ethnicity")
+            - Prefer `metadata m` for county, outcome, and person fields; JOIN `pdfs p ON p.id = m.pdf_id` when filenames are needed.
             - **You may only generate `SELECT`, `SHOW`, `DESCRIBE`, or `EXPLAIN` queries.**
             - **Do NOT generate `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, or `CREATE` statements.**
             - **If the query is not possible using the given schema, return "INVALID"**.
             - **Use `LIMIT 20` for listing results.**
-            - **Do not use the word "Convict" in your response, use the word "Incarcerated person(s)" to describe such people.**
-            - **Use `COUNT(DISTINCT column_name)` for unique counts.**
+            - **Use `COUNT(DISTINCT ...)` for people; `COUNT(*)` for letters.**
 
             **Now generate an SQL query based on this user request:**
             """
 
-            sql_generation_response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_message_generate_sql},
-                    {"role": "user", "content": user_query}
-                ],
-            )
+            ai_generated_sql = _try_builtin_count_sql(user_query)
+            if ai_generated_sql:
+                logging.info("Using built-in count SQL for query")
+            else:
+                sql_generation_response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": system_message_generate_sql},
+                        {"role": "user", "content": user_query}
+                    ],
+                )
 
-            if not sql_generation_response.choices:
-                logging.error(" AI failed to generate an SQL query.")
-                return jsonify({"error": "Failed to generate SQL query. Try again later."}), 500
+                if not sql_generation_response.choices:
+                    logging.error(" AI failed to generate an SQL query.")
+                    return jsonify({"error": "Failed to generate SQL query. Try again later."}), 500
 
-            ai_generated_sql = _sanitize_ai_sql(_ai_completion_text(sql_generation_response, "sql generation"))
+                ai_generated_sql = _sanitize_ai_sql(_ai_completion_text(sql_generation_response, "sql generation"))
             logging.debug(f" AI-Generated SQL Query (Raw): {ai_generated_sql}")
 
             if ai_generated_sql == "INVALID":
@@ -890,15 +969,18 @@ def query_ai():
             You are an AI assistant that translates structured database results into natural language.
             Your goal is to take raw SQL output and respond with a **clear, concise, and human-readable answer**.
 
+            **CRITICAL:** Lead with the exact number(s) from the Results JSON. If people_count is 823, say "823 people".
+            If letter_count is 1150, say "1150 letters". Do not vague-ify correct non-zero counts.
+
             **Examples:**
+            - Input: `[{"people_count": 823}]`
+              Output: `"There are 823 distinct people in Los Angeles County in the database."`
+            - Input: `[{"letter_count": 1150, "people_count": 823}]`
+              Output: `"Los Angeles has 1150 letters and 823 distinct people in the database."`
             - Input: `[{"total_cases": 147}]`
               Output: `"The database contains 147 cases."`
-            - Input: `[{"judge": "Alan M. Simpson"}]`
-              Output: `"The judge presiding over the case was Alan M. Simpson."`
-            - Input: `[{"unique_counties": 22}]`
-              Output: `"There are 22 unique counties represented in the database."`
-            - Input: `[{"cost_savings": 500000}]`
-              Output: `"The total cost savings recorded is $500,000."`
+            - Input: `[{"people_count": 0}]`
+              Output: `"There are 0 people matching that filter in the database."`
 
             **Do not use the word "Convict" in your response, use the word "Incarcerated person(s)" to describe such people.**
 

@@ -206,9 +206,9 @@
                 Enter a court case number or CDCR number below, click Search, then use the download links in the results table.
               </div>
               <ol class="rad-toolhub-steps">
-                <li><span class="rad-toolhub-step-num" aria-hidden="true">1</span><span><strong>Search</strong> by court case # or CDCR # (best for one person).</span></li>
-                <li><span class="rad-toolhub-step-num" aria-hidden="true">2</span><span><strong>Review matches</strong> in the table below.</span></li>
-                <li><span class="rad-toolhub-step-num" aria-hidden="true">3</span><span><strong>Download</strong> the letter PDF or a ZIP of all letters for that person.</span></li>
+                <li><span class="rad-toolhub-step-num" aria-hidden="true">1</span><span><strong>Search</strong> by court case #, CDCR #, county, or name.</span></li>
+                <li><span class="rad-toolhub-step-num" aria-hidden="true">2</span><span><strong>Review summary counts</strong> for how many letters and people match.</span></li>
+                <li><span class="rad-toolhub-step-num" aria-hidden="true">3</span><span><strong>Download</strong> letter PDFs from the results table.</span></li>
               </ol>
               <form method="post" class="rad-toolhub-grid">
                 <label class="rad-toolhub-muted" style="grid-column: 1 / -1; margin: 0;"><strong>Step 1:</strong> Search by</label>
@@ -225,8 +225,39 @@
               {% endif %}
             </div>
 
+            <div class="rad-toolhub-card">
+              <h3 class="wp-block-heading">Step 2: Summary counts</h3>
+              <p class="rad-toolhub-muted">How many letters and people match, grouped by the field you searched.</p>
+              <div class="rad-toolhub-table-wrap">
+                <table class="rad-toolhub-table">
+                  <thead>
+                    <tr>
+                      <th>Group</th>
+                      <th>Letters</th>
+                      <th>People</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in aggregate_results %}
+                      <tr>
+                        <td>{{ row.group_value }}</td>
+                        <td>{{ row.letter_count }}</td>
+                        <td>{{ row.people_count }}</td>
+                      </tr>
+                    {% else %}
+                      {% if search_performed %}
+                      <tr><td colspan="3" class="rad-toolhub-muted">No summary groups for this search.</td></tr>
+                      {% else %}
+                      <tr><td colspan="3" class="rad-toolhub-muted">Counts appear here after you search.</td></tr>
+                      {% endif %}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div class="rad-toolhub-card" id="rad-toolhub-downloads">
-              <h3 class="wp-block-heading">Step 2: Download court letters</h3>
+              <h3 class="wp-block-heading">Step 3: Download court letters</h3>
               {% if not search_performed %}
               <div class="rad-toolhub-empty-downloads">
                 <strong>No letters shown yet</strong>
@@ -273,37 +304,6 @@
               {% if search_performed and detail_results %}
               <p class="rad-toolhub-muted">Links expire in about 15 minutes. Limits: 10 PDFs per hour, 50 per day, 3 ZIPs per day.</p>
               {% endif %}
-            </div>
-
-            <div class="rad-toolhub-card">
-              <h3 class="wp-block-heading">Summary counts</h3>
-              <p class="rad-toolhub-muted">Optional: how many letters and people match, grouped by the field you searched.</p>
-              <div class="rad-toolhub-table-wrap">
-                <table class="rad-toolhub-table">
-                  <thead>
-                    <tr>
-                      <th>Group</th>
-                      <th>Letters</th>
-                      <th>People</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in aggregate_results %}
-                      <tr>
-                        <td>{{ row.group_value }}</td>
-                        <td>{{ row.letter_count }}</td>
-                        <td>{{ row.people_count }}</td>
-                      </tr>
-                    {% else %}
-                      {% if search_performed %}
-                      <tr><td colspan="3" class="rad-toolhub-muted">No summary groups for this search.</td></tr>
-                      {% else %}
-                      <tr><td colspan="3" class="rad-toolhub-muted">Counts appear here after you search.</td></tr>
-                      {% endif %}
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </section>
 

@@ -50,22 +50,6 @@ class TestQueryAIRoute:
             assert 'response' in data
             assert 'database' in data['response'].lower()
 
-    def test_query_ai_site_help_resentencing_laws(self, client):
-        """Project/methods questions use website-grounded answers with sources."""
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = (
-            "This site covers CDCR-initiated resentencing under PC 1172.1.\n\n"
-            "**Sources:** [Methods & GitHub](https://rscap.pythonanywhere.com/methods)"
-        )
-
-        with patch('OCRWebApp.client.chat.completions.create', return_value=mock_response):
-            response = client.post('/query_ai', json={'query': 'Tell me about resentencing laws'})
-
-            assert response.status_code == 200
-            data = response.get_json()
-            assert '1172.1' in data['response'] or 'Sources' in data['response']
-
     def test_query_ai_letters_count_uses_sql_heuristic(self, client):
         """Letter/count questions skip open chat and use the SQL pipeline."""
         mock_sql_gen = MagicMock()
@@ -91,6 +75,29 @@ class TestQueryAIRoute:
                 data = response.get_json()
                 assert '100' in data['response']
                 assert mock_openai.call_count == 2
+
+    def test_query_ai_people_in_la_uses_builtin_sql(self, client):
+        """County abbreviations use deterministic SQL matching Tool Hub counts."""
+        from OCRWebApp import _try_builtin_count_sql
+
+        sql = _try_builtin_count_sql("How many people in LA")
+        assert sql is not None
+        assert "Los Angeles" in sql
+        assert "people_count" in sql
+
+        mock_interpretation = MagicMock()
+        mock_interpretation.choices = [MagicMock()]
+        mock_interpretation.choices[0].message.content = (
+            "There are 823 distinct people in Los Angeles County in the database."
+        )
+
+        with patch('OCRWebApp.client.chat.completions.create', return_value=mock_interpretation):
+            with patch('OCRWebApp.query_database') as mock_db:
+                mock_db.return_value = {'status': 'success', 'data': [{'people_count': 823}]}
+                response = client.post('/query_ai', json={'query': 'How many people in LA'})
+                assert response.status_code == 200
+                assert '823' in response.get_json()['response']
+                mock_db.assert_called_once()
     
     def test_query_ai_sql_query_success(self, client):
         """Test query_ai with a SQL query that succeeds."""

@@ -43,9 +43,13 @@ htmlcov/
 uploads/
 processed/
 mysite/dropbox_sync_state.json
+mysite/process_uploads.status.json
 backup.zip
 mysite/OCRextractions/
-shared/archive_directory/*.pdf
+# Sensitive case data — keep on server/Drive only, never in git
+shared/archive_directory/
+mysite/Excel/
+.pylibs/
 
 # Local error checking folders (not for repository)
 MISSING PRA/

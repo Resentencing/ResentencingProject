@@ -1,0 +1,70 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Compare results across groups | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+<nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/how-to-use-tools">How to Use the Tools</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">Compare results across groups</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">Compare results across groups</h1>
+    <p class="rad-page-lead">In the Tool Hub, open the <strong>Compare groups</strong> tab. For ready-made public charts (no login), use the <a href="/trends">System Trends Viewer</a>.</p>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<p>This tool builds charts from two categories you choose, such as county and action taken, or cohort and sentence type (ISL or DSL). You can filter by year, county, action taken, sentence type, or race before you update the chart.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">Public charts first (no login)</h2>
+  <p>The <a href="/trends">System Trends Viewer</a> shows fixed charts for everyone, including:</p>
+  <ul>
+    <li><strong>Case progression</strong> — considered, letters sent, resentenced (where cases move through the system)</li>
+    <li><strong>Letters by county</strong></li>
+    <li><strong>Years reduced by county</strong></li>
+    <li><strong>Cases by action taken</strong></li>
+    <li>Race and ethnicity distributions</li>
+  </ul>
+  <p><a class="rad-button" href="/trends">Open System Trends Viewer</a></p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">Step 1: Compare and Split by</h2>
+  <p><strong>Compare</strong> — the main categories on the chart (rows or bars), such as County or Cohort. Each option shows how many cases are in that group.</p>
+  <p><strong>Split by</strong> — the second category shown inside each bar (colors or segments), such as Action taken or Race. Compare and Split by must be two different fields.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Step 2: Filters (optional)</h2>
+  <p>Narrow the chart with multi-select filters:</p>
+  <ul>
+    <li><strong>Filter: year</strong></li>
+    <li><strong>Filter: county</strong></li>
+    <li><strong>Filter: action taken</strong> (court outcome; replaces older labels like "event point")</li>
+    <li><strong>Filter: sentence type</strong> (ISL or DSL; replaces older "offense" labels)</li>
+    <li><strong>Filter: race</strong></li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Step 3: Show and chart style</h2>
+  <p><strong>Show:</strong></p>
+  <ul>
+    <li><strong>Number of cases</strong> — how many records are in each group</li>
+    <li><strong>Total years reduced</strong> — sum of years taken off sentences (when available)</li>
+  </ul>
+  <p><strong>How many groups to show</strong> — limits how many categories appear (10, 14, 20, or 30).</p>
+  <p><strong>Chart style</strong> — same data, different layout:</p>
+  <ul>
+    <li><strong>Stacked bars (horizontal)</strong> — totals with groups stacked in one bar</li>
+    <li><strong>100% stacked bars (horizontal)</strong> — proportions; each bar is 100%</li>
+    <li><strong>Stacked columns</strong> or <strong>100% stacked columns</strong> — vertical versions</li>
+    <li><strong>Grouped columns</strong> — groups side by side for direct comparison</li>
+  </ul>
+  <p>Click <strong>Update chart</strong> after you change settings.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Reading the chart</h2>
+  <p>Bigger segments mean more cases (or more years reduced, if you chose that measure). Small groups can look dramatic in percentages; be careful citing tiny counties or cohorts in court or press.</p>
+  <p>Field definitions are on the <a href="/methods/variables">variables page</a>. In the chart, <strong>action taken</strong> means what the court decided; <strong>sentence type</strong> means ISL vs DSL.</p>
+
+  <p><a class="rad-button rad-button--primary" href="/toolhub">Open Tool Hub — Compare groups</a></p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

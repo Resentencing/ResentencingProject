@@ -1,0 +1,183 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Sample Questions | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+<nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/how-to-use-tools">How to Use the Tools</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">Sample Questions</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">Sample questions</h1>
+    <p class="rad-page-lead">Try these in the Tool Hub under <strong>Ask a question</strong>, or use them as a starting point for your own wording.</p>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">What questions can this data answer?</h2>
+  <p>This data can help answer different kinds of questions about resentencing. It can show patterns and relationships, but it cannot prove cause and effect. That means it can answer questions like: Do certain counties have higher success rates? Do outcomes differ across groups? What factors appear more often in successful cases? These are correlations, not proof that one thing caused another. For example, if one group has a higher success rate, the data can show that pattern, but it cannot prove why it happened. To test whether differences are meaningful or likely due to chance, additional statistical methods may be needed, such as chi-squared tests or other analyses. This tool is designed to help you identify patterns and ask better questions, not to make final causal conclusions.</p>
+  <ul>
+    <li>Ask <strong>descriptive questions</strong> to understand what is happening, like how many cases were resentenced or how many years were reduced.</li>
+    <li>Ask <strong>comparison questions</strong> to see differences between groups, like how outcomes vary by county, race, or cohort.</li>
+    <li>Ask <strong>trend questions</strong> to see how things change over time, like whether resentencing rates are increasing or decreasing.</li>
+    <li>Ask <strong>case-specific questions</strong> to look at one person's case, including what happened, what was recommended, and what the outcome was.</li>
+    <li>Ask <strong>pattern questions</strong> to understand what factors appear in successful or unsuccessful cases.</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Language &amp; definitions</h2>
+  <ul>
+    <li>What does a cohort trend show</li>
+    <li>What is a discretionary cohort</li>
+    <li>What is a nondiscretionary cohort</li>
+    <li>What does <strong>action taken</strong> mean (court outcome)</li>
+    <li>What does <strong>sentence type</strong> mean (ISL vs DSL)</li>
+    <li>What does <strong>case progression</strong> mean (considered, letters sent, resentenced)</li>
+    <li>What does resentenced mean</li>
+    <li>What does no action mean</li>
+    <li>What does pending mean</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Basic system questions</h2>
+  <ul>
+    <li>How many cases are in the dataset</li>
+    <li>How many candidates are included</li>
+    <li>How many counties are included</li>
+    <li>What percentage of cases are resentenced</li>
+    <li>What percentage of cases are denied</li>
+    <li>What percentage of cases are still pending</li>
+    <li>How many letters were sent to court</li>
+    <li>How many cases reached court</li>
+    <li>How many candidates were released</li>
+    <li>How many candidates had sentence reductions</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Trend analysis</h2>
+  <ul>
+    <li>What are the trends in resentencing over the last 5 years</li>
+    <li>Are resentencing rates increasing or decreasing</li>
+    <li>How have outcomes changed over time</li>
+    <li>What trends exist by year, cohort, outcome, county, race, or ethnicity</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">County-level questions</h2>
+  <ul>
+    <li>What is the success rate in [county]</li>
+    <li>Which county has the highest / lowest success rate</li>
+    <li>How do outcomes vary by county</li>
+    <li>Which counties send the most / fewest cases</li>
+    <li>What counties have the most approvals / denials / pending cases</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Comparison questions</h2>
+  <ul>
+    <li>Compare success rates between [county] and [county]</li>
+    <li>Compare outcomes between two counties</li>
+    <li>Compare trends between two years</li>
+    <li>Compare outcomes by race, ethnicity, or cohort</li>
+    <li>Compare sentence reductions across groups</li>
+    <li>Compare approval rates across counties</li>
+    <li>Compare denial rates across groups</li>
+    <li>Compare trends across time periods</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Race &amp; ethnicity questions</h2>
+  <ul>
+    <li>What percentage of candidates identify as Black, White, Hispanic, Asian, American Indian, or Other</li>
+    <li>How do outcomes differ by race / ethnicity</li>
+    <li>Are there disparities in outcomes by race / ethnicity</li>
+    <li>What demographics have the highest / lowest success rates</li>
+    <li>How have racial trends changed over time</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Sentence length questions</h2>
+  <ul>
+    <li>What is the average sentence reduction</li>
+    <li>What is the average reduction by county, race, or cohort</li>
+    <li>How many years are reduced on average</li>
+    <li>What is the largest / smallest sentence reduction</li>
+    <li>What counties reduce the most / least time</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Case progression questions</h2>
+  <ul>
+    <li>How many cases are considered / sent to court / resentenced</li>
+    <li>Where do cases drop off or get stuck in case progression</li>
+    <li>What percentage reach court / stop before court / succeed after reaching court</li>
+    <li>How does case progression differ by county or cohort</li>
+    <li>How long do cases take</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Case-level questions</h2>
+  <ul>
+    <li>What happened in case # ______</li>
+    <li>What is the outcome of case # ______</li>
+    <li>Was case # ______ resentenced / denied</li>
+    <li>What cohort / county / judge handled case # ______</li>
+    <li>What is the sentence reduction for case # ______</li>
+    <li>What does the letter say for case # ______</li>
+    <li>Is case # ______ still pending</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Candidate-specific questions</h2>
+  <ul>
+    <li>What happened to candidate ______</li>
+    <li>What was the outcome for candidate ______</li>
+    <li>Was this candidate resentenced</li>
+    <li>What programs did this candidate complete</li>
+    <li>What factors were mentioned in the letter</li>
+    <li>What was the recommendation / was it approved</li>
+    <li>What court handled this candidate's case</li>
+    <li>What was the sentence reduction / timeline of the case</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Legal outcome questions</h2>
+  <ul>
+    <li>What percentage of cases succeed / receive no action / are pending</li>
+    <li>What factors appear in successful / denied cases</li>
+    <li>What cohorts have highest / lowest success</li>
+    <li>What types of cases succeed most</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Delay &amp; timing questions</h2>
+  <ul>
+    <li>How long do cases take / what is the average delay</li>
+    <li>What counties have the longest / shortest delays</li>
+    <li>Are delays increasing or decreasing</li>
+    <li>How long from letter to outcome / from referral to decision</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Program &amp; letter questions</h2>
+  <ul>
+    <li>What programs are mentioned most</li>
+    <li>What is exceptional conduct</li>
+    <li>What factors appear in letters / what does CDCR look for</li>
+    <li>What patterns appear in recommendations</li>
+    <li>What factors lead to approval / denial</li>
+    <li>How often is education / work / discipline mentioned</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Cost &amp; impact questions</h2>
+  <ul>
+    <li>How many years have been reduced total / what is the total time reduced</li>
+    <li>What is the total cost savings / average cost savings per case</li>
+    <li>What counties save the most / least money</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+  <p><a class="rad-button rad-button--primary" href="/toolhub">Open Tool Hub</a>
+     <a class="rad-button" href="/how-to-use-tools/ask-questions">Ask a question — how it works</a></p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

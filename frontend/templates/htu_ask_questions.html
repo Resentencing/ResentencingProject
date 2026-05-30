@@ -1,0 +1,65 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% from "includes/rad_icons.html" import icon_warning %}
+{% block title %}Ask a question and get an answer | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+<nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/how-to-use-tools">How to Use the Tools</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">Ask a question and get an answer</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">Ask a question and get an answer</h1>
+    <p class="rad-page-lead">In the Tool Hub, open the <strong>Ask a question</strong> tab.</p>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<p>Type a question in plain language about case records and CDCR court letters. The assistant works best for counts and comparisons (how many, which county, outcomes by cohort). For one person, use <strong>Look up a case</strong> instead. See <a href="/how-to-use-tools/sample-questions">sample questions</a> you can try or adapt.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">What you can ask</h2>
+  <div class="rad-table-wrap"><table class="rad-table">
+    <thead>
+      <tr>
+        <th>Individual level (letter or case)</th>
+        <th>Systemic data (all cases)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>What were the outcomes in this person's case</td><td>What are the success rates by race</td></tr>
+      <tr><td>What programs did this person complete</td><td>How many cases were reduced</td></tr>
+      <tr><td>What cohort was the recommendation from</td><td>How many people were released in each year</td></tr>
+      <tr><td>Why did CDCR recommend this person</td><td>What percentage of cases succeed</td></tr>
+      <tr><td>What work or classes did this person do</td><td>Which counties have the most successful cases</td></tr>
+      <tr><td>Is the case pending</td><td>Which counties have the highest success rates</td></tr>
+      <tr><td>What judge was assigned the case</td><td>How many cases had no action</td></tr>
+      <tr><td>Does the letter mention education</td><td>How many years were reduced in total</td></tr>
+      <tr><td>What does the letter say about rehabilitation</td><td>How long cases usually take</td></tr>
+    </tbody>
+  </table>
+  </div>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">What data this uses</h2>
+  <p>See the <a href="/methods/variables">variables page</a> for details. This tool uses information from:</p>
+  <ul>
+    <li>CDCR case records (what happened in the case)</li>
+    <li>Court letters (why CDCR made the recommendation)</li>
+    <li>Basic case details like county, dates, and outcomes</li>
+  </ul>
+  <div class="rad-callout" role="note">
+    <div class="rad-callout__icon">{{ icon_warning() }}</div>
+    <div>
+      <p>Some letters may include personal information such as behavior and discipline history; programs, work, and education; support from staff or family; and health or background information.</p>
+    </div>
+  </div>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Important note about AI responses</h2>
+    <p>The assistant uses artificial intelligence. It may sometimes give incorrect, incomplete, or misleading answers (sometimes called hallucinations): it can sound confident even when the answer is wrong.</p>
+    <p><strong>Always verify important facts</strong> against the letter PDF or a case lookup before you rely on an answer in court, advocacy, or press.</p>
+    <p>Prefer questions about groups ("how many in Sacramento County") over guessing about one person from the AI alone.</p>
+
+  <p><a class="rad-button rad-button--primary" href="/toolhub">Open Tool Hub — Ask a question</a></p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Most Recent Update | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+<nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/methods">Methods & GitHub</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">Most Recent Update</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">Most Recent Update</h1>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">Data Currency and Updates</h2>
+  <p>This page explains what data is included in this tool and when it was last updated. This dataset combines multiple sources that are updated at different times. Some parts of the data may be more recent than others.</p>
+  <ul>
+    <li>The tracking log shows how cases move through the system</li>
+    <li>The race and ethnicity data is updated when new records are received</li>
+    <li>The letter database reflects the most recent upload of court referral letters</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Current Dataset Snapshot</h2>
+  <p id="rad-data-freshness" class="rad-data-freshness" aria-live="polite">
+    <span class="rad-data-freshness__label">Dataset dates:</span>
+    <span id="rad-data-freshness-body">Loading…</span>
+  </p>
+  <ul>
+    <li>1170(d) tracking log (spreadsheet)</li>
+    <li>Race and ethnicity data (spreadsheet)</li>
+    <li>Letter database</li>
+    <li>Letter records</li>
+  </ul>
+
+  <p>The data shown here reflects the records available at the time of the last update. Some cases may still be pending, incomplete, or missing from the dataset. This data comes from CDCR and reflects how CDCR tracks and records resentencing activity, including letters it generates and sends to the courts. The dataset shows CDCR's internal record of the process, not a complete or independent record of what happens in court, and it represents CDCR's interpretation of events. The Excel tracking log only includes what CDCR chooses to enter, and it is known to be incomplete, with substantial missing data. In prior analyses, there have been hundreds of cases where CDCR recorded that a letter was sent to the court but did not record the outcome, and at times approximately 25 percent of those cases had no logged court response. The letter records themselves are also incomplete. CDCR provides letters in batches of PDFs, but it does not consistently transmit all letters. To address this, we regularly compare the tracking log to the available letter files using automated scripts to identify cases where a letter is listed in the log but not provided. When missing letters are identified, we submit Public Records Act requests with a list of those cases to obtain the records.</p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% endblock %}

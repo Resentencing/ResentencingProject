@@ -1,0 +1,129 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Variables in the Data Set | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+<nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/methods">Methods & GitHub</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">Variables in the Data Set</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">Variables in the Data Set</h1>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<p>This website organizes resentencing data into key groups so users can understand how cases move through the system and what information is used to make decisions. Case type variables include Category (the reason a case was reviewed, such as Exceptional Conduct, sentencing laws, or policy-based categories). Location variables include County (the court or jurisdiction handling the case, sometimes marked with an asterisk if a state prison is located there). Decision-making variables include Secretary's Decision (whether CDCR leadership approved the case to move forward to court or declined it). Outcome variables include Action Taken (the final result such as reduced, released, no action, or pending). Post-outcome variables include Post Release (the type of supervision after release, such as parole, community supervision, or direct release with no supervision). Sentence-type variables include ISL/DSL (whether the sentence is indeterminate with a range, like life terms, or determinate with a fixed length). Together, these grouped variables help users understand why a case was considered, where it was handled, what decisions were made at each stage, and what the final result was.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">List of variables with short explanations</h2>
+  <ul>
+    <li><strong>Category (Cohort)</strong>: the reason a case was considered for resentencing
+      <ul>
+        <li><strong>Case Law / Mandatory Cohorts</strong>: required by court decisions or legal rulings, meaning CDCR must consider or act on them
+          <ul>
+            <li>vs. Cook: "enhancements for infliction of great bodily injury cannot be applied to certain charges like murder or manslaughter when it is already part of the crime"</li>
+            <li>vs. Gonzalez: "courts cannot impose multiple enhancements for the same injury from a single offense"</li>
+            <li>vs. Le: "courts cannot apply both a firearm enhancement and a gang enhancement when they are based on the same conduct"</li>
+            <li>vs. Rodriguez: "only one of multiple firearm or gang-related enhancements can be applied when they come from the same act"</li>
+            <li>vs. Lopez: "alternative sentences for witness dissuasion can only be applied when there is force or threat of force"</li>
+            <li>vs. Manfredi: "multiple items at the same location can only count as a single possession charge in certain cases"</li>
+            <li>vs. McCart: "a single combined sentence must be calculated for multiple in-prison felony offenses instead of stacking full terms"</li>
+          </ul>
+        </li>
+        <li><strong>Legislative / Discretionary Cohorts</strong>: based on laws or policies where CDCR has discretion to decide whether to refer cases
+          <ul>
+            <li>Exceptional Conduct: "excellent behavior and participation in rehabilitation programs in prison for a long period of time" (CDCR Title 15 Regulations § 3076.1)</li>
+            <li>667(a) Prior Prison: "judges now have the discretion to dismiss 5-year enhancements for prior serious felonies if it is in the interest of justice" (SB 1393, amending Penal Code §§ 667(a), 1385)</li>
+            <li>Drug Enhancements: "prior drug-related sentence enhancements have been repealed or reduced under new laws" (SB 180 and SB 483 RISE Act)</li>
+            <li>Gun Enhancements: "judges now have discretion to strike or dismiss firearm enhancements during sentencing or resentencing" (SB 620, amending Penal Code §§ 12022.5, 12022.53)</li>
+            <li>Law Enforcement Agency: "cases can be referred when requested by police, prosecutors, or courts" (used before AB 2942, a law passed in 2018 that allows prosecutors (District Attorneys) to ask a court to review and reduce someone's sentence)</li>
+            <li>AB 109: "changes in sentencing and custody rules affect how and where people serve their sentences" (Public Safety Realignment Act of 2011)</li>
+            <li>COVID: "people considered to be medically high-risk were referred for resentencing during the pandemic" (CDCR emergency medical referral policy, 2020:2021)</li>
+          </ul>
+        </li>
+        <li><strong>Commutation</strong>: Not 1170(d)(1) OR 1172.1 (executive clemency cases, outside standard resentencing but tracked by CDCR)</li>
+      </ul>
+    </li>
+    <li><strong>Last Name</strong> (candidate's last name)</li>
+    <li><strong>First Name</strong> (candidate's first name)</li>
+    <li><strong>CDC #</strong> (unique CDCR identification number)</li>
+    <li><strong>PID #</strong> (ID number)</li>
+    <li><strong>Institution</strong> (prison where the person is housed)</li>
+    <li><strong>County</strong> (court or jurisdiction handling the case)</li>
+    <li><strong>Case #</strong> (criminal case number)</li>
+    <li><strong>Static Release Date</strong> (projected release date before changes)</li>
+    <li><strong>Date Legal Documents Printed</strong> (when CDCR created paperwork)</li>
+    <li><strong>Date Letter Created</strong> (when CDCR created letter to send to court)</li>
+    <li><strong>Date Letter Sent to Secretary's Office</strong> (when the case was sent for approval)</li>
+    <li><strong>Secretary's Decision</strong> (whether CDCR's Secretary approved or declined the case)</li>
+    <li><strong>Date Letter Mailed to Court</strong> (when CDCR sent the letter to the court)</li>
+    <li><strong>Date Response Received by Court</strong> (when CDCR received the court response)</li>
+    <li><strong>Resentencing Hearing Date</strong> (date of the court hearing, if scheduled)</li>
+    <li><strong>Action Taken</strong> (final outcome, such as reduced, released, no action, or pending)
+      <ul>
+        <li><strong>Successful Outcomes (Success)</strong>
+          <ul>
+            <li>Reduced: "the court shortened the sentence"</li>
+            <li>Released: "the person was released from prison"</li>
+            <li>Commuted: "the sentence was changed to a shorter term, often by the governor or court"</li>
+          </ul>
+        </li>
+        <li><strong>Not Successful Outcomes (No Change)</strong>
+          <ul>
+            <li>No action : no reason specified: "the court did not change the sentence and did not explain why"</li>
+            <li>No action : reason provided: "the court did not change the sentence and gave a reason"</li>
+            <li>No action : handle through plea: "the sentence was not changed because of a plea agreement or legal limits"</li>
+            <li>No action : handle through appeal: "the court did not act because the issue must be handled through a different legal process"</li>
+            <li>No reduction : AOJ corrected: "a legal or technical issue was fixed, but the sentence was not reduced"</li>
+            <li>Disregard letter: "the referral was ignored or not considered by the court"</li>
+            <li>Pending Court: "the case has been sent to court but a decision has not been made yet"</li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li><strong>Days Term Reduced By</strong> (number of days reduced from the sentence)</li>
+    <li><strong>Years Term Reduced By</strong> (number of years reduced from the sentence)</li>
+    <li><strong>Cost Savings</strong> (estimated financial savings from reduced incarceration): CDCR uses a lower number than the researcher; see the <a href="/cost-savings">cost calculation analysis</a> and preferred method of the researcher</li>
+    <li><strong>Notes</strong> (additional comments or explanations)</li>
+    <li><strong>Completion Date</strong> (when the case process was finished)</li>
+    <li><strong>Post Release</strong> (type of supervision after release, such as parole or community supervision)</li>
+    <li><strong>ISL/DSL</strong> (type of sentence, indeterminate or determinate)</li>
+    <li><strong>PED Date</strong> (projected early discharge date)</li>
+    <li><strong>Race</strong> (racial classification)</li>
+    <li><strong>Ethnicity</strong> (ethnic classification)</li>
+    <li><strong>Judge/Court</strong> (name of the judge or court handling the case)</li>
+    <li><strong>CDCR Secretary Name</strong> (official who approved the referral)</li>
+    <li><strong>Text of the Letter</strong> (full written explanation of the recommendation)</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Potentially sensitive variables that may appear in the data</h2>
+  <ul>
+    <li>Criminal history (past offenses)</li>
+    <li>Age at time of prison commitment and current age</li>
+    <li>Commitment offenses and enhancements (types of crimes and added penalties)</li>
+    <li>Sentence length (original sentence duration)</li>
+    <li>Eligibility cohort (category used to determine eligibility for resentencing)</li>
+    <li>Prison discipline record (history of rule violations)</li>
+    <li>Prison employment (jobs held while incarcerated)</li>
+    <li>Programming (participation in classes or rehabilitation programs)</li>
+    <li>Education (schooling or degrees earned)</li>
+    <li>Laudatory chronos (positive reports or commendations from staff)</li>
+    <li>Drug test results (results of substance testing)</li>
+    <li>Support letters (letters from staff, family, or community)</li>
+    <li>Number of visits while incarcerated (frequency of visits)</li>
+    <li>Previous gang status (past gang affiliation)</li>
+    <li>Recommendations from CDCR staff (staff opinions on release)</li>
+    <li>Religious practices (faith-based participation)</li>
+    <li>Medical or mental health information (health conditions or treatment details)</li>
+  </ul>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">For further explanations of these variables</h2>
+  <ul>
+    <li>Ella Baker Center's August 2022 Guide: Back to Court: A Resentencing Guide for Penal Code section 1172.1 and New Sentence Enhancement Laws in California: <a href="https://ellabakercenter.org/wp-content/uploads/2022/08/EBC-Back-to-Court-2.0-Aug-2022-FULL-compressed.pdf" target="_blank" rel="noopener noreferrer">PDF</a></li>
+    <li>The Prison Law Office's January 2025 Guide: Penal Code § 1172.1 Recall and Resentencing: <a href="https://static1.squarespace.com/static/658e00fdc5430956416678f7/t/68123655463eb60d00627a57/1746024022064/Resentencing-PC-1172.1-Jan-2025.pdf" target="_blank" rel="noopener noreferrer">PDF</a></li>
+    <li>Prosecutor-Initiated Resentencing: California's Opportunity to Expand Justice and Repair Harm: For The People, December 2021: <a href="https://static1.squarespace.com/static/64542f9c9a51d00223da291b/t/6470ea4cd7505b0ac88c64a7/1685121616061/ForThePeople_Report_12.13.21.pdf" target="_blank" rel="noopener noreferrer">PDF</a></li>
+  </ul>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

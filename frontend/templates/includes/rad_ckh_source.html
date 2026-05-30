@@ -1,0 +1,17 @@
+{# Small control to show faculty supervisor (CKH) wording when display copy was shortened. #}
+{% macro ckh_note(key, label='Faculty supervisor wording') %}
+{% if ckh_wording and ckh_wording.entries and ckh_wording.entries.get(key) %}
+{% set entry = ckh_wording.entries[key] %}
+<details class="rad-ckh-source">
+  <summary class="rad-ckh-source__trigger" aria-label="{{ label }}">
+    <span class="rad-ckh-source__icon" aria-hidden="true">i</span>
+  </summary>
+  <div class="rad-ckh-source__panel" role="note">
+    <p class="rad-ckh-source__kicker">{{ label }} (Spring 2026 mockup)</p>
+    {% for para in entry.paragraphs %}
+    <p class="rad-ckh-source__text">{{ para }}</p>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
+{% endmacro %}

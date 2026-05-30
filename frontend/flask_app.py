@@ -37,6 +37,30 @@ except Exception as _e:
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
+_CKH_WORDING_CACHE = None
+
+
+def _load_ckh_wording():
+    """Faculty supervisor original copy (when display text was shortened)."""
+    global _CKH_WORDING_CACHE
+    if _CKH_WORDING_CACHE is None:
+        path = os.path.join(os.path.dirname(__file__), "data", "ckh_original_wording.json")
+        try:
+            with open(path, encoding="utf-8") as f:
+                _CKH_WORDING_CACHE = json.load(f)
+        except (OSError, json.JSONDecodeError) as exc:
+            logging.warning("Could not load CKH wording archive: %s", exc)
+            _CKH_WORDING_CACHE = {"entries": {}}
+    return _CKH_WORDING_CACHE
+
+
+@app.context_processor
+def inject_ckh_wording():
+    return {
+        "ckh_wording": _load_ckh_wording(),
+        "github_repo_url": GITHUB_REPO_URL,
+    }
+
 # Enable CORS for frontend -> backend communication (v1 for testing)
 CORS(app, resources={
     r"/query_ai": {
@@ -165,29 +189,53 @@ def _merge_public_freshness_fallbacks(data_freshness):
     return data_freshness
 
 
+# Plain-language labels for Tool Hub search dropdowns (CKH terminology, Phase 3).
 BROWSE_FIELDS = {
     "county": "County",
-    "cohort": "Cohort",
-    "institution": "Institution",
+    "cohort": "Cohort (CDCR batch)",
+    "institution": "Prison / institution",
     "judge": "Judge",
-    "action_taken": "Action Taken",
+    "action_taken": "Action taken (court outcome)",
     "ethnicity": "Ethnicity",
 }
 
 LOOKUP_FIELDS = {
-    "case_number": "Case Number",
-    "cdcr_number": "CDCR Number",
-    "convict_name": "Name",
+    "case_number": "Court case number",
+    "cdcr_number": "CDCR number",
+    "convict_name": "Name on record",
     "county": "County",
-    "cohort": "Cohort",
-    "institution": "Institution",
+    "cohort": "Cohort (CDCR batch)",
+    "institution": "Prison / institution",
     "judge": "Judge",
-    "action_taken": "Action Taken",
+    "action_taken": "Action taken (court outcome)",
     "ethnicity": "Ethnicity",
     "race": "Race",
-    "isl_dsl": "ISL/DSL",
-    "sec_decision": "Secretary Decision",
-    "sentence_date": "Sentence Date",
+    "isl_dsl": "Sentence type (ISL or DSL)",
+    "sec_decision": "Secretary's decision",
+    "sentence_date": "Sentence date",
+}
+
+# Variable Explorer / API human labels (extends auto title-case fallback).
+COLUMN_LABELS = {
+    "action_taken": "Action taken",
+    "sec_decision": "Secretary's decision",
+    "isl_dsl": "Sentence type (ISL or DSL)",
+    "offense": "Sentence type (ISL or DSL)",
+    "commitment_offense": "Original offense",
+    "event_point": "Action taken",
+    "county": "County",
+    "cohort": "Cohort (CDCR batch)",
+    "institution": "Prison / institution",
+    "judge": "Judge",
+    "ethnicity": "Ethnicity",
+    "race": "Race",
+    "convict_name": "Name on record",
+    "cdcr_number": "CDCR number",
+    "case_number": "Court case number",
+    "years_reduced": "Years reduced",
+    "sentence_date": "Sentence date",
+    "parole_eligibility_date": "Parole eligibility date",
+    "hearing_date": "Hearing date",
 }
 
 
@@ -358,7 +406,10 @@ def _metadata_columns():
 
 
 def _labelize_column(column_name: str) -> str:
-    return column_name.replace("_", " ").strip().title()
+    key = (column_name or "").strip().lower()
+    if key in COLUMN_LABELS:
+        return COLUMN_LABELS[key]
+    return key.replace("_", " ").strip().title()
 
 
 def _prof_bucket_parts(field: str, mode: str):
@@ -714,11 +765,12 @@ def tool_hub():
     for key, label in BROWSE_FIELDS.items():
         unified_fields[key] = label
 
-    search_field = request.values.get("search_field", "county")
+    search_field = request.values.get("search_field", "case_number")
     search_term = (request.values.get("search_term") or "").strip()
     aggregate_results = []
     detail_results = []
     error_message = ""
+    search_performed = request.method == "POST" and bool(search_term)
 
     if request.method == "POST" and search_term:
         try:
@@ -769,6 +821,7 @@ def tool_hub():
         unified_fields=unified_fields,
         search_field=search_field,
         search_term=search_term,
+        search_performed=search_performed,
         aggregate_results=aggregate_results,
         detail_results=detail_results,
         error_message=error_message,
@@ -778,6 +831,9 @@ def tool_hub():
         limits=limits,
         backend_base_url=BACKEND_BASE_URL,
         streamlit_rag_enabled=bool(STREAMLIT_BASE_URL and ACCESS_HANDOFF_SECRET),
+        active_nav="toolhub",
+        show_sign_out=True,
+        sign_out_url=url_for("access_logout"),
     )
 
 
@@ -898,7 +954,87 @@ def about():
     """
     Renders the 'About' page.
     """
-    return render_template('about.html')
+    return render_template('about.html', active_nav='about')
+
+
+@app.route('/trends')
+def trends():
+    """
+    System Trends Viewer — public aggregate charts moved off the home page.
+    """
+    return render_template(
+        'trends.html',
+        active_nav='how-to-use-tools',
+        contact_email=CONTACT_EMAIL,
+        github_repo_url=GITHUB_REPO_URL,
+    )
+
+
+@app.route('/methods')
+def methods():
+    """Methods & GitHub section (placeholder; copy added in Phase 2)."""
+    return render_template('methods.html', active_nav='methods', github_repo_url=GITHUB_REPO_URL)
+
+
+@app.route('/how-to-use-tools')
+def how_to_use_tools():
+    """Guide to the four tools (placeholder; copy added in Phase 2)."""
+    return render_template('how_to_use_tools.html', active_nav='how-to-use-tools')
+
+
+@app.route('/cost-savings')
+def cost_savings():
+    """Cost saving calculation methods (placeholder; copy added in Phase 2)."""
+    return render_template('cost_savings.html', active_nav='cost-savings')
+
+
+@app.route('/resources')
+def resources():
+    """Resources / supporting materials (placeholder; copy added in Phase 2)."""
+    return render_template('resources.html', active_nav='resources')
+
+
+# --- Methods sub-pages (stubs; CKH copy pasted in Phase 2) ---
+@app.route('/methods/what-we-measure')
+def methods_what_we_measure():
+    return render_template('methods_what_we_measure.html', active_nav='methods')
+
+
+@app.route('/methods/variables')
+def methods_variables():
+    return render_template('methods_variables.html', active_nav='methods')
+
+
+@app.route('/methods/most-recent-update')
+def methods_most_recent_update():
+    return render_template('methods_most_recent_update.html', active_nav='methods')
+
+
+# --- How to Use the Tools sub-pages (stubs; CKH copy pasted in Phase 2) ---
+@app.route('/how-to-use-tools/find-cases')
+def htu_find_cases():
+    return render_template('htu_find_cases.html', active_nav='how-to-use-tools')
+
+
+@app.route('/how-to-use-tools/compare-groups')
+def htu_compare_groups():
+    return render_template('htu_compare_groups.html', active_nav='how-to-use-tools')
+
+
+@app.route('/how-to-use-tools/ask-questions')
+def htu_ask_questions():
+    return render_template('htu_ask_questions.html', active_nav='how-to-use-tools')
+
+
+@app.route('/how-to-use-tools/sample-questions')
+def htu_sample_questions():
+    return render_template('htu_sample_questions.html', active_nav='how-to-use-tools')
+
+
+@app.route('/acknowledgments')
+def acknowledgments():
+    """Acknowledgments page (linked under About Us)."""
+    return render_template('acknowledgments.html', active_nav='about')
 
 def _render_archive_legacy():
     """
@@ -993,26 +1129,22 @@ def download_file(file_id):
     else:
         return "Invalid file ID", 404
 
+@app.route('/privacy')
 @app.route('/templates/privacy')
 def privacy():
-    """
-    Renders the 'Privacy Policy' page.
-    """
-    return render_template('privacy.html')
+    return render_template('privacy.html', active_nav='about')
 
+
+@app.route('/terms')
 @app.route('/templates/terms')
 def terms():
-    """
-    Renders the 'Terms of Use' page.
-    """
-    return render_template('terms.html')
+    return render_template('terms.html', active_nav='about')
 
+
+@app.route('/contact')
 @app.route('/templates/contact')
 def contact():
-    """
-    Renders the 'Contact Us' page.
-    """
-    return render_template('contact.html')
+    return render_template('contact.html', active_nav='about')
 
 @app.route('/')
 def home():
@@ -1346,8 +1478,8 @@ def api_poster_view():
         def pct(part: int, whole: int) -> float:
             return round((part / whole) * 100, 1) if whole > 0 else 0.0
 
-        # MasterGuide-aligned funnel language (considered → letters sent → resentenced).
-        # Stage counts are computed from metadata rows; see funnel_definitions for caveats.
+        # Case progression stages (considered → letters sent → resentenced).
+        # Stage counts are computed from metadata rows; see progression_definitions for caveats.
         stages = [
             {
                 "label": "Considered",
@@ -1369,8 +1501,8 @@ def api_poster_view():
             },
         ]
 
-        funnel_definitions = {
-            "framing": "Funnel labels follow the project reporting guide (considered → letters sent → resentenced). Counts are descriptive, not a causal trial.",
+        progression_definitions = {
+            "framing": "Case progression labels follow the project reporting guide (considered → letters sent → resentenced). Counts are descriptive, not a causal trial.",
             "considered": stages[0]["definition"],
             "letters_sent": stages[1]["definition"],
             "resentenced": stages[2]["definition"],
@@ -1379,7 +1511,8 @@ def api_poster_view():
 
         return jsonify({
             "stages": stages,
-            "funnel_definitions": funnel_definitions,
+            "progression_definitions": progression_definitions,
+            "funnel_definitions": progression_definitions,
             "impact": {
                 "avg_years_reduced_success": round(avg_years, 2),
                 "total_years_reduced_success": round(total_years, 2),
@@ -1712,13 +1845,13 @@ def api_prof_report():
         s_expr, s_valid, s_resolved_mode = _prof_bucket_parts(series_field, series_mode)
         filters = _parse_prof_filters(raw_filters, allowed)
 
-        metric_label = "Record Count"
+        metric_label = "Number of cases"
         metric_expr = "COUNT(*)"
         if measurement.startswith("sum:"):
             sum_field = measurement.split(":", 1)[1].strip()
             if sum_field in allowed:
                 metric_expr = f"SUM(COALESCE(CAST(`{sum_field}` AS DECIMAL(18, 4)), 0))"
-                metric_label = f"Sum of {_labelize_column(sum_field)}"
+                metric_label = f"Total {_labelize_column(sum_field)}"
             else:
                 return jsonify({"error": "Invalid measurement field"}), 400
 

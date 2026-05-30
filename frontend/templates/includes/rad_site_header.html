@@ -1,0 +1,33 @@
+{# Shared site header. Pass home_active=True on the home page. #}
+{% from "includes/rad_icons.html" import icon_logo_chart %}
+<header class="wp-block-template-part rad-site-header rad-site-header--hub">
+  <div class="wp-block-group alignwide has-base-background-color has-background has-global-padding is-layout-constrained">
+    <div class="wp-block-group alignwide is-content-justification-space-between is-layout-flex">
+      <div class="wp-block-group is-layout-flex rad-brand-lockup-wrap">
+        <a href="/" class="rad-brand-lockup" rel="home"{% if home_active %} aria-current="page"{% endif %}>
+          <span class="rad-brand-lockup__mark" aria-hidden="true">{{ icon_logo_chart() }}</span>
+          <span class="rad-brand-lockup__text">
+            <span class="rad-brand-lockup__title">RAD Data Hub</span>
+            <span class="rad-brand-lockup__subtitle">Resentence &amp; Decarcerate</span>
+          </span>
+        </a>
+      </div>
+      <div class="wp-block-group is-content-justification-left is-layout-flex rad-header-nav-wrap">
+        <nav class="rad-primary-nav rad-primary-nav--hub" aria-label="Primary navigation">
+          <ul class="rad-primary-nav__list">
+            <li><a href="/" class="rad-primary-nav__link"{% if home_active %} aria-current="page"{% endif %}>Home</a></li>
+            <li><a href="/methods" class="rad-primary-nav__link"{% if active_nav | default('') == 'methods' %} aria-current="page"{% endif %}>Methods &amp; GitHub</a></li>
+            <li><a href="/how-to-use-tools" class="rad-primary-nav__link"{% if active_nav | default('') == 'how-to-use-tools' %} aria-current="page"{% endif %}>How to Use the Tools</a></li>
+            <li><a href="/cost-savings" class="rad-primary-nav__link"{% if active_nav | default('') == 'cost-savings' %} aria-current="page"{% endif %}>Cost Savings</a></li>
+            <li><a href="/resources" class="rad-primary-nav__link"{% if active_nav | default('') == 'resources' %} aria-current="page"{% endif %}>Resources</a></li>
+            <li><a href="/about" class="rad-primary-nav__link"{% if active_nav | default('') == 'about' %} aria-current="page"{% endif %}>About Us</a></li>
+          </ul>
+          <a href="/toolhub" class="rad-button rad-button--primary rad-nav-toolhub"{% if active_nav | default('') == 'toolhub' %} aria-current="page"{% endif %}>Tool Hub</a>
+          {% if show_sign_out %}
+          <a href="{{ sign_out_url | default('/access/logout') }}" class="rad-primary-nav__link rad-nav-signout">Sign out</a>
+          {% endif %}
+        </nav>
+      </div>
+    </div>
+  </div>
+</header>

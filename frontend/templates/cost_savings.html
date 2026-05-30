@@ -1,0 +1,136 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Cost Saving Calculation Methods | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=false) }}
+<h1 id="rad-page-title" class="rad-page-title">Cost Saving Calculation Methods</h1>
+    <p class="rad-page-lead">Three ways to measure the financial impact of resentencing.</p>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">Three ways to measure cost savings</h2>
+  <p>There are three different ways to calculate how much money the state saves when someone is resentenced. Each method counts costs differently, which is why the numbers vary so much.</p>
+  <div class="rad-table-wrap"><table class="rad-table rad-table--comparison">
+    <thead>
+      <tr>
+        <th scope="col">Method</th>
+        <th scope="col">What it includes</th>
+        <th scope="col">Cost per person per year</th>
+        <th scope="col">What it shows</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="rad-tone rad-tone--public">
+        <td data-label="Method"><strong>Basic Cost (Unallocated)</strong></td>
+        <td data-label="What it includes">Food, clothing, utilities, limited services</td>
+        <td data-label="Cost per person per year"><span class="rad-table-cost">$8,259</span> <span class="rad-table-meta">(2025, CDCR)</span></td>
+        <td data-label="What it shows">Lowest estimate, assumes prisons stay open and most costs do not change</td>
+      </tr>
+      <tr class="rad-tone rad-tone--compare">
+        <td data-label="Method"><strong>Partial Cost (Marginal)</strong></td>
+        <td data-label="What it includes">Health care, some staffing, variable population costs</td>
+        <td data-label="Cost per person per year"><span class="rad-table-cost">$21,500</span> <span class="rad-table-meta">(2025, LAO)</span></td>
+        <td data-label="What it shows">Medium estimate, reflects some real savings when population decreases</td>
+      </tr>
+      <tr class="rad-tone rad-tone--guide">
+        <td data-label="Method"><strong>Full Cost (Per Capita)</strong></td>
+        <td data-label="What it includes">Full cost of incarceration including staff, security, facilities</td>
+        <td data-label="Cost per person per year"><span class="rad-table-cost">$127,800</span> <span class="rad-table-meta">(2025 to 2026, LAO)</span></td>
+        <td data-label="What it shows">Highest estimate, reflects savings if prisons or units can be reduced or closed</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Unallocated cost method (CDCR preferred method)</h2>
+  <p>The unallocated cost method is the method CDCR currently uses in its official logs and dashboards; that is why this website reflects this amount. It only counts basic day-to-day costs like food, clothing, and limited operational expenses, and does not include most staffing, medical care, or the cost of running prison facilities. Because of this, it shows the lowest level of savings and makes resentencing appear to have a smaller financial impact. CDCR uses this method because it reflects how its budget is structured and assumes that prisons remain open regardless of population changes. The dataset on this website reflects this method because it is the way CDCR reports its own numbers. This approach aligns with CDCR's perspective, which does not focus on reducing prison capacity or closing facilities.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Marginal cost method</h2>
+  <p>The marginal cost method includes more realistic costs that change when the prison population goes down, especially health care and some staffing. It still assumes that prisons remain open, but it provides a better estimate of what the state saves when fewer people are incarcerated. This method shows moderate savings and is often used by the Legislative Analyst's Office and other budget analysts to understand short-term cost changes without assuming major structural changes to the prison system.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Per capita cost method (RAD project preferred method)</h2>
+  <p>The per capita cost method includes the full cost of incarceration, including staff salaries, security, medical care, and the cost of operating prison facilities. It reflects what the state would save if enough people were released to reduce operations, deactivate housing units, or close entire prisons. This method shows the largest savings and is the one researchers and the RAD project prefer because it captures the true cost of incarceration. It also reflects the real long-term impact of expanding resentencing, showing how this process could reduce the prison population at a scale large enough to support prison closures.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">2025 analysis</h2>
+  <p>Accurately estimating the potential cost savings of prison-initiated resentencing is central to evaluating how the CDCR can responsibly decrease its multibillion-dollar annual budget. The data used here track CDCR referrals to courts and the corresponding "actions taken" by those courts, as reported in the August 2025 CDCR Recall and Resentence Recommendation Program Summary Dashboard and Log. Understanding the real potential of Penal Code 1172.1 requires moving beyond CDCR's narrow internal accounting method toward a comprehensive calculation that reflects the true costs and savings of incarceration.</p>
+  <p>CDCR's current method, the unallocated method, estimates only $8,259 per person per year in savings from resentencing. This represents an inaccurate underestimation of the program's potential. It assumes no facilities or housing units will close and therefore includes only variable expenses such as food, clothing, utilities, and limited staff. This approach undervalues the potential fiscal benefit of resentencing by ignoring the substantial costs associated with correctional staffing, health care, and facility operations that would decrease if enough people were released to deactivate a yard or close an entire institution.</p>
+  <p>Two other methods offer a more accurate picture of potential savings: the per capita method or the marginal rate method.</p>
+  <p>The per capita method estimates $127,800 per person per year. This method accounts for the total cost of incarceration, including staffing, security, medical and mental-health services, and infrastructure, divided by the number of incarcerated people. Because prison-initiated resentencing under Penal Code 1172.1 targets people serving long or outdated sentences, many of whom are elderly or medically fragile, the scale of potential release could indeed reach a level sufficient to deactivate housing units or close facilities entirely. Under this model, the total estimated savings from resentencing in 2025 reach approximately $1.16 billion, or 8.5 percent of CDCR's 2025 to 2026 budget.</p>
+  <p>By accurately calculating savings using the per capita rate for Penal Code 1172.1 cases, CDCR, BPH, and policymakers can better demonstrate the financial benefits of resentencing. This transparency would not only strengthen the case for expanding the program but would also help justify future yard or prison closures, actions that generate sustainable, long-term budget reductions through lower staffing and maintenance costs.</p>
+  <p>In short, using the per capita rate would allow CDCR to capture the full scope of cost savings tied to prison-initiated resentencing, show the program's alignment with the state's broader prison-closure strategy, and provide legislators with the data necessary to make fiscally responsible, humane decisions about California's correctional future.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Summary</h2>
+  <p>By applying different cost savings methodologies to estimates provided by CDCR in its August 2025 resentencing log and CDCR Recall and Resentence Recommendation Program Summary Dashboard (August 2025), one can calculate that prison-initiated resentencing (including commutations tracked under this program) has saved either:</p>
+  <ul>
+    <li>Unallocated cost calculation method: $74,338,472.99</li>
+    <li>Marginal cost calculation method: $195,368,156.38</li>
+    <li>Per Capita cost calculation method: $1,161,304,669.10</li>
+  </ul>
+  <p>Total cases = 1,124. Total years reduced from prison-initiated resentencing reductions or releases (exclusive of commutations) = 8,970 years. Total estimated (exclusive of commutations) = $58,897,896 (Unallocated), $153,596,000 (Marginal), $923,563,200 (Per Capita).</p>
+
+  <h3 class="rad-subsection-title">Fiscal context</h3>
+  <p>CDCR's 2025 to 2026 budget is $13.6 billion. These savings represent:</p>
+  <ul>
+    <li>0.43 percent of CDCR's budget under the Unallocated method</li>
+    <li>1.13 percent under the Marginal method</li>
+    <li>6.79 percent under the Per Capita method</li>
+  </ul>
+  <div class="rad-table-wrap"><table class="rad-table rad-table--cost-summary">
+    <thead>
+      <tr>
+        <th scope="col">Category</th>
+        <th scope="col" class="rad-col-tone rad-col-tone--public">Unallocated</th>
+        <th scope="col" class="rad-col-tone rad-col-tone--compare">Marginal Rate</th>
+        <th scope="col" class="rad-col-tone rad-col-tone--guide">Per Capita</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Per-person per-year cost</th>
+        <td class="rad-col-tone rad-col-tone--public"><span class="rad-table-cost">$8,259</span></td>
+        <td class="rad-col-tone rad-col-tone--compare"><span class="rad-table-cost">$21,500</span></td>
+        <td class="rad-col-tone rad-col-tone--guide"><span class="rad-table-cost">$127,800</span></td>
+      </tr>
+      <tr>
+        <th scope="row">Estimated savings total</th>
+        <td class="rad-col-tone rad-col-tone--public"><span class="rad-table-cost">$74,338,472.99</span></td>
+        <td class="rad-col-tone rad-col-tone--compare"><span class="rad-table-cost">$195,368,156.38</span></td>
+        <td class="rad-col-tone rad-col-tone--guide"><span class="rad-table-cost">$1,161,304,669.10</span></td>
+      </tr>
+      <tr>
+        <th scope="row">Percent of CDCR's 2025 budget ($13.6B)</th>
+        <td class="rad-col-tone rad-col-tone--public">0.55 percent</td>
+        <td class="rad-col-tone rad-col-tone--compare">1.44 percent</td>
+        <td class="rad-col-tone rad-col-tone--guide">8.54 percent</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Significance of the Action Taken and Secretary's Decision</h2>
+  <p>The chart showing Successful (Reduced or Released) cases, Unsuccessful (All Other Outcomes), and Secretary Declined to Write Letter decisions reveals a major limitation in how Penal Code 1172.1 resentencing is being implemented. A large share of potential candidates never reach the court stage. In 862 cases, or about one quarter of all cases, the Secretary declined to write a referral letter to the court. This pattern shows that internal review practices within CDCR and the Secretary's Office restrict the overall reach of the resentencing program.</p>
+  <p>Of all cases reviewed, 2,371 were approved, 862 were declined, and 6 were commuted. While the majority of referrals were approved for court consideration, many were declined early in the process, before the courts had an opportunity to evaluate them. Each declination represents a missed opportunity to advance justice, reduce incarceration costs, and move California closer to its correctional realignment and prison-closure goals.</p>
+  <p>If approval rates were expanded or review standards were made more consistent, more people could reach the court stage for resentencing. This would increase population reductions, contribute to additional yard or facility closures, and generate significant savings for the state. In essence, these charts make clear that a primary limitation in California's prison-initiated resentencing process is not only the courts themselves but the administrative screening that prevents many cases from advancing.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Public safety and recidivism outcomes</h2>
+  <p>Evidence demonstrates that prison-initiated resentencing under Penal Code 1172.1 poses very low risk to public safety, which reinforces its fiscal prudence. According to the California Policy Lab's 2025 report "CDCR and Rehabilitation-Initiated Resentencing," substantially fewer people were convicted of new offenses after CDCR-initiated resentencing than other types of prison releases (<a href="https://capolicylab.org/wp-content/uploads/2025/09/CDCR-and-Rehabilitation-Initiated-Resentencing.pdf" target="_blank" rel="noopener noreferrer">California Policy Lab, September 2025</a>). Among those resentenced, only four percent were convicted of a new offense within one year of release, compared to twenty-one percent of other types of releases. Within two years, ten percent of the resentenced group were convicted, compared to thirty-three percent of all releases, and after three years, only fourteen percent were convicted, compared to forty-two percent of the population released through other methods. Fewer than five people were convicted of a new serious or violent felony within one year, and only five within three years. Across all years, misdemeanors were the most common type of new conviction.</p>
+  <p>Recidivism rates also varied depending on the reason for resentencing (CDCR's "Cohort"). Changes in sentencing law: sixteen percent were convicted of a new offense within three years. Exceptional conduct: fewer than five people were convicted of any new offense during that same period. Of the ninety-three people resentenced for exceptional conduct who could be observed for three years, none were convicted of a new serious or violent felony.</p>
+  <p>Although three-year outcomes were only available to the California Policy Lab for thirty-nine percent of all individuals resentenced, it found that the available data showed a clear trend of significantly lower recidivism among this population. These findings confirm that individuals eligible for resentencing are overwhelmingly low risk. Expanding the use of resentencing would therefore not compromise public safety but would instead provide a reliable, evidence-based way to reduce incarceration while maintaining California's commitment to safety, rehabilitation, and fiscal responsibility.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Fiscal impact analysis</h2>
+  <h3 class="rad-subsection-title">Method one: Unallocated</h3>
+  <p>According to CDCR's August 2025 resentencing log, the annual cost savings of resentencing using the unallocated rate, defined as the amount the CDCR budget adjusts per incarcerated person based on daily population averages, is $8,259 per person per year. This rate covers basic variable costs such as food, clothing, utilities, and certain staff including dental hygienists and correctional counselors. Using this calculation, the total estimated savings to date amount to $74,338,472.99. Although this figure appears modest, it captures only a portion of CDCR's expenditures and excludes major fixed costs associated with staffing and facility operations.</p>
+  <h3 class="rad-subsection-title">Method two: Marginal rate per person</h3>
+  <p>The Legislative Analyst's Office budgeting methodology estimates CDCR's marginal rate at $21,500 per person per year for population changes that do not activate or deactivate prison capacity (<a href="https://lao.ca.gov/policyareas/cj/6_cj_inmatecost" target="_blank" rel="noopener noreferrer">LAO, How Much Does It Cost to Incarcerate a Person? 2025 to 2026</a>). Approximately three quarters of this cost reflects health care spending. Applying this figure to the same population yields total savings of $195,368,156.38. This more comprehensive estimate is especially relevant because the proposed regulation targets elderly and medically complex populations whose care costs are higher than the CDCR average.</p>
+  <h3 class="rad-subsection-title">Method three: Per capita cost</h3>
+  <p>The most inclusive measure of savings comes from CDCR's per capita incarceration cost, which accounts for the full expense of operating state prisons, including staffing, security, and infrastructure. The Legislative Analyst's Office reports the 2025 to 2026 average annual per person cost to be $127,800 (<a href="https://lao.ca.gov/policyareas/cj/6_cj_inmatecost" target="_blank" rel="noopener noreferrer">LAO, September 2025</a>). Using this rate, the projected savings from the commutation and resentencing eligible cases total $1,161,304,669.10. Because the proposed process could lead to deactivating prison yards or even closing entire institutions, the per capita method provides the most realistic and complete estimate of long-term fiscal impact.</p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

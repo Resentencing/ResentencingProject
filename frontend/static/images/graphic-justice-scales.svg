@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e8d5a3"/>
+      <stop offset="50%" stop-color="#c5a028"/>
+      <stop offset="100%" stop-color="#a8841a"/>
+    </linearGradient>
+    <linearGradient id="navyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a4a73"/>
+      <stop offset="100%" stop-color="#1e3a5f"/>
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="92" fill="#faf6ee" stroke="#e8d5a3" stroke-width="2"/>
+  <circle cx="100" cy="100" r="78" fill="none" stroke="url(#goldGrad)" stroke-width="1.5" opacity="0.5"/>
+  <path d="M100 42 L100 118" stroke="url(#navyGrad)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M62 58 L138 58" stroke="url(#navyGrad)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M68 58 C68 88 76 102 100 108 C124 102 132 88 132 58" stroke="url(#navyGrad)" stroke-width="3" fill="none"/>
+  <ellipse cx="72" cy="64" rx="22" ry="14" stroke="url(#goldGrad)" stroke-width="2.5" fill="#fff8e8"/>
+  <ellipse cx="128" cy="64" rx="22" ry="14" stroke="url(#goldGrad)" stroke-width="2.5" fill="#fff8e8"/>
+  <path d="M100 108 L100 148" stroke="url(#navyGrad)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M72 148 H128" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="100" cy="58" r="6" fill="url(#goldGrad)"/>
+</svg>

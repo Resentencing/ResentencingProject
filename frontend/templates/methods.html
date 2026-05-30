@@ -1,0 +1,106 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_icons.html" import icon_measure, icon_variables, icon_update, icon_github %}
+{% from "includes/rad_ckh_source.html" import ckh_note %}
+{% block title %}Methods &amp; GitHub | RAD{% endblock %}
+{% block content %}
+<article class="rad-page">
+  <div class="rad-page-hero-band">
+    <div class="rad-page-shell">
+      <header class="rad-page-header">
+        <h1 id="rad-page-title" class="rad-page-title">Methods &amp; GitHub</h1>
+        <p class="rad-page-lead">How we built the dataset from public records, and how the tools behind this site work.</p>
+      </header>
+    </div>
+  </div>
+
+  <div class="rad-page-body">
+    <div class="rad-page-shell rad-content-page">
+      <p class="rad-section-intro">We study <strong>CDCR-initiated resentencing</strong> under Penal Code § 1172.1. We turn messy public records into a <em>structured dataset</em> you can search, chart, and analyze.{{ ckh_note('methods.intro') }}</p>
+
+      <section class="rad-page-section rad-page-section--flush">
+        <div class="rad-topic-grid">
+          <article class="rad-topic-card rad-tone rad-tone--public">
+            <div class="rad-topic-card__icon">{{ icon_measure() }}</div>
+            <h3>What We Are Measuring</h3>
+            <p>What you can measure and visualize with this data.</p>
+            <a class="rad-button" href="/methods/what-we-measure">Read</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--compare">
+            <div class="rad-topic-card__icon">{{ icon_variables() }}</div>
+            <h3>Variables in the Data Set</h3>
+            <p>Every field in the data, with plain explanations.</p>
+            <a class="rad-button" href="/methods/variables">Read</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--guide">
+            <div class="rad-topic-card__icon">{{ icon_update() }}</div>
+            <h3>Most Recent Update</h3>
+            <p>What data is included and when it was last updated.</p>
+            <a class="rad-button" href="/methods/most-recent-update">Read</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Data Sources</h2>
+        <p class="rad-text-secondary">The dataset combines three types of records:</p>
+        <ol class="rad-step-list">
+          <li><strong>CDCR tracking logs</strong> Case-level data: referral dates, outcomes, sentence reductions, and cost estimates. Updated monthly; this site shows the latest upload date.</li>
+          <li><strong>Court referral letters (PDFs)</strong> Narrative explanations from CDCR to sentencing courts: rehabilitation, programs, discipline, and why resentencing was recommended. Sent in batches, not on a fixed schedule.</li>
+          <li><strong>Race &amp; ethnicity (PRA)</strong> Merged using <span class="rad-highlight">CDC #</span> or <span class="rad-highlight">PID</span> when those spreadsheets are released.</li>
+        </ol>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Document Processing and Data Extraction</h2>
+        <p>Many source PDFs are scanned images, so we use <strong>optical character recognition (OCR)</strong> to make the text searchable.</p>
+        <ul class="rad-pretty-list">
+          <li>Clean and standardize extracted text</li>
+          <li>Parse fields: demographics, institution, sentence, outcomes</li>
+          <li>Add researcher-coded variables from letter text (programs, employment, discipline-free time, etc.)</li>
+        </ul>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Data Integration and Variable Construction</h2>
+        <p>Data from multiple sources are merged into a unified dataset. Administrative log variables provide the backbone of the dataset, while PRA-derived race and ethnicity variables are joined using unique identifiers. Letter-derived variables are incorporated through manual coding and automated text extraction processes. See the <a href="/methods/variables">variable page</a> for more information. A binary success variable is constructed to distinguish favorable outcomes (reduced or released) from all other outcomes.</p>
+        <p>Descriptive statistics are used to quantify total cases, success rates, sentence reductions, and cost savings. Aggregate measures include total and average years reduced and total and average fiscal savings.</p>
+        <p>Comparative analyses are conducted across geographic (county), institutional (facility), and demographic (race and ethnicity) categories. These analyses examine variation in referral volume, success rates, and outcome distributions.</p>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Case Progression</h2>
+        <p>A three-stage view represents the progression of cases through the resentencing process. Stage 1 includes all cases considered by CDCR. Stage 2 includes cases for which a referral letter was transmitted to the court. Stage 3 includes cases resulting in resentencing, defined as sentence reduction or release.</p>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Visualization and User Interface</h2>
+        <p>Data are presented through an interactive system that allows users to explore patterns through charts, search tools, and natural language queries. Visualizations are generated by aggregating case counts across selected variables and displaying them using bar charts and distribution plots. Stacked and grouped chart formats are used to compare outcomes across categories.</p>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Query System and Retrieval-Augmented Generation</h2>
+        <p>The system incorporates a natural language query interface that allows users to ask questions about the dataset. This interface uses retrieval-augmented generation (RAG), a method that combines database retrieval with language generation. When a user submits a query, the system retrieves relevant records from the dataset and uses those records to generate a response.</p>
+        <p>This approach ensures that generated responses are grounded in actual case data rather than relying solely on model-based inference. By retrieving and incorporating relevant records prior to response generation, the system reduces the likelihood of inaccurate or unsupported outputs and provides context-specific, evidence-based answers.</p>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Software and Technical Implementation</h2>
+        <p>The system is built using a combination of data processing, storage, and web-based tools that work together to transform legal records into a searchable and analyzable dataset.</p>
+        <p>Python and Flask are used to run the backend system. These tools process incoming data, handle search and query requests, manage uploads, and connect the different parts of the system. PythonAnywhere is used to host the backend and run the website in a live environment, including document processing and search functions.</p>
+        <p>Case data are stored using database systems including MySQL and Snowflake. MySQL is used for structured case-level records, extracted text, and metadata, while Snowflake is used to support larger-scale data storage and analysis. These systems allow the dataset to be organized, searched, and updated efficiently.</p>
+        <p>Document processing is performed using optical character recognition (OCR). OCR converts PDF letters into machine-readable text so that their contents can be searched, analyzed, and included in the dataset.</p>
+        <p>Data intake and automation are supported through Google Apps Script, Google Drive, and Google Sheets. These tools automate the process of receiving, organizing, and uploading documents into the system. Google Forms are used to manage access requests and user credentials, including automated workflows that send secure access links to approved users. Access and data use are governed by the project's Privacy Policy and Terms and Conditions.</p>
+        <p>The frontend website is hosted using Netlify, which provides a secure environment for delivering the user interface and connecting to backend services through serverless functions. Chart.js is used to create interactive charts and visualizations that allow users to explore patterns in the data. Earlier versions of the system used Matplotlib to generate static charts before transitioning to interactive visualizations.</p>
+        <p>Testing and quality control are supported by tools such as Playwright and Lighthouse, which are used to verify that the website functions correctly, loads efficiently, and meets accessibility standards.</p>
+        <p>Version control and deployment are managed through GitHub, which stores the codebase, tracks changes, and supports collaborative development and automated deployment workflows.</p>
+        <p>This project uses OpenAI tools, including ChatGPT, to help users ask questions and understand the data. The AI answers questions in plain language, summarizes information from case records, explains patterns across cases, and helps users understand the letters CDCR sends to courts. An API connects the website to the backend system and helps protect the system through controlled endpoints.</p>
+        {% if github_repo_url %}
+        <div class="rad-page-cta">
+          <a class="rad-button rad-button--primary rad-button--with-icon" href="{{ github_repo_url }}" target="_blank" rel="noopener noreferrer"><span class="rad-button__icon">{{ icon_github() }}</span> View the project on GitHub</a>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</article>
+{% endblock %}

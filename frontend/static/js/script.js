@@ -498,7 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
           plugins: {
             title: {
               display: true,
-              text: "Resentencing funnel: considered → letters sent → resentenced",
+              text: "Case progression: considered → letters sent → resentenced",
               color: "#152a45",
               font: { size: 18, weight: "700" },
               padding: { top: 8, bottom: 6 },
@@ -864,7 +864,7 @@ document.addEventListener("DOMContentLoaded", () => {
         plugins: {
           title: {
             display: true,
-            text: `${payload.x_label || "Category"} by ${payload.series_label || "Series"} (${payload.measurement_label || "Record Count"})`,
+            text: `${payload.x_label || "Category"} by ${payload.series_label || "Series"} (${payload.measurement_label || "Number of cases"})`,
             color: "#152a45",
             font: { size: 14, weight: "600" },
             padding: { top: 4, bottom: 10 },
@@ -880,9 +880,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const raw = Number((dataset.rawData || [])[ctx.dataIndex] || 0);
                 const plotted = Number(ctx.parsed?.x ?? ctx.parsed?.y ?? ctx.parsed ?? 0);
                 if (normalized) {
-                  return `${dataset.label}: ${plotted.toFixed(1)}% (${formatMetric(raw, payload.measurement_label || "Record Count")})`;
+                  return `${dataset.label}: ${plotted.toFixed(1)}% (${formatMetric(raw, payload.measurement_label || "Number of cases")})`;
                 }
-                return `${dataset.label}: ${formatMetric(plotted, payload.measurement_label || "Record Count")}`;
+                return `${dataset.label}: ${formatMetric(plotted, payload.measurement_label || "Number of cases")}`;
               },
             },
           },
@@ -1016,7 +1016,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (err) {
       console.error("Failed to initialize professor variables", err);
-      if (loadingEl) loadingEl.textContent = "Unable to load variable list.";
+      if (loadingEl) loadingEl.textContent = "Unable to load chart options.";
       return;
     } finally {
       setProfLoading(false);
@@ -1035,7 +1035,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (xField === seriesField) {
         if (loadingEl) {
           loadingEl.style.display = "block";
-          loadingEl.textContent = "Customize and Split By should be different variables.";
+          loadingEl.textContent = "Compare and Split by should be two different categories.";
         }
         return;
       }
@@ -1085,11 +1085,11 @@ document.addEventListener("DOMContentLoaded", () => {
           filters,
         });
         drawProfessorChart(payload, chartType);
-        if (metaField) metaField.textContent = `Customize: ${payload.x_label || toLabelMap[xField] || xField}`;
+        if (metaField) metaField.textContent = `Compare: ${payload.x_label || toLabelMap[xField] || xField}`;
         if (metaMode) metaMode.textContent = `Split by: ${payload.series_label || toLabelMap[seriesField] || seriesField}`;
       } catch (err) {
         console.error("Failed to refresh professor chart", err);
-        if (loadingEl) loadingEl.textContent = "Unable to load variable chart.";
+        if (loadingEl) loadingEl.textContent = "Unable to load chart.";
       } finally {
         setProfLoading(false);
       }

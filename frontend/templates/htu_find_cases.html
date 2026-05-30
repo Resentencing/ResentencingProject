@@ -1,0 +1,48 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Look up one case | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+<nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/how-to-use-tools">How to Use the Tools</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">Look up one case</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">Look up one case</h1>
+    <p class="rad-page-lead">In the Tool Hub, open the <strong>Look up a case</strong> tab. <strong>Letter PDFs only appear after you search.</strong></p>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<p>Court letter PDFs are not listed on this page until you run a search. Choose a field (court case # or CDCR # works best for one person), click <strong>Search for letters</strong>, then use the download links in the <strong>Step 2: Download court letters</strong> table.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=true) }}
+<h2 class="rad-section-title">What this tool does (very simple)</h2>
+  <p>Search first. Download links appear only in the results table after you search.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Step 2: Download court letters</h2>
+  <p>Each matching row includes:</p>
+  <ul>
+    <li><strong>Download PDF</strong> — one court letter</li>
+    <li><strong>All letters (ZIP)</strong> — every letter for that person</li>
+  </ul>
+  <p>Before you search, the page shows <em>No letters shown yet</em> in that section.</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">Summary counts (optional)</h2>
+  <p>After you search, an optional table below shows how matches break down by group (letters and people counts).</p>
+      {{ rad_section_end() }}
+      {{ rad_section(flush=false) }}
+<h2 class="rad-section-title">If nothing shows up</h2>
+  <p>If you see no results, try:</p>
+  <ul>
+    <li>using fewer words</li>
+    <li>checking spelling</li>
+    <li>searching by court case number or CDCR number instead of name</li>
+    <li>switching <strong>Search by</strong> to county or cohort</li>
+  </ul>
+  <p>If the case should exist but is missing, check the Tool Hub <strong>Check tracking log</strong> tab or ask the team whether the letter is still being processed.</p>
+
+  <p><a class="rad-button rad-button--primary" href="/toolhub">Open Tool Hub — Look up a case</a></p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

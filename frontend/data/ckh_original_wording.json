@@ -1,0 +1,80 @@
+{
+  "source": "Website Mockup Text Spring 2026 (faculty supervisor / CKH)",
+  "entries": {
+    "how_to_use.lead": {
+      "paragraphs": [
+        "There are four tools. Here is what each one does, and whether you need to log in."
+      ]
+    },
+    "how_to_use.card.see_charts": {
+      "paragraphs": [
+        "See Charts (System Trends Viewer)",
+        "What you do: Click on pre-generated charts.",
+        "What you see: Patterns across many cases (no names or personal details).",
+        "Log in? No."
+      ]
+    },
+    "how_to_use.card.find_cases": {
+      "paragraphs": [
+        "Find Cases (Search Tool)",
+        "What you do: Type a name, number, or keyword.",
+        "What you see: Matching cases and details about them.",
+        "Log in? Yes."
+      ]
+    },
+    "how_to_use.card.ask_questions": {
+      "paragraphs": [
+        "Ask Questions (Case Letter Chatbot)",
+        "What you do: Type a question.",
+        "What you see: An answer based on case letters and CDCR-generated data.",
+        "Log in? Yes."
+      ]
+    },
+    "how_to_use.card.explore_patterns": {
+      "paragraphs": [
+        "Explore Patterns (Charts Tool)",
+        "What you do: Click options to build charts.",
+        "What you see: Custom charts comparing county, race, outcome, and more.",
+        "Log in? Yes."
+      ]
+    },
+    "how_to_use.use_together": {
+      "paragraphs": [
+        "You can use all four tools together to build a full analysis:",
+        "Start with See Charts → understand the system and trends",
+        "Use Explore Patterns → compare sub-groups",
+        "Use Ask Questions → understand why",
+        "Use Find Cases → read and download individual case files",
+        "Using these tools, you can build reports showing how many cases succeed, analysis of sentence reductions and cost savings, comparisons across counties and institutions, and evidence of patterns in race or outcomes. These can be used to show patterns to CDCR leadership, to support motions for resentencing, and to advocate for legislative change."
+      ]
+    },
+    "how_to_use.system_trends": {
+      "paragraphs": [
+        "System Trends Viewer (no log in required)",
+        "This section lets you explore how resentencing works across the system using aggregated data. No login or permission is required. All information is presented at the group level and does not include personally identifying details.",
+        "Examples of questions it can answer: What percentage of cases result in resentencing; which counties send the most cases to court; how outcomes vary across counties and institutions; how patterns differ across demographic groups; how many years of incarceration have been reduced."
+      ]
+    },
+    "how_to_use.case_level": {
+      "paragraphs": [
+        "Case-Level Research Tools (log in required)",
+        "This section provides access to detailed case-level information for approved users. Access is governed by usage guidelines designed to protect privacy and prevent misuse. This ensures that sensitive information is used responsibly while still supporting research, legal work, and advocacy.",
+        "Search and view individual case records, such as letters to the court from CDCR; analyze case-level details alongside system-wide patterns; use an AI assistant to ask questions about the dataset and retrieve specific records."
+      ]
+    },
+    "methods.intro": {
+      "paragraphs": [
+        "This study analyzes CDCR-initiated resentencing under Penal Code § 1172.1 using a multi-source dataset obtained through Public Records Act requests to CDCR and an integrated data processing and query system. The objective is to transform unstructured legal records into a structured, analyzable dataset that supports both quantitative and qualitative analysis of resentencing decisions."
+      ]
+    },
+    "home.tools_intro": {
+      "paragraphs": [
+        "Four tools. Here is what each one does and whether you need to log in.",
+        "See patterns across many cases: See charts and trends across all cases. No.",
+        "Look up one case: Search for a person or case by name, county, or number. Yes.",
+        "Compare results across groups: Compare outcomes between counties, groups, or factors. Yes.",
+        "Ask a question and get an answer: Ask the assistant a question about the case letters. Yes."
+      ]
+    }
+  }
+}

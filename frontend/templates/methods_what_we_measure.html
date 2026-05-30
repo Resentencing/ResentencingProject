@@ -1,0 +1,22 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}What We Are Measuring | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+<nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/methods">Methods & GitHub</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">What Can You Measure and Visualize</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">What Can You Measure and Visualize</h1>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+<p>This website has sample charts and allows you to use data to create your own analysis, answer new questions, and build reports that can be used for policy change or in court filings. This tool turns case data into charts so you can see what is happening. You do not need to do any math. Just click and choose what you want to see.</p>
+  <p>The default charts measure how cases move through the system and what happens to them. For example, the case progression chart measures how many cases are considered, how many letters are sent to court, and how many people are actually resentenced, which shows where cases stop in the process. Other charts measure how much time is reduced, how outcomes differ by sentence type, and how cases are distributed across race and ethnicity. All of these charts are based on counting cases and grouping them to show patterns.</p>
+  <p>Beyond these default charts, you can use the data to create your own calculations and reports. You are measuring how decisions are made at different stages, how many people benefit from resentencing, how much time is reduced, and how the system works across counties, institutions, and groups. You can also measure where the system slows down, where cases do not move forward, and how much impact is lost when cases are not sent to court.</p>
+  <p>Using the data, you can build a report that answers key questions such as how many cases were considered, how many letters were sent, how many people were resentenced, how many years were reduced, and how much money was saved. You can also calculate success rates by county or institution, compare outcomes across groups, and identify where cases are more likely to succeed or fail. These calculations allow you to show patterns clearly and support arguments for policy changes or for individual resentencing motions.</p>
+  <p>You can also go further by combining different variables to find relationships. For example, you can compare county and outcome to see if some counties are more likely to approve cases, compare race and outcome to look for disparities, or compare sentence type and outcome to see which cases are more likely to result in reduction.</p>
+  <p>You can also use the tool to test questions and check results. For example, you can ask how many cases were reduced, what percentage were successful, which counties have the most cases, whether outcomes differ across groups, how many years were reduced, and what the total cost savings are. You can compare these answers to other sources, like spreadsheets, to confirm accuracy.</p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

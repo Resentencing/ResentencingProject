@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eef4fa"/>
+      <stop offset="55%" stop-color="#faf6ee"/>
+      <stop offset="100%" stop-color="#f5ebe0"/>
+    </linearGradient>
+    <linearGradient id="pillar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2a4a73"/>
+      <stop offset="100%" stop-color="#1e3a5f"/>
+    </linearGradient>
+    <linearGradient id="goldDome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8d5a3"/>
+      <stop offset="100%" stop-color="#c5a028"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#sky)"/>
+  <g opacity="0.15" fill="none" stroke="#c5a028" stroke-width="1">
+    <circle cx="120" cy="80" r="40"/>
+    <circle cx="680" cy="120" r="55"/>
+  </g>
+  <g opacity="0.5">
+    <rect x="80" y="300" width="640" height="14" rx="3" fill="#c5a028" opacity="0.35"/>
+    <rect x="120" y="140" width="52" height="160" rx="2" fill="url(#pillar)"/>
+    <rect x="210" y="100" width="58" height="200" rx="2" fill="url(#pillar)"/>
+    <rect x="305" y="115" width="54" height="185" rx="2" fill="url(#pillar)"/>
+    <rect x="395" y="75" width="62" height="225" rx="2" fill="url(#pillar)"/>
+    <rect x="490" y="105" width="56" height="195" rx="2" fill="url(#pillar)"/>
+    <rect x="580" y="125" width="52" height="175" rx="2" fill="url(#pillar)"/>
+    <rect x="665" y="145" width="48" height="155" rx="2" fill="url(#pillar)"/>
+    <path d="M100 140 L400 55 L700 140 L700 314 L100 314 Z" fill="#2a4a73" opacity="0.25"/>
+    <path d="M340 55 Q400 25 460 55 L460 90 Q400 70 340 90 Z" fill="url(#goldDome)" opacity="0.85"/>
+    <rect x="100" y="314" width="600" height="32" fill="#1e3a5f" opacity="0.4"/>
+    <rect x="100" y="296" width="600" height="8" fill="#c5a028" opacity="0.6"/>
+  </g>
+  <ellipse cx="400" cy="430" rx="300" ry="36" fill="#1e3a5f" opacity="0.06"/>
+  <ellipse cx="400" cy="430" rx="200" ry="20" fill="#c5a028" opacity="0.12"/>
+</svg>

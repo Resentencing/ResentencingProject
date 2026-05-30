@@ -1,0 +1,459 @@
+/**
+ * Home page — split hero + numbered tool cards (CKH mockup clarity).
+ * Loaded only on index.html; pairs with rad-scales-theme.css.
+ */
+
+body.rad-app.rad-app--home {
+  background-color: #f8fafc;
+}
+
+body.rad-app.rad-app--home .wp-site-blocks > main {
+  background: transparent;
+}
+
+/* --- Split hero --- */
+.rad-home-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.75rem, 4vw, 3rem) 0 clamp(2rem, 5vw, 3.5rem);
+}
+
+.rad-home-hero__shell {
+  max-width: var(--rf-max);
+  margin: 0 auto;
+  padding: 0 var(--rf-pad-x);
+  box-sizing: border-box;
+}
+
+.rad-home-hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(1.25rem, 3vw, 2.25rem);
+  align-items: stretch;
+}
+
+/* Hero story — courthouse art + readable text (mock-style) */
+.rad-home-hero__story {
+  position: relative;
+  padding: clamp(1.75rem, 3.5vw, 2.5rem);
+  border-radius: 20px;
+  min-height: 20rem;
+  box-shadow: 0 20px 48px rgba(30, 58, 95, 0.12);
+  border: 1px solid rgba(30, 58, 95, 0.08);
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(105deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 255, 255, 0.88) 38%, rgba(255, 255, 255, 0.45) 62%, rgba(255, 255, 255, 0.15) 100%),
+    url("../images/hero-courthouse-art.jpg");
+  background-size: cover;
+  background-position: center right;
+  background-repeat: no-repeat;
+}
+
+@supports not (background-image: url("../images/hero-courthouse-art.jpg")) {
+  .rad-home-hero__story {
+    background-image:
+      linear-gradient(105deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.75) 45%, rgba(255, 255, 255, 0.2) 100%),
+      url("../images/hero-courthouse-art.svg");
+  }
+}
+
+.rad-home-hero__story > * {
+  position: relative;
+  z-index: 1;
+  max-width: 28rem;
+}
+
+.rad-home-hero__title {
+  font-family: var(--rf-font-serif);
+  font-weight: 700;
+  font-size: clamp(1.85rem, 3.8vw, 2.5rem);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  color: var(--rf-accent);
+  margin: 0 0 0.75rem;
+}
+
+.rad-home-hero__tagline {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #334155;
+  margin: 0 0 0.65rem;
+}
+
+.rad-home-hero__lead {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: #475569;
+  margin: 0 0 0.85rem;
+}
+
+.rad-home-hero__more {
+  margin: 0 0 1.1rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.rad-home-hero__more summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--rf-accent);
+  list-style: none;
+}
+
+.rad-home-hero__more summary::-webkit-details-marker {
+  display: none;
+}
+
+.rad-home-hero__more[open] summary {
+  margin-bottom: 0.5rem;
+}
+
+.rad-home-hero__more p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.rad-home-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+body.rad-app.rad-app--home .rad-button--outline {
+  background: transparent;
+  border: 2px solid var(--rf-accent);
+  color: var(--rf-accent) !important;
+}
+
+body.rad-app.rad-app--home .rad-button--outline:hover {
+  background: var(--rf-accent);
+  color: #fff !important;
+}
+
+/* Tools column — light panel like mock */
+.rad-home-tools {
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f0f7fc 100%);
+  border: 1px solid rgba(126, 184, 217, 0.35);
+  box-shadow: 0 12px 32px rgba(30, 58, 95, 0.08);
+}
+
+.rad-home-tools__heading {
+  margin: 0 0 0.35rem;
+  font-family: var(--rf-font-serif);
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+  font-weight: 700;
+  color: var(--rf-accent);
+  text-align: center;
+  line-height: 1.3;
+}
+
+.rad-home-tools__lead {
+  margin: 0 0 1.15rem;
+  font-size: 0.875rem;
+  color: var(--rf-muted);
+  text-align: center;
+  line-height: 1.45;
+}
+
+.rad-home-tools__footer {
+  margin: 1.15rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--rf-muted);
+  text-align: center;
+}
+
+.rad-home-tools__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+/* Tool cards — mock-style icon + number badge */
+.rad-home-tool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 1rem 0.95rem 0.85rem;
+  background: #ffffff !important;
+  border: 1px solid rgba(126, 184, 217, 0.35) !important;
+  border-top: 3px solid var(--rf-border) !important;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  text-decoration: none !important;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  min-height: 0;
+}
+
+.rad-home-tool-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(30, 58, 95, 0.12);
+}
+
+.rad-home-tool-card.rad-tone--public {
+  border-top-color: var(--rad-public-border) !important;
+}
+
+.rad-home-tool-card.rad-tone--approved {
+  border-top-color: var(--rad-approved-border) !important;
+}
+
+.rad-home-tool-card.rad-tone--compare {
+  border-top-color: var(--rad-compare-border) !important;
+}
+
+.rad-home-tool-card.rad-tone--guide {
+  border-top-color: var(--rad-guide-border) !important;
+}
+
+.rad-home-tool-card__icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff 0%, #eef6fc 100%);
+  border: 1px solid rgba(126, 184, 217, 0.5);
+  color: var(--rf-accent);
+  margin-bottom: 0.6rem;
+}
+
+.rad-home-tool-card.rad-tone--public .rad-home-tool-card__icon-wrap {
+  background: linear-gradient(145deg, #ffffff 0%, var(--rad-public-bg) 100%);
+  border-color: var(--rad-public-border);
+  color: var(--rad-public-ink);
+}
+
+.rad-home-tool-card.rad-tone--approved .rad-home-tool-card__icon-wrap {
+  background: linear-gradient(145deg, #ffffff 0%, var(--rad-approved-bg) 100%);
+  border-color: var(--rad-approved-border);
+  color: var(--rad-approved-ink);
+}
+
+.rad-home-tool-card.rad-tone--compare .rad-home-tool-card__icon-wrap {
+  background: linear-gradient(145deg, #ffffff 0%, var(--rad-compare-bg) 100%);
+  border-color: var(--rad-compare-border);
+  color: var(--rad-compare-ink);
+}
+
+.rad-home-tool-card.rad-tone--guide .rad-home-tool-card__icon-wrap {
+  background: linear-gradient(145deg, #ffffff 0%, var(--rad-guide-bg) 100%);
+  border-color: var(--rad-guide-border);
+  color: var(--rad-guide-ink);
+}
+
+.rad-home-tool-card__icon-wrap .rad-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.rad-home-tool-card__num {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: var(--rf-accent);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(30, 58, 95, 0.2);
+}
+
+.rad-home-tool-card.rad-tone--public .rad-home-tool-card__num {
+  background: var(--rad-public-ink);
+}
+
+.rad-home-tool-card.rad-tone--approved .rad-home-tool-card__num {
+  background: var(--rad-approved-ink);
+}
+
+.rad-home-tool-card.rad-tone--compare .rad-home-tool-card__num {
+  background: var(--rad-compare-ink);
+}
+
+.rad-home-tool-card.rad-tone--guide .rad-home-tool-card__num {
+  background: var(--rad-guide-ink);
+}
+
+.rad-home-tool-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 0.15rem;
+}
+
+.rad-home-tool-card.rad-tone--public .rad-home-tool-card__title {
+  color: var(--rad-public-ink);
+}
+
+.rad-home-tool-card.rad-tone--approved .rad-home-tool-card__title {
+  color: var(--rad-approved-ink);
+}
+
+.rad-home-tool-card.rad-tone--compare .rad-home-tool-card__title {
+  color: var(--rad-compare-ink);
+}
+
+.rad-home-tool-card.rad-tone--guide .rad-home-tool-card__title {
+  color: var(--rad-guide-ink);
+}
+
+.rad-home-tool-card__badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+}
+
+.rad-home-tool-card__desc {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #475569;
+  margin: 0;
+}
+
+.rad-home-tool-card__example {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--rf-muted);
+  margin-top: 0.35rem;
+}
+
+.rad-home-tool-card__guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  width: 100%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--rf-accent);
+}
+
+.rad-home-tool-card__guide .rad-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--rf-gold);
+}
+
+.rad-home-tool-card:hover .rad-home-tool-card__guide {
+  color: var(--rad-public-ink);
+}
+
+/* Below hero */
+.rad-home-below {
+  padding: clamp(2rem, 5vw, 3rem) 0;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+
+.rad-home-below__shell {
+  max-width: var(--rf-max);
+  margin: 0 auto;
+  padding: 0 var(--rf-pad-x);
+}
+
+.rad-home-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+a.rad-home-stat {
+  display: block;
+  padding: 1rem 1.15rem;
+  border-radius: 12px;
+  text-align: center;
+  text-decoration: none !important;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+a.rad-home-stat:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(30, 58, 95, 0.12);
+}
+
+a.rad-home-stat.rad-tone--public:hover {
+  border-color: var(--rad-public-border) !important;
+}
+
+a.rad-home-stat.rad-tone--approved:hover {
+  border-color: var(--rad-approved-border) !important;
+}
+
+a.rad-home-stat.rad-tone--guide:hover {
+  border-color: var(--rad-guide-border) !important;
+}
+
+a.rad-home-stat:focus-visible {
+  outline: 2px solid var(--rf-accent);
+  outline-offset: 3px;
+}
+
+.rad-home-stat__label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.25rem;
+}
+
+.rad-home-stat__value {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.rad-about-panel.rad-about-panel--color {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%) !important;
+  border-top: 3px solid var(--rf-gold);
+}
+
+.rad-about-panel--color h2 {
+  color: var(--rf-accent) !important;
+}
+
+@media (max-width: 980px) {
+  .rad-home-hero__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rad-home-hero__story {
+    min-height: auto;
+    background-position: center center;
+  }
+
+  .rad-home-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .rad-home-tools__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rad-brand-lockup__subtitle {
+    display: none;
+  }
+}

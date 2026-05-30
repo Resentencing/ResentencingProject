@@ -1,0 +1,28 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Acknowledgments | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+    <nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/about">About Us</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">Acknowledgments</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">Acknowledgments</h1>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+    <p>This project is the result of years of collaboration, research, and commitment from students, faculty, and community partners at Sonoma State University and beyond. We are deeply grateful to the many individuals who contributed their time, ideas, and lived experience to advancing transparency in resentencing and expanding access to justice. We recognize that this work builds on the experiences and includes the input of people directly impacted by incarceration (including many students named below). Their advice, resilience, and advocacy continue to guide the purpose of this project.</p>
+      {{ rad_section_end() }}
+      {{ rad_section() }}
+    <h2 class="rad-section-title">Contributors</h2>
+    <h3 class="rad-subsection-title">SSU Students</h3>
+    <p>Michael DaSilva (2025 to 2026), Loki Fuller (2025 to 2026), Edward Aguilar (2025 to 2026), Lynn Khaing (2025 to 2026), Jeff Huang (2024 to 2025), Nicholas Chaudoir (2024 to 2025), Vanessa Sanchez (2024 to 2025), Reeti Joshi (2024 to 2025), Shelby Anderson (2024 to 2025), Gabriel Aviles (2024 to 2025), Sirena Licea (2023 to 2024), Noah Kindfield (2023 to 2024), Alyssa Gardea (2023 to 2024), Hannah Dennis (2023 to 2024; 2022 to 2023), Taylor Zajonc (2023 to 2024), Karlee Wilkinson (2023), Chloe Howard (2023), Victoria Lambert (2022 to 2023), Jade Kent (2022 to 2023), Aliyana Montevirgen (2022 to 2023), Andres Cruz (2021 to 2022), Shelby King (2021 to 2022), Anna Gabriel Lund (2021 to 2022), Paloma Chavez (2020 to 2021), Dede Williams (2020 to 2021), Kristine Pham (2020 to 2021), Danielle Caballero (2020 to 2021), EiEi Lynn Khaing (Summer 2025; 2025 to 2026), Edward Aguilar (Summer 2025; 2025 to 2026), Caitlin Chaney (Summer 2024), Shauna Wiebalk (Summer 2024), Vanessa Sanchez (Summer 2023; 2024 to 2025), Bryan Carreto (Summer 2023; 2023 to 2024), Julia Mulders (Summer 2022), Audrey Hauser (Summer 2022), Marc Phillipe Lambert (Summer 2021), Gillien Riley (Summer 2021), Sydney Starke (Summer 2020), Charles Bordy (2021 to 2022), and Zane Zinkl (2021 to 2022), and more.</p>
+    <h3 class="rad-subsection-title">SSU Faculty</h3>
+    <p>Kyle Falbo is a lecturer in Mathematics and an Educational Technology Application Expert at Sonoma State University.</p>
+    <p>Dr. Omayra Ortega is a Professor of Mathematics and Statistics at Sonoma State University.</p>
+    <p>McNair scholars faculty mentors.</p>
+    <h3 class="rad-subsection-title">Funding</h3>
+    <p>Sonoma State University research programs including the Project Rebound Research Fellow Award, Koret Scholars Award, Social Sciences Undergraduate Research Initiative Award, Research, Scholarship, and Creative Activities Mini-Grant, and Dean's Summer Research Grant, and faculty travel funding for conference presentations.</p>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

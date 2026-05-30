@@ -1,0 +1,31 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_icons.html" import icon_link_external, icon_resources %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}Resources | RAD{% endblock %}
+{% block content %}
+{{ rad_page_open() }}
+    <h1 id="rad-page-title" class="rad-page-title">Resources</h1>
+    <p class="rad-page-lead">Outside information and supporting materials. <em>(More forthcoming.)</em></p>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true) }}
+    <ul class="rad-resource-list">
+      <li><a href="https://www.cdcr.ca.gov/family-resources/recall-resentencing/" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} CDCR: Recall &amp; Resentencing</a></li>
+      <li><a href="https://www.cdcr.ca.gov/family-resources/resentencing-and-release-information/" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} CDCR: Resentencing and Release Information</a></li>
+      <li><a href="https://www.cdcr.ca.gov/regulations/wp-content/uploads/sites/171/2021/03/NCR_21-04_Master_File_for_posting_ADA.pdf" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} CDCR: Notice of Change to Regulations 21-04 (March 19, 2021)</a></li>
+      <li><a href="https://www.law.cornell.edu/regulations/california/15-CCR-3076.1" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} Cal. Code Regs. Tit. 15, § 3076.1: Recommendation Pursuant to § 1172.1(a)(1)</a></li>
+      <li><a href="https://capolicylab.org/wp-content/uploads/2025/09/CDCR-and-Rehabilitation-Initiated-Resentencing.pdf" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} California Policy Lab: CDCR and Rehabilitation-Initiated Resentencing (September 2025)</a></li>
+      <li><a href="https://capcentral.org/wp-content/uploads/2023/12/Judge-Couzens-PC-1172.1-RECALL-OF-SENTENCE-AUG-2024.pdf" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} Couzens, J. Richard: Recall of Sentence (Penal Code § 1172.1), August 2024</a></li>
+      <li><a href="https://static1.squarespace.com/static/658e00fdc5430956416678f7/t/68123655463eb60d00627a57/1746024022064/Resentencing-PC-1172.1-Jan-2025.pdf" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} The Prison Law Office: Penal Code § 1172.1 Recall and Resentencing (January 2025)</a></li>
+      <li><a href="https://ellabakercenter.org/wp-content/uploads/2022/08/EBC-Back-to-Court-2.0-Aug-2022-FULL-compressed.pdf" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} Ella Baker Center: Back to Court: A Resentencing Guide (August 2022)</a></li>
+      <li><a href="https://static1.squarespace.com/static/64542f9c9a51d00223da291b/t/6470ea4cd7505b0ac88c64a7/1685121616061/ForThePeople_Report_12.13.21.pdf" target="_blank" rel="noopener noreferrer">{{ icon_link_external() }} For The People: Prosecutor-Initiated Resentencing (December 2021)</a></li>
+    </ul>
+      {{ rad_section_end() }}
+      {{ rad_section() }}
+    <h2 class="rad-section-title">Scholarship</h2>
+    <ul class="rad-resource-list">
+      <li><span>{{ icon_resources() }} Bell, Kristen; Hong, Jenny; McKeown, Nick; and Voss, Catalin. <em>The Recon Approach: A New Direction for Machine Learning in Criminal Law</em> (April 26, 2021). Berkeley Technology Law Journal, Vol. 37.</span></li>
+      <li><span>{{ icon_resources() }} Chien, Colleen. <em>America's Paper Prisons: The Second Chance Gap</em>, 119 Mich. L. Rev. 519, 526 (2020).</span></li>
+    </ul>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}

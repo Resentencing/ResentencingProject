@@ -1,185 +1,144 @@
+{% from "includes/rad_icons.html" import icon_chart, icon_search, icon_compare, icon_chat, icon_play %}
+{% from "includes/rad_ckh_source.html" import ckh_note %}
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Resentence and Decarcerate (RAD)</title>
+  <title>RAD Data Hub | Resentence and Decarcerate</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/rad-scales-theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/rad-home.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/rad-graphics.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="rad-app">
+<body class="rad-app rad-app--home">
   <div class="wp-site-blocks">
-    <header class="wp-block-template-part rad-site-header">
-      <div class="wp-block-group alignwide has-base-background-color has-background has-global-padding is-layout-constrained">
-        <div class="wp-block-group alignwide is-content-justification-space-between is-layout-flex">
-          <div class="wp-block-group is-layout-flex">
-            <div class="wp-block-group is-layout-flow">
-              <p class="wp-block-site-title"><a href="/" target="_self" rel="home" aria-current="page">Resentence and Decarcerate (RAD)</a></p>
-            </div>
-          </div>
-          <div class="wp-block-group is-content-justification-left is-layout-flex rad-header-nav-wrap">
-            <nav class="rad-primary-nav" aria-label="Primary navigation">
-              <ul class="rad-primary-nav__list">
-                <li><a href="/" class="rad-primary-nav__link" aria-current="page">Home</a></li>
-                <li><a href="/about" class="rad-primary-nav__link">About Us</a></li>
-                <li><a href="/toolhub" class="rad-primary-nav__link">Tool Hub</a></li>
-              </ul>
-            </nav>
-          </div>
-        </div>
-      </div>
-    </header>
+    {% set home_active = true %}
+    {% include "includes/rad_site_header.html" %}
 
-    <main class="wp-block-group is-layout-flow" style="margin-top:0">
-      <div class="wp-block-group alignfull is-layout-constrained rad-hero rad-halftone">
-        <div class="rad-band-inner rad-hero__copy">
-          <div class="wp-block-group has-global-padding is-layout-constrained">
-            <h1 class="wp-block-heading has-x-large-font-size">Advancing Justice Through Transparent Resentencing Data</h1>
-            <p>RAD provides a public-facing overview of 1172.1 trends while keeping sensitive person-level records in a gated workflow.</p>
-            <p>The public dashboard highlights aggregate patterns. The Tool Hub supports approved users with lookup, downloads, and the research assistant.</p>
-            <div class="rad-cta-row">
-              <a class="rad-button rad-button--primary" href="/toolhub">Open Tool Hub</a>
-              {% if access_request_url %}
-              <a class="rad-button" href="{{ access_request_url }}" target="_blank" rel="noopener noreferrer">Request Access</a>
-              {% else %}
-              <a class="rad-button" href="/access">Request Access</a>
-              {% endif %}
-              {% if github_repo_url %}
-              <a class="rad-button" href="{{ github_repo_url }}" target="_blank" rel="noopener noreferrer">View GitHub</a>
-              {% endif %}
+    <main class="wp-block-group is-layout-flow">
+      <section class="rad-home-hero" aria-labelledby="rad-home-hero-title">
+        <div class="rad-home-hero__shell">
+          <div class="rad-home-hero__grid">
+            <div class="rad-home-hero__story">
+              <h1 id="rad-home-hero-title" class="rad-home-hero__title">Advancing Justice Through Transparent Resentencing Data</h1>
+              <p class="rad-home-hero__tagline">Public records, clear methods, and four tools to explore CDCR-initiated resentencing under Penal Code § 1172.1.</p>
+              <p class="rad-home-hero__lead">Explore patterns across cases, look up individual records, compare groups, and ask questions about the letter dataset.</p>
+              <details class="rad-home-hero__more">
+                <summary>More about this project</summary>
+                <p>This website helps users understand how CDCR-initiated resentencing decisions are made by CDCR and the courts. This tool takes difficult-to-access public records, including PDF letters and Excel logs obtained through Public Records Act requests, and transforms them into a searchable, usable dataset. By organizing and coding this information, it makes it easier to understand how resentencing decisions are made and how cases move through the system.</p>
+              </details>
+              <div class="rad-home-hero__cta">
+                <a class="rad-button rad-button--primary" href="/how-to-use-tools">Explore the four tools</a>
+                <a class="rad-button rad-button--outline" href="/toolhub">Open Tool Hub</a>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      <section class="rad-data-section" aria-labelledby="rad-data-heading">
-        <div class="rad-data-section-inner">
-          <h2 id="rad-data-heading" class="wp-block-heading has-x-large-font-size rad-data-heading">Public Data Dashboard</h2>
-          <p class="rad-dashboard-lead">Aggregate views for policy and research. Funnel and outcome labels follow the project reporting codebook (considered → letters sent → resentenced).</p>
-          <div id="data-visualization-container" class="rad-chart-card">
-            <div class="rad-stat-grid">
-              <div class="rad-stat-card" title="Case-level records extracted from resentencing letter PDFs. Higher than individuals because some people have multiple letters or cases on file.">
-                <div class="rad-stat-label">Letter records</div>
-                <div id="stat-total-letters" class="rad-stat-value">--</div>
+            <div class="rad-home-tools" id="rad-home-tools">
+              <h2 class="rad-home-tools__heading">Four ways to use this site{{ ckh_note('home.tools_intro') }}</h2>
+              <p class="rad-home-tools__lead">Pick a tool to get started. Each card links to the tool or its guide.</p>
+              <div class="rad-home-tools__grid">
+                <a class="rad-home-tool-card rad-tone rad-tone--public" href="/trends">
+                  <span class="rad-home-tool-card__icon-wrap">{{ icon_chart() }}<span class="rad-home-tool-card__num">1</span></span>
+                  <span class="rad-home-tool-card__title">See patterns across many cases</span>
+                  <span class="rad-home-tool-card__badge">No login needed</span>
+                  <span class="rad-home-tool-card__desc">See charts and trends across all cases.</span>
+                  <span class="rad-home-tool-card__example"><em>Example: which counties have the most cases?</em></span>
+                  <span class="rad-home-tool-card__guide"><span class="rad-home-tool-card__guide-label">How it works</span>{{ icon_play() }}</span>
+                </a>
+                <a class="rad-home-tool-card rad-tone rad-tone--approved" href="/how-to-use-tools/find-cases">
+                  <span class="rad-home-tool-card__icon-wrap">{{ icon_search() }}<span class="rad-home-tool-card__num">2</span></span>
+                  <span class="rad-home-tool-card__title">Look up one case</span>
+                  <span class="rad-home-tool-card__badge">Log in required</span>
+                  <span class="rad-home-tool-card__desc">Search for a person or case by name, county, or number.</span>
+                  <span class="rad-home-tool-card__example"><em>Example: "Los Angeles" or "Smith"</em></span>
+                  <span class="rad-home-tool-card__guide"><span class="rad-home-tool-card__guide-label">How it works</span>{{ icon_play() }}</span>
+                </a>
+                <a class="rad-home-tool-card rad-tone rad-tone--compare" href="/how-to-use-tools/compare-groups">
+                  <span class="rad-home-tool-card__icon-wrap">{{ icon_compare() }}<span class="rad-home-tool-card__num">3</span></span>
+                  <span class="rad-home-tool-card__title">Compare results across groups</span>
+                  <span class="rad-home-tool-card__badge">Log in required</span>
+                  <span class="rad-home-tool-card__desc">Compare outcomes between counties, groups, or case factors.</span>
+                  <span class="rad-home-tool-card__example"><em>Example: years reduced by county</em></span>
+                  <span class="rad-home-tool-card__guide"><span class="rad-home-tool-card__guide-label">How it works</span>{{ icon_play() }}</span>
+                </a>
+                <a class="rad-home-tool-card rad-tone rad-tone--guide" href="/how-to-use-tools/ask-questions">
+                  <span class="rad-home-tool-card__icon-wrap">{{ icon_chat() }}<span class="rad-home-tool-card__num">4</span></span>
+                  <span class="rad-home-tool-card__title">Ask a question and get an answer</span>
+                  <span class="rad-home-tool-card__badge">Log in required</span>
+                  <span class="rad-home-tool-card__desc">Ask the assistant a question about the case letters.</span>
+                  <span class="rad-home-tool-card__example"><em>Example: how many cases were resentenced?</em></span>
+                  <span class="rad-home-tool-card__guide"><span class="rad-home-tool-card__guide-label">How it works</span>{{ icon_play() }}</span>
+                </a>
               </div>
-              <div class="rad-stat-card" title="Distinct people approximated from CDCR, case number, name, or PDF when those fields differ.">
-                <div class="rad-stat-label">Individuals (approx.)</div>
-                <div id="stat-total-individuals" class="rad-stat-value">--</div>
-              </div>
-              <div class="rad-stat-card" title="Count of distinct county values among letter records.">
-                <div class="rad-stat-label">Counties</div>
-                <div id="stat-total-counties" class="rad-stat-value">--</div>
-              </div>
-            </div>
-            <p id="rad-log-coverage" class="rad-data-freshness" aria-live="polite" style="display:none;margin-top:0.35rem;">
-              <span id="rad-log-coverage-body"></span>
-            </p>
-            <p id="rad-data-freshness" class="rad-data-freshness" aria-live="polite">
-              <span class="rad-data-freshness__label">Dataset dates:</span>
-              <span id="rad-data-freshness-body">Loading…</span>
-            </p>
-            <details class="rad-definitions-panel" id="rad-definitions-panel">
-              <summary class="rad-definitions-panel__summary">How metrics are defined · data quality</summary>
-              <div class="rad-definitions-panel__body">
-                <p class="rad-definitions-intro"><strong>Funnel (poster view).</strong> <em>Considered</em> = all letter records in the database. <em>Letters sent</em> = records with court/outcome text filled in (<code>action_taken</code>). <em>Resentenced</em> = subset flagged by rule-based keywords (resentenced, released, grant, approved, recalled). This mirrors reporting vocabulary; it is not a randomized controlled outcome.</p>
-                <p><strong>Missingness.</strong> Incomplete logs, not-yet-ingested letters, or blank court fields reduce later funnel stages. County and outcome charts omit or group sparse categories. Race/ethnicity views use values merged from the active race spreadsheet when available.</p>
-                <p><strong>Stacked outcome charts.</strong> Green = favorable outcome (same keyword rule as resentenced/favorable above). Gray = all other or unknown outcomes.</p>
-              </div>
-            </details>
-            <div>
-              <button class="visualization-button" data-dataset="poster_view">Funnel (considered → sent → resentenced)</button>
-              <button class="visualization-button active" data-dataset="letters_by_county">Letters by County</button>
-              <button class="visualization-button" data-dataset="years_reduced">Years Reduced by County</button>
-              <button class="visualization-button" data-dataset="sentence_type">ISL vs DSL Distribution</button>
-              <button class="visualization-button" data-dataset="parole_eligibility">Parole Eligibility by Year</button>
-              <button class="visualization-button" data-dataset="action_taken">Cases by Action Taken</button>
-              <button class="visualization-button" data-dataset="race_distribution">Race Distribution</button>
-              <button class="visualization-button" data-dataset="ethnicity_distribution">Ethnicity Distribution</button>
-              <button class="visualization-button" data-dataset="isl_dsl_outcome">ISL/DSL by Outcome</button>
-            </div>
-            <div class="rad-chart-canvas-wrap">
-              <div id="loadingMessage" style="display:none;">Loading...</div>
-              <canvas id="publicDashboardChart" aria-label="Public aggregate data visualization"></canvas>
+              <p class="rad-home-tools__footer">
+                New here? <a href="/how-to-use-tools">See how to use the tools</a>, <a href="/methods/most-recent-update">When was the data last updated?</a>
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="rad-about-panel rad-halftone">
+      <section class="rad-home-below rad-graphic-panel" aria-label="Quick links">
+        <div class="rad-home-below__shell">
+          <div class="rad-home-stats">
+            <a class="rad-home-stat rad-tone rad-tone--public" href="/trends">
+              <span class="rad-home-stat__label">Public</span>
+              <span class="rad-home-stat__value">System Trends Viewer (no login)</span>
+            </a>
+            <a class="rad-home-stat rad-tone rad-tone--approved" href="/toolhub">
+              <span class="rad-home-stat__label">Approved users</span>
+              <span class="rad-home-stat__value">Look up a case, compare groups, ask a question</span>
+            </a>
+            <a class="rad-home-stat rad-tone rad-tone--guide" href="/how-to-use-tools">
+              <span class="rad-home-stat__label">New here?</span>
+              <span class="rad-home-stat__value">How to Use the Tools and Methods</span>
+            </a>
+          </div>
+
+          <details class="rad-covers-panel rad-accordion">
+            <summary>What this website covers and what it does not</summary>
+            <div>
+              <h3 class="rad-subsection-title">What this website covers</h3>
+              <p>This website focuses on CDCR-initiated resentencing under Penal Code § 1172.1. These are cases where CDCR decided to review a sentence and send it back to court, often after a change in law, a possible sentencing error, or strong rehabilitation over time.</p>
+              <h3 class="rad-subsection-title">What this website does not cover</h3>
+              <p>This website does not focus on prosecutor-initiated resentencing (AB 2942) or judge-initiated resentencing (AB 600). Each county handles those pathways differently.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="rad-about-panel rad-about-panel--color rad-halftone rad-graphic-panel">
         <div class="wp-block-group alignwide has-global-padding is-layout-constrained">
           <div class="wp-block-group is-vertical is-content-justification-center is-layout-flex">
             <h2 class="wp-block-heading">How Access Works</h2>
             <p>Public transparency plus protected records.</p>
           </div>
-
           <div class="rad-access-grid">
-            <article class="rad-access-card">
+            <article class="rad-access-card rad-tone rad-tone--public">
               <h3>Public View</h3>
               <p>Anyone can view aggregate trends and charts with no personally identifying details.</p>
             </article>
-            <article class="rad-access-card">
+            <article class="rad-access-card rad-tone rad-tone--approved">
               <h3>Approved Tool Hub</h3>
               <p>Approved users can access person-level lookup, signed downloads, and per-session safeguards.</p>
             </article>
-            <article class="rad-access-card">
+            <article class="rad-access-card rad-tone rad-tone--guide">
               <h3>Policy and Accountability</h3>
               <p>Usage is governed by clear terms, privacy policy, and anti-scraping controls in the gated flow.</p>
             </article>
           </div>
-
           <div class="rad-meta-panel">
-            <p>Questions, support requests, or partnership inquiries: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+            <p>Questions or partnership inquiries: <a href="mailto:{{ contact_email | default('ResentenceDecarcerate@gmail.com') }}">{{ contact_email | default('ResentenceDecarcerate@gmail.com') }}</a>.</p>
           </div>
         </div>
       </section>
     </main>
 
-    <footer class="wp-block-template-part rad-site-footer rad-halftone">
-      <div class="wp-block-group has-global-padding is-layout-constrained wp-block-group-is-layout-constrained rad-footer-inner-wrap">
-        <div class="wp-block-columns alignwide is-layout-flex wp-block-columns-is-layout-flex">
-          <div class="wp-block-column is-layout-flow wp-block-column-is-layout-flow" style="flex-basis:100%">
-            <div class="wp-block-group is-vertical is-layout-flex wp-block-group-is-layout-flex">
-              <p class="wp-block-site-title has-medium-font-size"><a href="/" target="_self" rel="home" aria-current="page">Resentence and Decarcerate (RAD)</a></p>
-            </div>
-          </div>
-        </div>
-
-        <div class="wp-block-group alignwide is-layout-flow wp-block-group-is-layout-flow rad-footer-links-row">
-          <div class="wp-block-group is-vertical is-layout-flex wp-block-group-is-layout-flex rad-footer-links-col">
-            <h2 class="wp-block-heading has-medium-font-size has-body-font-family rad-footer-heading">Project Links</h2>
-            <nav class="wp-block-navigation is-layout-flex wp-block-navigation-is-layout-flex rad-footer-nav" aria-label="Project Links">
-              <ul class="wp-block-navigation__container has-small-font-size is-vertical wp-block-navigation rad-footer-nav-list">
-                <li class="wp-block-navigation-item wp-block-navigation-link">
-                  <a class="wp-block-navigation-item__content" href="/templates/privacy">
-                    <span class="wp-block-navigation-item__label">Privacy Policy</span>
-                  </a>
-                </li>
-                <li class="wp-block-navigation-item wp-block-navigation-link">
-                  <a class="wp-block-navigation-item__content" href="/templates/terms">
-                    <span class="wp-block-navigation-item__label">Terms and Conditions</span>
-                  </a>
-                </li>
-                <li class="wp-block-navigation-item wp-block-navigation-link">
-                  <a class="wp-block-navigation-item__content" href="/templates/contact">
-                    <span class="wp-block-navigation-item__label">Contact Us</span>
-                  </a>
-                </li>
-                {% if github_repo_url %}
-                <li class="wp-block-navigation-item wp-block-navigation-link">
-                  <a class="wp-block-navigation-item__content" href="{{ github_repo_url }}" target="_blank" rel="noopener noreferrer">
-                    <span class="wp-block-navigation-item__label">GitHub Repository</span>
-                  </a>
-                </li>
-                {% endif %}
-              </ul>
-            </nav>
-          </div>
-        </div>
-      </div>
-    </footer>
+    {% include "includes/rad_site_footer.html" %}
   </div>
 
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>

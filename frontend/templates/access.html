@@ -31,18 +31,18 @@
   <div class="wrap">
     <h1>Tool Hub Access Required</h1>
     <p>This area uses a <strong>magic link</strong> tied to your email. When you are approved, you receive a one-time-style URL that sets your browser session and sends you into the Tool Hub (archive search, downloads, and related tools).</p>
-    <p><strong>Already approved?</strong> Open the access link from your email (it looks like <code>/access/session?e=…&amp;sig=…</code>). Do not bookmark the session page—use the message we sent you, or ask for a fresh link if it expired.</p>
+    <p><strong>Already approved?</strong> Open the access link from your email (it looks like <code>/access/session?e=…&amp;sig=…</code>). Do not bookmark the session page:use the message we sent you, or ask for a fresh link if it expired.</p>
     <p>If you need access, use <strong>Request access</strong> below or email <strong>{{ contact_email }}</strong>.</p>
     <div class="actions">
       <a class="btn btn-primary" href="{{ access_request_url }}" target="_blank" rel="noopener noreferrer">Request access</a>
       <button type="button" class="btn btn-secondary" id="access-back-btn">Back</button>
     </div>
     {% if debug_enabled %}
-      <hr style="margin: 18px 0; border: 0; border-top: 1px solid #e5e7eb;">
-      <h2 style="margin: 0 0 8px;">Local dev sign-in</h2>
-      <p style="margin-top: 0;">This is only shown when <code>FLASK_DEBUG=true</code>.</p>
+      <hr>
+      <h2>Local dev sign-in</h2>
+      <p>This is only shown when <code>FLASK_DEBUG=true</code>.</p>
       <p>
-        <a href="{{ url_for('dev_magiclink') }}" style="display:inline-block; padding:10px 14px; border-radius: 999px; background:#2563eb; color:#fff; text-decoration:none; font-weight:600;">
+        <a href="{{ url_for('dev_magiclink') }}">
           Sign in locally (dev)
         </a>
       </p>

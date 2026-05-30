@@ -1,0 +1,30 @@
+{# Shared layout for page_base content pages. Matches Methods / How to Use rhythm. #}
+
+{% macro rad_page_open(compact=false) %}
+<article class="rad-page">
+  <div class="rad-page-hero-band{% if compact %} rad-page-hero-band--compact{% endif %}">
+    <div class="rad-page-shell">
+      <header class="rad-page-header">
+{% endmacro %}
+
+{% macro rad_page_header_end() %}
+      </header>
+    </div>
+  </div>
+  <div class="rad-page-body">
+    <div class="rad-page-shell rad-content-page">
+{% endmacro %}
+
+{% macro rad_page_close() %}
+    </div>
+  </div>
+</article>
+{% endmacro %}
+
+{% macro rad_section(flush=false, aria_label=none) %}
+<section class="rad-page-section{% if flush %} rad-page-section--flush{% endif %}"{% if aria_label %} aria-label="{{ aria_label }}"{% endif %}>
+{% endmacro %}
+
+{% macro rad_section_end() %}
+</section>
+{% endmacro %}

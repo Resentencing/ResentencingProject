@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/rad-scales-theme.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/rad-graphics.css') }}">
   <style>
     .rad-toolhub-shell { max-width: var(--rf-max); margin: 0 auto; padding: var(--rf-pad-y) var(--rf-pad-x); }
     .rad-toolhub-title { margin: 0 0 0.5rem; font-family: var(--rf-font-serif); font-size: var(--rf-h1); line-height: 1.1; }
@@ -71,6 +72,88 @@
       border-color: var(--rf-accent);
       color: var(--rf-accent);
     }
+    .rad-toolhub-tools {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.65rem;
+      margin: 0 0 1.25rem;
+    }
+    .rad-toolhub-tool-hint {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--rf-muted);
+    }
+    .rad-toolhub-callout {
+      border-left: 4px solid #b45309;
+      background: #fffbeb;
+      padding: 0.75rem 1rem;
+      margin: 0 0 1rem;
+      border-radius: 0 var(--rf-radius) var(--rf-radius) 0;
+      font-size: 0.92rem;
+    }
+    .rad-toolhub-callout--direct {
+      border-left-color: var(--rf-accent);
+      background: #eff6ff;
+    }
+    .rad-toolhub-steps {
+      list-style: none;
+      margin: 0 0 1rem;
+      padding: 0;
+      display: grid;
+      gap: 0.55rem;
+    }
+    .rad-toolhub-steps li {
+      display: flex;
+      gap: 0.65rem;
+      align-items: flex-start;
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--rf-ink-soft);
+    }
+    .rad-toolhub-step-num {
+      flex-shrink: 0;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 999px;
+      background: var(--rf-accent);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.1rem;
+    }
+    .rad-toolhub-empty-downloads {
+      text-align: center;
+      padding: 1.75rem 1rem;
+      color: var(--rf-muted);
+      background: #f8fafc;
+      border: 2px dashed var(--rf-border-strong);
+      border-radius: var(--rf-radius);
+    }
+    .rad-toolhub-empty-downloads strong {
+      display: block;
+      color: var(--rf-ink);
+      font-size: 1.05rem;
+      margin-bottom: 0.35rem;
+    }
+    .rad-toolhub-download-link {
+      display: inline-block;
+      margin-top: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: var(--rf-accent);
+      color: #fff !important;
+      font-weight: 600;
+      font-size: 0.88rem;
+      text-decoration: none;
+    }
+    .rad-toolhub-download-link.secondary {
+      background: #fff;
+      color: var(--rf-accent) !important;
+      border: 1px solid var(--rf-accent);
+    }
     @media (max-width: 980px) {
       .rad-toolhub-grid { grid-template-columns: 1fr; }
       .rad-ai-grid { grid-template-columns: 1fr; }
@@ -79,38 +162,25 @@
 </head>
 <body class="rad-app">
   <div class="wp-site-blocks">
-    <header class="wp-block-template-part rad-site-header">
-      <div class="wp-block-group alignwide has-base-background-color has-background has-global-padding is-layout-constrained wp-block-group-is-layout-constrained" style="padding-top:20px;padding-bottom:20px">
-        <div class="wp-block-group alignwide is-content-justification-space-between is-layout-flex wp-container-core-group-is-layout-4 wp-block-group-is-layout-flex">
-          <div class="wp-block-group is-layout-flex wp-container-core-group-is-layout-2 wp-block-group-is-layout-flex">
-            <div class="wp-block-group is-layout-flow wp-container-core-group-is-layout-1 wp-block-group-is-layout-flow">
-              <p class="wp-block-site-title"><a href="/" target="_self" rel="home">Resentence and Decarcerate (RAD)</a></p>
-            </div>
-          </div>
-          <div class="wp-block-group is-content-justification-left is-layout-flex wp-container-core-group-is-layout-3 wp-block-group-is-layout-flex rad-header-nav-wrap">
-            <nav class="rad-primary-nav" aria-label="Primary navigation">
-              <ul class="rad-primary-nav__list">
-                <li><a href="/" class="rad-primary-nav__link">Home</a></li>
-                <li><a href="/about" class="rad-primary-nav__link">About Us</a></li>
-                <li><a href="/toolhub" class="rad-primary-nav__link" aria-current="page">Tool Hub</a></li>
-                <li><a href="{{ url_for('access_logout') }}" class="rad-primary-nav__link">Sign out</a></li>
-              </ul>
-            </nav>
-          </div>
-        </div>
-      </div>
-    </header>
+    {% include "includes/rad_site_header.html" %}
 
-    <main class="wp-block-group is-layout-flow wp-block-group-is-layout-flow" style="margin-top:0">
+    <main class="wp-block-group is-layout-flow wp-block-group-is-layout-flow">
       <section class="rad-data-section">
         <div class="rad-toolhub-shell">
           <h1 class="rad-toolhub-title">Tool Hub</h1>
-          <p class="rad-toolhub-lead">Unified search for aggregate patterns and individual case records in one place. Select a field, enter a term, then review both summary counts and detailed matching records.</p>
+          <p class="rad-toolhub-lead">Signed-in tools for looking up cases, comparing groups, asking questions about the data, and checking the tracking log. New here? Read <a href="{{ url_for('how_to_use_tools') }}">How to Use the Tools</a> first.</p>
+
+          <div class="rad-toolhub-tools" aria-label="Tools in this hub">
+            <p class="rad-toolhub-tool-hint"><strong>Look up a case</strong> — search first, then download letter PDFs.</p>
+            <p class="rad-toolhub-tool-hint"><strong>Compare groups</strong> — build your own chart from two categories.</p>
+            <p class="rad-toolhub-tool-hint"><strong>Ask a question</strong> — plain-language questions; always verify answers.</p>
+            <p class="rad-toolhub-tool-hint"><strong>Check tracking log</strong> — letters in the CDCR log vs. our database.</p>
+          </div>
 
           <div class="rad-toolhub-card">
             <div class="rad-toolhub-meta">
               <span>Signed in as <strong>{{ access_email }}</strong></span>
-              <span>role: <strong>{{ access_role }}</strong></span>
+              <span>Access level: <strong>{{ access_role }}</strong></span>
               {% if limits.unlimited %}
                 <span class="rad-badge">Unlimited downloads</span>
               {% else %}
@@ -121,40 +191,100 @@
             </div>
           </div>
 
-          <div class="rad-subtabs">
-            <button type="button" class="rad-subtab-btn active" data-subtab="search">Search</button>
-            <button type="button" class="rad-subtab-btn" data-subtab="ai">AI Assistant</button>
-            <button type="button" class="rad-subtab-btn" data-subtab="variables">Variable Explorer</button>
-            <button type="button" class="rad-subtab-btn" data-subtab="logreconcile">Log Reconcile</button>
+          <div class="rad-subtabs" role="tablist" aria-label="Tool Hub sections">
+            <button type="button" class="rad-subtab-btn active" data-subtab="search" role="tab" aria-selected="true">Look up a case</button>
+            <button type="button" class="rad-subtab-btn" data-subtab="variables" role="tab">Compare groups</button>
+            <button type="button" class="rad-subtab-btn" data-subtab="ai" role="tab">Ask a question</button>
+            <button type="button" class="rad-subtab-btn" data-subtab="logreconcile" role="tab">Check tracking log</button>
           </div>
 
           <section id="subtab-search" class="rad-subtab-pane active">
             <div class="rad-toolhub-card">
-              <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">Unified Search</h2>
-              <p class="rad-toolhub-muted">One search runs both aggregate and detailed views.</p>
+              <h2 class="wp-block-heading is-style-asterisk">Look up a case and download letters</h2>
+              <div class="rad-toolhub-callout rad-toolhub-callout--direct" role="note">
+                <strong>Court letter PDFs are not listed until you search.</strong>
+                Enter a court case number or CDCR number below, click Search, then use the download links in the results table.
+              </div>
+              <ol class="rad-toolhub-steps">
+                <li><span class="rad-toolhub-step-num" aria-hidden="true">1</span><span><strong>Search</strong> by court case # or CDCR # (best for one person).</span></li>
+                <li><span class="rad-toolhub-step-num" aria-hidden="true">2</span><span><strong>Review matches</strong> in the table below.</span></li>
+                <li><span class="rad-toolhub-step-num" aria-hidden="true">3</span><span><strong>Download</strong> the letter PDF or a ZIP of all letters for that person.</span></li>
+              </ol>
               <form method="post" class="rad-toolhub-grid">
-                <select name="search_field" class="rad-toolhub-select">
+                <label class="rad-toolhub-muted" style="grid-column: 1 / -1; margin: 0;"><strong>Step 1:</strong> Search by</label>
+                <select name="search_field" class="rad-toolhub-select" aria-label="Search by field">
                   {% for key, label in unified_fields.items() %}
                     <option value="{{ key }}" {% if search_field == key %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
-                <input name="search_term" class="rad-toolhub-input" value="{{ search_term }}" placeholder="Type a keyword, case number, CDCR, name, county, cohort, etc.">
-                <button type="submit" class="rad-toolhub-btn">Search</button>
+                <input name="search_term" class="rad-toolhub-input" value="{{ search_term }}" placeholder="Court case # (e.g. BA372345) or CDCR #" aria-label="Search term" autofocus>
+                <button type="submit" class="rad-toolhub-btn">Search for letters</button>
               </form>
               {% if error_message %}
                 <p class="rad-toolhub-error">{{ error_message }}</p>
               {% endif %}
             </div>
 
+            <div class="rad-toolhub-card" id="rad-toolhub-downloads">
+              <h3 class="wp-block-heading">Step 2: Download court letters</h3>
+              {% if not search_performed %}
+              <div class="rad-toolhub-empty-downloads">
+                <strong>No letters shown yet</strong>
+                Search above to see matching cases. Download links for each letter PDF will appear in this table.
+              </div>
+              {% else %}
+              <p class="rad-toolhub-muted">{{ detail_results|length }} matching case(s). Use the links in the last column to download.</p>
+              {% endif %}
+              <div class="rad-toolhub-table-wrap">
+                <table class="rad-toolhub-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>CDCR #</th>
+                      <th>Case #</th>
+                      <th>County</th>
+                      <th>Action taken</th>
+                      <th>Download letter (PDF)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in detail_results %}
+                      <tr>
+                        <td>{{ row.convict_name or "-" }}</td>
+                        <td>{{ row.cdcr_number or "-" }}</td>
+                        <td>{{ row.case_number or "-" }}</td>
+                        <td>{{ row.county or "-" }}</td>
+                        <td>{{ row.action_taken or "-" }}</td>
+                        <td class="rad-toolhub-actions">
+                          <a class="rad-toolhub-download-link" href="{{ url_for('download_signed', token=row.download_token) }}">Download PDF</a>
+                          <a class="rad-toolhub-download-link secondary" href="{{ url_for('download_person_zip', token=row.zip_token) }}">All letters (ZIP)</a>
+                        </td>
+                      </tr>
+                    {% else %}
+                      {% if search_performed %}
+                      <tr><td colspan="6" class="rad-toolhub-muted">No matching cases for that search. Try a court case # or CDCR #, or check spelling.</td></tr>
+                      {% else %}
+                      <tr><td colspan="6" class="rad-toolhub-muted">Run a search above to see letter download links here.</td></tr>
+                      {% endif %}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% if search_performed and detail_results %}
+              <p class="rad-toolhub-muted">Links expire in about 15 minutes. Limits: 10 PDFs per hour, 50 per day, 3 ZIPs per day.</p>
+              {% endif %}
+            </div>
+
             <div class="rad-toolhub-card">
-              <h3 class="wp-block-heading" style="margin-top:0;">Aggregate Snapshot</h3>
+              <h3 class="wp-block-heading">Summary counts</h3>
+              <p class="rad-toolhub-muted">Optional: how many letters and people match, grouped by the field you searched.</p>
               <div class="rad-toolhub-table-wrap">
                 <table class="rad-toolhub-table">
                   <thead>
                     <tr>
                       <th>Group</th>
-                      <th>Letter Count</th>
-                      <th>People Count</th>
+                      <th>Letters</th>
+                      <th>People</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -165,142 +295,71 @@
                         <td>{{ row.people_count }}</td>
                       </tr>
                     {% else %}
-                      <tr><td colspan="3" class="rad-toolhub-muted">No aggregate results yet.</td></tr>
+                      {% if search_performed %}
+                      <tr><td colspan="3" class="rad-toolhub-muted">No summary groups for this search.</td></tr>
+                      {% else %}
+                      <tr><td colspan="3" class="rad-toolhub-muted">Counts appear here after you search.</td></tr>
+                      {% endif %}
                     {% endfor %}
                   </tbody>
                 </table>
               </div>
             </div>
-
-            <div class="rad-toolhub-card">
-              <h3 class="wp-block-heading" style="margin-top:0;">Detailed Records</h3>
-              <div class="rad-toolhub-table-wrap">
-                <table class="rad-toolhub-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>CDCR</th>
-                      <th>Case #</th>
-                      <th>Judge</th>
-                      <th>Institution</th>
-                      <th>County</th>
-                      <th>Action</th>
-                      <th>File Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in detail_results %}
-                      <tr>
-                        <td>{{ row.convict_name or "-" }}</td>
-                        <td>{{ row.cdcr_number or "-" }}</td>
-                        <td>{{ row.case_number or "-" }}</td>
-                        <td>{{ row.judge or "-" }}</td>
-                        <td>{{ row.institution or "-" }}</td>
-                        <td>{{ row.county or "-" }}</td>
-                        <td>{{ row.action_taken or "-" }}</td>
-                        <td class="rad-toolhub-actions">
-                          <div>{{ row.filename }}</div>
-                          <a href="{{ url_for('download_signed', token=row.download_token) }}">Download PDF</a>
-                          <a href="{{ url_for('download_person_zip', token=row.zip_token) }}">Download all for person (ZIP)</a>
-                        </td>
-                      </tr>
-                    {% else %}
-                      <tr><td colspan="8" class="rad-toolhub-muted">No detailed results yet.</td></tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-              <p class="rad-toolhub-muted">Default limits: 10 downloads/hour, 50/day, 3 ZIP/day. A separate unlimited access tier can be assigned when needed.</p>
-            </div>
-          </section>
-
-          <section id="subtab-ai" class="rad-subtab-pane">
-            <div class="rad-toolhub-card">
-            <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">Database AI Assistant</h2>
-            <p class="rad-toolhub-muted">Ask natural-language questions about the records. You can ask aggregate or individual-level questions.</p>
-            {% if streamlit_rag_enabled %}
-              <div style="margin: 0.25rem 0 0.75rem;">
-                <a href="{{ url_for('launch_rag') }}" target="_blank" rel="noopener" class="rad-toolhub-btn rad-toolhub-linkbtn">Open Streamlit RAG Agent &#x2197;</a>
-                <span class="rad-toolhub-muted" style="margin-left:0.6rem;">Opens the dedicated RAG chat in a new tab. The launch link is single-use and short-lived.</span>
-              </div>
-            {% endif %}
-            <div class="rad-ai-grid">
-              <div>
-                <label for="ai-query"><strong>Ask a question</strong></label>
-                <textarea id="ai-query" class="rad-toolhub-textarea" rows="6" placeholder="Examples: &#10;- How many Exceptional Conduct letters are in Sacramento County?&#10;- Show records for CDCR AE9384"></textarea>
-                <div class="rad-ai-presets" aria-label="Preset AI prompts">
-                  <button type="button" class="rad-ai-preset-btn" data-preset-query="Using the metadata table, for each county with at least 5 records, show total records, successful relief count (Action Taken contains resentenced/released/granted/approved/recalled), and success rate percentage sorted highest to lowest.">County Success Table</button>
-                  <button type="button" class="rad-ai-preset-btn" data-preset-query="From successful relief cases in the metadata table (Action Taken contains resentenced/released/granted/approved/recalled), show the top 10 counties by total Years Term Reduced By and include average Years Term Reduced By per successful case.">Years Reduced Impact</button>
-                  <button type="button" class="rad-ai-preset-btn" data-preset-query="In the metadata table, summarize the Action Taken field: count and percentage of total records for each category, sorted by count descending.">Action Distribution</button>
-                </div>
-                <p class="rad-toolhub-muted" style="margin-top:0.45rem;">Tip: Mention “metadata table” and human field labels (for example, “Action Taken” and “Years Term Reduced By”) for more reliable answers.</p>
-                <div style="margin-top:8px; display:flex; gap:8px;">
-                  <button id="ai-submit" type="button" class="rad-toolhub-btn">Ask AI</button>
-                  <button id="ai-clear" type="button" class="rad-toolhub-btn secondary">Clear</button>
-                </div>
-              </div>
-              <div>
-                <label><strong>Response</strong></label>
-                <div id="ai-response" class="rad-ai-response">No response yet.</div>
-                <p class="rad-toolhub-muted">Backend endpoint: {{ backend_base_url }}/query_ai</p>
-              </div>
-            </div>
-          </div>
           </section>
 
           <section id="subtab-variables" class="rad-subtab-pane">
             <div class="rad-toolhub-card">
-              <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">Variable Explorer</h2>
-              <p class="rad-toolhub-muted">Explore distributions and cross-tabs across metadata variables (internal).</p>
+              <h2 class="wp-block-heading is-style-asterisk">Compare groups</h2>
+              <p class="rad-toolhub-muted">Pick two categories (for example, county and action taken) to build a chart. Use filters to narrow by year, county, outcome, sentence type, or race.</p>
 
               <div class="rad-prof-controls">
                 <div class="rad-prof-control">
-                  <label for="prof-x-variable-select">Customize</label>
+                  <label for="prof-x-variable-select">Compare</label>
                   <select id="prof-x-variable-select"></select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-year-filter-select">Year</label>
+                  <label for="prof-year-filter-select">Filter: year</label>
                   <select id="prof-year-filter-select" multiple></select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-county-filter-select">County</label>
+                  <label for="prof-county-filter-select">Filter: county</label>
                   <select id="prof-county-filter-select" multiple></select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-event-filter-select">Event Point</label>
+                  <label for="prof-event-filter-select">Filter: action taken</label>
                   <select id="prof-event-filter-select" multiple></select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-race-filter-select">Race</label>
+                  <label for="prof-race-filter-select">Filter: race</label>
                   <select id="prof-race-filter-select" multiple></select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-offense-filter-select">Offense</label>
+                  <label for="prof-offense-filter-select">Filter: sentence type</label>
                   <select id="prof-offense-filter-select" multiple></select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-measurement-select">Measurement</label>
+                  <label for="prof-measurement-select">Show</label>
                   <select id="prof-measurement-select">
-                    <option value="count" selected>Record Count</option>
-                    <option value="sum:years_reduced">Total Years Reduced</option>
+                    <option value="count" selected>Number of cases</option>
+                    <option value="sum:years_reduced">Total years reduced</option>
                   </select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-series-variable-select">Split By</label>
+                  <label for="prof-series-variable-select">Split by</label>
                   <select id="prof-series-variable-select"></select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-chart-type-select">Chart Type</label>
+                  <label for="prof-chart-type-select">Chart style</label>
                   <select id="prof-chart-type-select">
-                    <option value="stacked_bar" selected>Stacked Horizontal</option>
-                    <option value="stacked_bar_100">100% Stacked Horizontal</option>
-                    <option value="stacked_column">Stacked Column</option>
-                    <option value="stacked_column_100">100% Stacked Column</option>
-                    <option value="grouped_column">Grouped Column</option>
+                    <option value="stacked_bar" selected>Stacked bars (horizontal)</option>
+                    <option value="stacked_bar_100">100% stacked bars (horizontal)</option>
+                    <option value="stacked_column">Stacked columns</option>
+                    <option value="stacked_column_100">100% stacked columns</option>
+                    <option value="grouped_column">Grouped columns</option>
                   </select>
                 </div>
                 <div class="rad-prof-control">
-                  <label for="prof-topx-select">Top Categories</label>
+                  <label for="prof-topx-select">How many groups to show</label>
                   <select id="prof-topx-select">
                     <option value="10">10</option>
                     <option value="14" selected>14</option>
@@ -310,103 +369,133 @@
                 </div>
                 <div class="rad-prof-control rad-prof-control-btn">
                   <label>&nbsp;</label>
-                  <button id="prof-refresh-btn" class="rad-toolhub-btn" type="button">Update</button>
+                  <button id="prof-refresh-btn" class="rad-toolhub-btn" type="button">Update chart</button>
                 </div>
               </div>
 
-              <div class="rad-prof-meta" style="margin-top: 0.75rem; display:flex; flex-wrap: wrap; gap: 0.75rem; color: var(--rf-muted); font-size: 0.92rem;">
-                <span id="prof-meta-field">Customize: --</span>
+              <div class="rad-prof-meta">
+                <span id="prof-meta-field">Compare: --</span>
                 <span id="prof-meta-mode">Split by: --</span>
               </div>
-              <div id="prof-loading-message" style="display:none; margin-top: 0.65rem;">Loading variable explorer...</div>
-              <div class="rad-toolhub-card" style="margin-top: 0.75rem;">
-                <div class="rad-chart-canvas-wrap" style="height: 460px;">
-                  <canvas id="professorExplorerChart" aria-label="Variable explorer chart"></canvas>
+              <div id="prof-loading-message">Loading chart options...</div>
+              <div class="rad-toolhub-card">
+                <div class="rad-chart-canvas-wrap">
+                  <canvas id="professorExplorerChart" aria-label="Compare groups chart"></canvas>
                 </div>
               </div>
             </div>
           </section>
+
+          <section id="subtab-ai" class="rad-subtab-pane">
+            <div class="rad-toolhub-card">
+            <h2 class="wp-block-heading is-style-asterisk">Ask a question</h2>
+            <div class="rad-toolhub-callout" role="note">
+              <strong>Verify every answer.</strong> This assistant can make mistakes. Use it to explore the data, then confirm important facts against the letter PDF or a case lookup.
+            </div>
+            <p class="rad-toolhub-muted">Type a question in plain language. Works best for counts and comparisons (how many, which county, outcomes by cohort). For one person, use <strong>Look up a case</strong>.</p>
+            {% if streamlit_rag_enabled %}
+              <div>
+                <a href="{{ url_for('launch_rag') }}" target="_blank" rel="noopener" class="rad-toolhub-btn rad-toolhub-linkbtn">Open advanced letter chat &#x2197;</a>
+                <span class="rad-toolhub-muted">Optional beta tool in a new tab. Link is single-use and expires quickly.</span>
+              </div>
+            {% endif %}
+            <div class="rad-ai-grid">
+              <div>
+                <label for="ai-query"><strong>Your question</strong></label>
+                <textarea id="ai-query" class="rad-toolhub-textarea" rows="6" placeholder="Examples:&#10;- How many Exceptional Conduct letters are in Sacramento County?&#10;- List outcomes where action taken includes resentenced"></textarea>
+                <div class="rad-ai-presets" aria-label="Example questions">
+                  <button type="button" class="rad-ai-preset-btn" data-preset-query="Using the metadata table, for each county with at least 5 records, show total records, successful relief count (Action Taken contains resentenced/released/granted/approved/recalled), and success rate percentage sorted highest to lowest.">County success rates</button>
+                  <button type="button" class="rad-ai-preset-btn" data-preset-query="From successful relief cases in the metadata table (Action Taken contains resentenced/released/granted/approved/recalled), show the top 10 counties by total Years Term Reduced By and include average Years Term Reduced By per successful case.">Years reduced by county</button>
+                  <button type="button" class="rad-ai-preset-btn" data-preset-query="In the metadata table, summarize the Action Taken field: count and percentage of total records for each category, sorted by count descending.">Outcomes breakdown</button>
+                </div>
+                <p class="rad-toolhub-muted">Tip: name the field in plain language (for example, &ldquo;action taken&rdquo; or &ldquo;years reduced&rdquo;).</p>
+                <div>
+                  <button id="ai-submit" type="button" class="rad-toolhub-btn">Get answer</button>
+                  <button id="ai-clear" type="button" class="rad-toolhub-btn secondary">Clear</button>
+                </div>
+              </div>
+              <div>
+                <label for="ai-response"><strong>Answer</strong></label>
+                <div id="ai-response" class="rad-ai-response" role="status" aria-live="polite">No answer yet.</div>
+              </div>
+            </div>
+          </div>
+          </section>
+
           <section id="subtab-logreconcile" class="rad-subtab-pane">
             <div class="rad-toolhub-card">
-              <h2 class="wp-block-heading is-style-asterisk" style="margin-top:0;">1170(d) Log vs. Database</h2>
+              <h2 class="wp-block-heading is-style-asterisk">Check tracking log</h2>
               <p class="rad-toolhub-muted">
-                Compares the 1170(d) Main Tracking Log (Excel) against letter records in the database.
-                Matching is done by CDCR&nbsp;# first, then Case&nbsp;# as a fallback.
-                Letters marked <em>missing</em> are in the log but not yet in the database — we have
-                requested these letters from CDCR and are still waiting to receive them.
-                <strong>Approved-and-sent scope:</strong> Date Letter Created filled, sent to the
-                Secretary, and Secretary's Decision = Approved (declined / no-letter rows excluded).
+                Compares CDCR&rsquo;s 1170(d) Main Tracking Log (Excel) with letter records in our database.
+                We match on CDCR number first, then court case number.
+                <em>Missing from database</em> means the log lists a letter we do not have on file yet (often still requested from CDCR).
+                Counts use the approved-and-sent scope: letter date filled, sent to the Secretary, and Secretary&rsquo;s decision = Approved.
               </p>
-              <div id="reconcile-filter-note" class="rad-toolhub-muted" style="margin-bottom:0.5rem;display:none;"></div>
+              <div id="reconcile-filter-note" class="rad-toolhub-muted"></div>
 
-              <div id="reconcile-summary" style="display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;">
-                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="Rows where a letter was actually generated (Date Letter Created is filled in).">
+              <div id="reconcile-summary">
+                <div class="rad-stat-card" title="Rows where a letter was actually generated (Date Letter Created is filled in).">
                   <div class="rad-stat-label">Letters generated</div>
                   <div id="recon-total" class="rad-stat-value">--</div>
                 </div>
-                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#22c55e;" title="Log entries that have a matching record in the database.">
+                <div class="rad-stat-card" title="Log entries that have a matching record in the database.">
                   <div class="rad-stat-label">In database</div>
-                  <div id="recon-matched" class="rad-stat-value" style="color:#15803d;">--</div>
+                  <div id="recon-matched" class="rad-stat-value">--</div>
                 </div>
-                <div class="rad-stat-card" style="min-width:140px;flex:1;border-color:#f59e0b;" title="Log entries with no matching record in the database. These letters have been requested from CDCR but may not yet be received or processed.">
+                <div class="rad-stat-card" title="Log entries with no matching record in the database. These letters have been requested from CDCR but may not yet be received or processed.">
                   <div class="rad-stat-label">Missing from DB</div>
-                  <div id="recon-missing" class="rad-stat-value" style="color:#b45309;">--</div>
+                  <div id="recon-missing" class="rad-stat-value">--</div>
                 </div>
-                <div class="rad-stat-card" style="min-width:140px;flex:1;" title="DB records that have no matching entry in the tracking log.">
-                  <div class="rad-stat-label">DB-only records</div>
+                <div class="rad-stat-card" title="Database records with no matching row in the tracking log.">
+                  <div class="rad-stat-label">In database only</div>
                   <div id="recon-extra" class="rad-stat-value">--</div>
                 </div>
               </div>
 
-              <div id="reconcile-meta" class="rad-toolhub-muted" style="margin-bottom:0.75rem;"></div>
+              <div id="reconcile-meta" class="rad-toolhub-muted"></div>
 
-              <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
-                <button id="reconcile-refresh-btn" class="rad-toolhub-btn secondary" type="button">Refresh</button>
+              <div>
+                <button id="reconcile-refresh-btn" class="rad-toolhub-btn secondary" type="button">Load comparison</button>
                 <span id="reconcile-status" class="rad-toolhub-muted"></span>
               </div>
 
-              <h3 class="wp-block-heading" style="margin-top:0;">Missing from Database</h3>
-              <p class="rad-toolhub-muted" style="margin-top:0;">Entries in the 1170(d) log that have no matching letter in the database.</p>
+              <h3 class="wp-block-heading">Missing from our database</h3>
+              <p class="rad-toolhub-muted">Rows in the CDCR tracking log with no matching letter file yet.</p>
 
               <!-- Search + match-method filter toolbar -->
-              <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.75rem;">
-                <input id="reconcile-search" type="search" placeholder="Search CDCR #, name, case, county…"
-                  style="flex:1;min-width:200px;padding:0.4rem 0.6rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.85rem;">
-                <div id="reconcile-method-filters" style="display:flex;gap:0.35rem;flex-wrap:wrap;">
-                  <button class="recon-method-btn" data-method="all"
-                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #38bdf8;background:#e0f2fe;cursor:pointer;font-size:0.8rem;font-weight:600;">
+              <div>
+                <input id="reconcile-search" type="search" placeholder="Search CDCR #, name, case, county…">
+                <div id="reconcile-method-filters">
+                  <button class="recon-method-btn" data-method="all">
                     All
                   </button>
-                  <button class="recon-method-btn" data-method="cdcr"
-                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
+                  <button class="recon-method-btn" data-method="cdcr">
                     CDCR# matched
                   </button>
-                  <button class="recon-method-btn" data-method="case"
-                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
+                  <button class="recon-method-btn" data-method="case">
                     Case# matched
                   </button>
-                  <button class="recon-method-btn" data-method="name+county"
-                    style="padding:0.3rem 0.7rem;border-radius:999px;border:1px solid #6b7280;background:#fff;cursor:pointer;font-size:0.8rem;">
+                  <button class="recon-method-btn" data-method="name+county">
                     Name+County matched
                   </button>
                 </div>
-                <span id="reconcile-row-count" class="rad-toolhub-muted" style="white-space:nowrap;"></span>
+                <span id="reconcile-row-count" class="rad-toolhub-muted"></span>
               </div>
 
               <div class="rad-toolhub-table-wrap">
                 <table class="rad-toolhub-table" id="reconcile-missing-table">
                   <thead>
                     <tr>
-                      <th class="recon-sortable" data-col="0" style="cursor:pointer;user-select:none;">CDCR # <span class="recon-sort-icon">↕</span></th>
-                      <th class="recon-sortable" data-col="1" style="cursor:pointer;user-select:none;">Last Name <span class="recon-sort-icon">↕</span></th>
-                      <th class="recon-sortable" data-col="2" style="cursor:pointer;user-select:none;">Case # <span class="recon-sort-icon">↕</span></th>
-                      <th class="recon-sortable" data-col="3" style="cursor:pointer;user-select:none;">Category <span class="recon-sort-icon">↕</span></th>
-                      <th class="recon-sortable" data-col="4" style="cursor:pointer;user-select:none;">County <span class="recon-sort-icon">↕</span></th>
-                      <th class="recon-sortable" data-col="5" style="cursor:pointer;user-select:none;">Institution <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="0">CDCR # <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="1">Last Name <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="2">Case # <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="3">Category <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="4">County <span class="recon-sort-icon">↕</span></th>
+                      <th class="recon-sortable" data-col="5">Institution <span class="recon-sort-icon">↕</span></th>
                     </tr>
                   </thead>
                   <tbody id="reconcile-missing-tbody">
-                    <tr><td colspan="6" class="rad-toolhub-muted">Click "Refresh" to load.</td></tr>
+                    <tr><td colspan="6" class="rad-toolhub-muted">Click &ldquo;Load comparison&rdquo; to see the list.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -416,6 +505,8 @@
         </div>
       </section>
     </main>
+
+    {% include "includes/rad_site_footer.html" %}
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -462,7 +553,7 @@
     });
     document.getElementById("ai-clear").addEventListener("click", () => {
       queryEl.value = "";
-      responseEl.textContent = "No response yet.";
+      responseEl.textContent = "No answer yet.";
     });
 
     // --- Log Reconcile tab ---

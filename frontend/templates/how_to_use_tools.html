@@ -1,0 +1,111 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_icons.html" import icon_chart, icon_search, icon_chat, icon_compare, icon_questions %}
+{% from "includes/rad_ckh_source.html" import ckh_note %}
+{% block title %}How to Use the Tools | RAD{% endblock %}
+{% block content %}
+<article class="rad-page">
+  <div class="rad-page-hero-band">
+    <div class="rad-page-shell">
+      <header class="rad-page-header">
+        <h1 id="rad-page-title" class="rad-page-title">How to Use the Tools</h1>
+        <p class="rad-page-lead">Four tools. Pick one below. Some need a login.{{ ckh_note('how_to_use.lead') }}</p>
+      </header>
+    </div>
+  </div>
+
+  <div class="rad-page-body">
+    <div class="rad-page-shell rad-content-page">
+      <section class="rad-page-section rad-page-section--flush" aria-label="Tool overview">
+        <div class="rad-topic-grid rad-topic-grid--4">
+          <article class="rad-topic-card rad-tone rad-tone--public">
+            <div class="rad-topic-card__icon">{{ icon_chart() }}</div>
+            <h3>See patterns across many cases{{ ckh_note('how_to_use.card.see_charts') }}</h3>
+            <p><span class="rad-table-meta">System Trends Viewer.</span> Charts for the whole dataset. <strong>No login.</strong></p>
+            <a class="rad-button rad-button--primary" href="/trends">Open</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--approved">
+            <div class="rad-topic-card__icon">{{ icon_search() }}</div>
+            <h3>Look up one case{{ ckh_note('how_to_use.card.find_cases') }}</h3>
+            <p>Search by court case #, CDCR #, name, or county. <strong>Login required.</strong></p>
+            <a class="rad-button rad-button--tone" href="/toolhub">Open Tool Hub</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--compare">
+            <div class="rad-topic-card__icon">{{ icon_compare() }}</div>
+            <h3>Compare results across groups{{ ckh_note('how_to_use.card.explore_patterns') }}</h3>
+            <p>Build your own chart (county, action taken, sentence type, and more). <strong>Login required.</strong></p>
+            <a class="rad-button rad-button--tone" href="/how-to-use-tools/compare-groups">How it works</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--guide">
+            <div class="rad-topic-card__icon">{{ icon_chat() }}</div>
+            <h3>Ask a question and get an answer{{ ckh_note('how_to_use.card.ask_questions') }}</h3>
+            <p>Plain-language questions about letters and case data. <strong>Login required.</strong></p>
+            <a class="rad-button rad-button--tone" href="/how-to-use-tools/ask-questions">How it works</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Use them together{{ ckh_note('how_to_use.use_together') }}</h2>
+        <ul class="rad-pretty-list">
+          <li><strong>See patterns across many cases:</strong> understand system-wide trends (no login)</li>
+          <li><strong>Compare results across groups:</strong> compare sub-groups in your own chart</li>
+          <li><strong>Ask a question and get an answer:</strong> dig into <em>why</em> (verify every answer)</li>
+          <li><strong>Look up one case:</strong> read or download individual letters</li>
+        </ul>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">System Trends Viewer{{ ckh_note('how_to_use.system_trends') }}</h2>
+        <p class="rad-text-secondary">Public summary charts. No names or personal details. No login. Includes <strong>case progression</strong> (considered, letters sent, resentenced), not a single fixed dashboard.</p>
+        <ul>
+          <li>What share of cases are resentenced?</li>
+          <li>Which counties send the most cases?</li>
+          <li>How do outcomes vary by county, institution, or group?</li>
+        </ul>
+        <p><a class="rad-button rad-button--primary" href="/trends">Open the System Trends Viewer</a></p>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Signed-in tools (Tool Hub){{ ckh_note('how_to_use.case_level') }}</h2>
+        <p class="rad-text-secondary">After you log in at the <a href="/toolhub">Tool Hub</a>, use these tabs: <strong>Look up a case</strong>, <strong>Compare groups</strong>, <strong>Ask a question</strong>, and (for staff) <strong>Check tracking log</strong>. Please follow usage guidelines for sensitive data.</p>
+        <ul>
+          <li>Search and download court letters for one case or many matches</li>
+          <li>Build comparison charts with filters (action taken, sentence type, county, year, race)</li>
+          <li>Ask questions in plain language; always confirm important facts against the PDF</li>
+        </ul>
+        <p><a class="rad-button rad-button--primary" href="/toolhub">Open Tool Hub</a></p>
+      </section>
+
+      <section class="rad-page-section">
+        <h2 class="rad-section-title">Guides</h2>
+        <div class="rad-topic-grid">
+          <article class="rad-topic-card rad-tone rad-tone--approved">
+            <div class="rad-topic-card__icon">{{ icon_search() }}</div>
+            <h3>Look up one case</h3>
+            <p>Search, summary counts, matching cases, and downloads.</p>
+            <a class="rad-button" href="/how-to-use-tools/find-cases">How it works</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--compare">
+            <div class="rad-topic-card__icon">{{ icon_compare() }}</div>
+            <h3>Compare results across groups</h3>
+            <p>Tool Hub chart builder: Compare, Split by, filters, and chart styles.</p>
+            <a class="rad-button" href="/how-to-use-tools/compare-groups">How it works</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--guide">
+            <div class="rad-topic-card__icon">{{ icon_chat() }}</div>
+            <h3>Ask a question and get an answer</h3>
+            <p>What to ask, what data is used, and AI safety notes.</p>
+            <a class="rad-button" href="/how-to-use-tools/ask-questions">How it works</a>
+          </article>
+          <article class="rad-topic-card rad-tone rad-tone--public">
+            <div class="rad-topic-card__icon">{{ icon_questions() }}</div>
+            <h3>Sample questions</h3>
+            <p>Examples you can try or adapt in the Tool Hub.</p>
+            <a class="rad-button" href="/how-to-use-tools/sample-questions">See examples</a>
+          </article>
+        </div>
+      </section>
+    </div>
+  </div>
+</article>
+{% endblock %}

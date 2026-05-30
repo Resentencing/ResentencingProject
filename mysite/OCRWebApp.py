@@ -560,6 +560,62 @@ def make_serializable(obj):
         return obj.isoformat()  # Convert datetime → string
     return obj  # Return unchanged for other types
 
+
+def _ai_completion_text(completion, step: str) -> str:
+    """Extract non-empty text from an OpenAI chat completion."""
+    if not completion or not getattr(completion, "choices", None):
+        raise ValueError(f"{step}: empty response from OpenAI")
+    content = completion.choices[0].message.content
+    if content is None:
+        raise ValueError(f"{step}: OpenAI returned no message content")
+    text = content.strip()
+    if not text:
+        raise ValueError(f"{step}: OpenAI returned blank content")
+    return text
+
+
+def _parse_query_classification(raw: str) -> str:
+    """
+    Normalize classifier output. Models often wrap the label in quotes or add prose.
+    """
+    cleaned = (raw or "").strip().strip('"').strip("'")
+    match = re.search(r"\b(SQL_QUERY|NATURAL_RESPONSE)\b", cleaned, re.IGNORECASE)
+    if match:
+        return match.group(1).upper()
+    upper = cleaned.upper()
+    if upper in {"SQL_QUERY", "NATURAL_RESPONSE"}:
+        return upper
+    raise ValueError(f"Unexpected classification response: {raw!r}")
+
+
+def _sanitize_ai_sql(raw_sql: str) -> str:
+    """Strip markdown fences and validate read-only SQL."""
+    sql = re.sub(r"```(?:sql)?", "", raw_sql or "", flags=re.IGNORECASE).strip().strip("`")
+    if not sql or sql.upper() == "INVALID":
+        return "INVALID"
+    first = sql.lstrip().split(None, 1)[0].upper() if sql.strip() else ""
+    if first not in {"SELECT", "SHOW", "DESCRIBE", "EXPLAIN", "WITH"}:
+        logging.warning("Rejected non-read-only SQL from AI: %s", sql[:200])
+        return "INVALID"
+    return sql
+
+
+def _openai_error_payload(exc: Exception):
+    """Map OpenAI / network failures to a safe JSON error for the UI."""
+    name = exc.__class__.__name__
+    text = str(exc)
+    lowered = text.lower()
+    if name in {"AuthenticationError", "PermissionDeniedError"} or "invalid api key" in lowered:
+        return {"error": "OpenAI API key is missing or invalid on the server. Ask the maintainer to check OPENAI_API_KEY and reload the web app."}, 502
+    if name == "RateLimitError" or "rate limit" in lowered or "quota" in lowered or "insufficient" in lowered:
+        return {"error": "OpenAI rate limit or billing quota was hit. If billing was just updated, reload the PythonAnywhere web app and try again in a minute."}, 503
+    if name == "NotFoundError" or "model" in lowered and "not found" in lowered:
+        return {"error": "The configured OpenAI model is unavailable. Ask the maintainer to update the model name."}, 502
+    if "timeout" in lowered or name in {"APITimeoutError", "TimeoutError"}:
+        return {"error": "OpenAI request timed out. Please try again."}, 504
+    return {"error": "AI service error. Please try again in a moment."}, 502
+
+
 @app.route('/query_ai', methods=['POST'])
 def query_ai():
     """
@@ -613,17 +669,13 @@ def query_ai():
             ],
         )
 
-        if not classification_response.choices:
-            logging.error("Classification API did not return a response.")
+        try:
+            query_type = _parse_query_classification(_ai_completion_text(classification_response, "classification"))
+        except ValueError as exc:
+            logging.error("Classification parse failed: %s", exc)
             return jsonify({"error": "Failed to classify query. Try again later."}), 500
 
-        query_type = classification_response.choices[0].message.content.strip().strip('"').strip("'")
         logging.info(f"Query Classification: {query_type}")
-
-        # Ensure valid classification before proceeding
-        if query_type not in ["SQL_QUERY", "NATURAL_RESPONSE"]:
-            logging.error(f"Unexpected query classification: {query_type}")
-            return jsonify({"error": "Unexpected classification response. Try again."}), 500
 
         # **Handle General AI Response (Non-SQL)**
         if query_type == "NATURAL_RESPONSE":
@@ -640,7 +692,7 @@ def query_ai():
                 logging.error("AI response failed.")
                 return jsonify({"error": "Failed to generate AI response. Try again later."}), 500
 
-            response_message = chat_completion.choices[0].message.content.strip()
+            response_message = _ai_completion_text(chat_completion, "natural response")
             logging.debug(f"AI Response: {response_message}")
             return jsonify({"response": response_message})  # **EARLY RETURN**
 
@@ -682,14 +734,10 @@ def query_ai():
                 logging.error(" AI failed to generate an SQL query.")
                 return jsonify({"error": "Failed to generate SQL query. Try again later."}), 500
 
-            ai_generated_sql = sql_generation_response.choices[0].message.content.strip()
+            ai_generated_sql = _sanitize_ai_sql(_ai_completion_text(sql_generation_response, "sql generation"))
             logging.debug(f" AI-Generated SQL Query (Raw): {ai_generated_sql}")
 
-            # Sanitize and Validate AI-Generated SQL
-            ai_generated_sql = re.sub(r"```(sql)?", "", ai_generated_sql).strip()
-            ai_generated_sql = ai_generated_sql.strip("`")
-
-            if ai_generated_sql.upper() == "INVALID":
+            if ai_generated_sql == "INVALID":
                 logging.warning("AI could not generate a valid SQL query.")
 
                 # **New Response: AI Doesn't Know How to Define Query**
@@ -720,7 +768,7 @@ def query_ai():
                     logging.error("AI failed to generate a response for an unknown query.")
                     return jsonify({"error": "I'm not sure how to define that query. Could you clarify?"}), 200  # **SAFE RESPONSE**
 
-                final_unknown_response = unknown_query_response.choices[0].message.content.strip()
+                final_unknown_response = _ai_completion_text(unknown_query_response, "unknown query")
                 logging.debug(f"AI Unknown Query Response: {final_unknown_response}")
 
                 return jsonify({"response": final_unknown_response})  # **EARLY RETURN**
@@ -730,7 +778,7 @@ def query_ai():
             database_response = query_database(ai_generated_sql)
 
             if database_response["status"] == "error":
-                return jsonify({"error": database_response["message"]})  # **EARLY RETURN**
+                return jsonify({"error": database_response["message"]}), 503
 
             # **Ensure database response has data**
             if "data" not in database_response or not database_response["data"]:
@@ -772,13 +820,25 @@ def query_ai():
                 logging.error("AI interpretation failed.")
                 return jsonify({"error": "Failed to interpret database results. Try again later."}), 500
 
-            final_response = interpretation_response.choices[0].message.content.strip()
+            final_response = _ai_completion_text(interpretation_response, "interpretation")
             logging.debug(f"AI Final Interpretation: {final_response}")
 
             return jsonify({"response": final_response})  # **EARLY RETURN**
 
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
+        logging.exception("query_ai failed")
+        module = getattr(e.__class__, "__module__", "") or ""
+        name = e.__class__.__name__
+        if module.startswith("openai") or name in {
+            "AuthenticationError",
+            "RateLimitError",
+            "APIConnectionError",
+            "APITimeoutError",
+            "PermissionDeniedError",
+            "NotFoundError",
+        }:
+            payload, status = _openai_error_payload(e)
+            return jsonify(payload), status
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
 
 

@@ -35,23 +35,27 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: userQuery })
         })
-        .then(response => {
+        .then(async response => {
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
+                const msg = data.error || `Error ${response.status}: ${response.statusText}`;
+                throw new Error(msg);
             }
-            return response.json();
+            return data;
         })
         .then(data => {
+            aiResponseDiv.querySelector('p em')?.closest('p')?.remove();
             if (data.response) {
                 aiResponseDiv.innerHTML += `<p><strong>ChatGPT:</strong></p>`;
                 aiResponseDiv.innerHTML += `<div class="chat-message">${marked.parse(data.response)}</div>`;
             } else {
-                aiResponseDiv.innerHTML += `<p style="color: red;">Error: ${data.error}</p>`;
+                aiResponseDiv.innerHTML += `<p style="color: red;">Error: ${data.error || 'Unknown error'}</p>`;
             }
             aiResponseDiv.scrollTop = aiResponseDiv.scrollHeight;
         })
         .catch(error => {
             console.error('Error querying AI:', error);
+            aiResponseDiv.querySelector('p em')?.closest('p')?.remove();
             aiResponseDiv.innerHTML += `<p style="color: red;">An error occurred: ${error.message}</p>`;
         });
     });

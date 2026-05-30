@@ -1,0 +1,62 @@
+{% extends "page_base.html" %}
+{% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% block title %}System Trends Viewer | RAD{% endblock %}
+{% block head_extra %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block content %}
+{{ rad_page_open(compact=true) }}
+    <nav class="rad-breadcrumb" aria-label="Breadcrumb">
+      <a href="/how-to-use-tools">How to Use the Tools</a>
+      <span class="rad-breadcrumb__sep" aria-hidden="true">/</span>
+      <span aria-current="page">System Trends Viewer</span>
+    </nav>
+    <h1 id="rad-page-title" class="rad-page-title">System Trends Viewer</h1>
+    <p class="rad-page-lead">See patterns across many cases. Aggregate views with no personally identifying details. No login required.</p>
+{{ rad_page_header_end() }}
+      {{ rad_section(flush=true, aria_label='Charts and statistics') }}
+    <p class="rad-dashboard-lead">Aggregate views for policy and research. Outcome labels follow the project reporting codebook (considered &rarr; letters sent &rarr; resentenced).</p>
+    <div id="data-visualization-container" class="rad-chart-card">
+      <div class="rad-stat-grid">
+        <div class="rad-stat-card" title="Case-level records extracted from resentencing letter PDFs. Higher than individuals because some people have multiple letters or cases on file.">
+          <div class="rad-stat-label">Letter records</div>
+          <div id="stat-total-letters" class="rad-stat-value">--</div>
+        </div>
+        <div class="rad-stat-card" title="Distinct people approximated from CDCR, case number, name, or PDF when those fields differ.">
+          <div class="rad-stat-label">Individuals (approx.)</div>
+          <div id="stat-total-individuals" class="rad-stat-value">--</div>
+        </div>
+        <div class="rad-stat-card" title="Count of distinct county values among letter records.">
+          <div class="rad-stat-label">Counties</div>
+          <div id="stat-total-counties" class="rad-stat-value">--</div>
+        </div>
+      </div>
+      <p id="rad-log-coverage" class="rad-data-freshness" aria-live="polite">
+        <span id="rad-log-coverage-body"></span>
+      </p>
+      <p id="rad-data-freshness" class="rad-data-freshness" aria-live="polite">
+        <span class="rad-data-freshness__label">Dataset dates:</span>
+        <span id="rad-data-freshness-body">Loading…</span>
+      </p>
+      <div>
+        <button class="visualization-button" data-dataset="poster_view">Case progression (considered &rarr; sent &rarr; resentenced)</button>
+        <button class="visualization-button active" data-dataset="letters_by_county">Letters by County</button>
+        <button class="visualization-button" data-dataset="years_reduced">Years Reduced by County</button>
+        <button class="visualization-button" data-dataset="sentence_type">Sentence Type (ISL vs DSL)</button>
+        <button class="visualization-button" data-dataset="parole_eligibility">Parole Eligibility by Year</button>
+        <button class="visualization-button" data-dataset="action_taken">Cases by Action Taken</button>
+        <button class="visualization-button" data-dataset="race_distribution">Race Distribution</button>
+        <button class="visualization-button" data-dataset="ethnicity_distribution">Ethnicity Distribution</button>
+        <button class="visualization-button" data-dataset="isl_dsl_outcome">Sentence Type by Outcome</button>
+      </div>
+      <div class="rad-chart-canvas-wrap">
+        <div id="loadingMessage">Loading...</div>
+        <canvas id="publicDashboardChart" aria-label="Public aggregate data visualization"></canvas>
+      </div>
+    </div>
+      {{ rad_section_end() }}
+{{ rad_page_close() }}
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% endblock %}

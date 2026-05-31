@@ -1,8 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
   const header = document.querySelector(".rad-site-header");
-  const toggle = document.querySelector(".rad-nav-toggle");
-  const panel = document.getElementById("rad-header-nav-panel");
-  if (!header || !toggle || !panel) return;
+  if (!header) return;
+  const toggle = header.querySelector(".rad-nav-toggle");
+  const panel = header.querySelector("#rad-header-nav-panel");
+  if (!toggle || !panel) return;
 
   function setNavOpen(open) {
     header.classList.toggle("rad-site-header--nav-open", open);

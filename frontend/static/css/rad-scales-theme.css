@@ -2633,6 +2633,8 @@ body.rad-app details.rad-accordion > div {
   .rad-nav-toggle {
     display: inline-flex;
     margin-left: auto;
+    position: relative;
+    z-index: 2;
   }
 
   body.rad-app .rad-header-nav-wrap {
@@ -2645,7 +2647,8 @@ body.rad-app details.rad-accordion > div {
     border-top: 1px solid var(--rf-border);
   }
 
-  .rad-site-header--nav-open .rad-header-nav-wrap {
+  /* Must beat body.rad-app .rad-header-nav-wrap { display: none } above */
+  body.rad-app .rad-site-header--nav-open .rad-header-nav-wrap {
     display: flex !important;
   }
 

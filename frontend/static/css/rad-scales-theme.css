@@ -813,13 +813,24 @@ body.rad-app .rad-data-heading.has-x-large-font-size {
   overflow: hidden;
 }
 
+#data-visualization-container .rad-trends-stats,
+#data-visualization-container .rad-trends-kpi-stack {
+  overflow: visible;
+}
+
+.rad-trends-kpi--tip:hover,
+.rad-trends-kpi--tip:focus-visible {
+  z-index: 40;
+}
+
 .rad-trends-kpi__tip {
   display: none;
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 0.4rem);
+  top: calc(100% + 0.35rem);
+  bottom: auto;
   transform: translateX(-50%);
-  z-index: 30;
+  z-index: 50;
   width: max(11.5rem, 100%);
   max-width: 15rem;
   margin: 0;
@@ -861,10 +872,11 @@ body.rad-app .rad-data-heading.has-x-large-font-size {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  line-height: 1.1;
-  /* Reserve two lines so values align across cards */
-  min-height: calc(2 * 1.1em);
-  max-height: calc(2 * 1.1em);
+  line-height: 1.15;
+  min-height: calc(2 * 1.15em);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
 }
 

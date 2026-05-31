@@ -12,7 +12,12 @@
           </span>
         </a>
       </div>
-      <div class="wp-block-group is-content-justification-left is-layout-flex rad-header-nav-wrap">
+      <button type="button" class="rad-nav-toggle" aria-expanded="false" aria-controls="rad-header-nav-panel" aria-label="Open menu">
+        <span class="rad-nav-toggle__bar" aria-hidden="true"></span>
+        <span class="rad-nav-toggle__bar" aria-hidden="true"></span>
+        <span class="rad-nav-toggle__bar" aria-hidden="true"></span>
+      </button>
+      <div id="rad-header-nav-panel" class="wp-block-group is-content-justification-left is-layout-flex rad-header-nav-wrap">
         <nav class="rad-primary-nav rad-primary-nav--hub" aria-label="Primary navigation">
           <ul class="rad-primary-nav__list">
             <li><a href="/" class="rad-primary-nav__link"{% if home_active %} aria-current="page"{% endif %}>Home</a></li>

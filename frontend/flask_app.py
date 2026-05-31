@@ -121,6 +121,22 @@ try:
 except ValueError:
     STREAMLIT_TOKEN_TTL_SECONDS = 300
 
+DEMO_ACCESS_EMAIL = (os.getenv("DEMO_ACCESS_EMAIL", "demo@conference") or "demo@conference").strip().lower()
+try:
+    DEMO_SESSION_TTL_SECONDS = int(os.getenv("DEMO_SESSION_TTL_SECONDS", "28800"))
+except ValueError:
+    DEMO_SESSION_TTL_SECONDS = 28800
+DEMO_ACCESS_ROLE = (os.getenv("DEMO_ACCESS_ROLE", UNLIMITED_ACCESS_ROLE) or UNLIMITED_ACCESS_ROLE).strip().lower()
+
+
+def _env_truthy(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _demo_signin_enabled() -> bool:
+    """Conference / local bypass sign-in (not for normal production users)."""
+    return _env_truthy("DEMO_MODE") or _env_truthy("FLASK_DEBUG")
+
 try:
     ROLE_LIMITS = json.loads(ROLE_LIMITS_JSON)
 except json.JSONDecodeError:
@@ -522,11 +538,11 @@ def query_ai():
 
 @app.route("/access")
 def access_gate():
-    debug_enabled = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes", "y", "on"}
     return render_template(
         "access.html",
         contact_email=CONTACT_EMAIL,
-        debug_enabled=debug_enabled,
+        demo_enabled=_demo_signin_enabled(),
+        demo_email=DEMO_ACCESS_EMAIL,
         access_request_url=ACCESS_REQUEST_URL,
     )
 
@@ -619,30 +635,57 @@ def access_session():
     return redirect(url_for("tool_hub"))
 
 
-@app.route("/dev/magiclink")
-def dev_magiclink():
-    """
-    Local-only helper to create a valid magic-link URL.
-
-    Enabled only when FLASK_DEBUG=true. This avoids manually generating
-    signatures during local testing. Do not rely on this in production.
-    """
-    debug_enabled = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes", "y", "on"}
-    if not debug_enabled:
+def _demo_signin_redirect():
+    """Mint a signed /access/session URL for demo or local testing."""
+    if not _demo_signin_enabled():
         return abort(404)
     if not ACCESS_HANDOFF_SECRET:
         return "ACCESS_HANDOFF_SECRET is not set. Add it to .env and restart Flask.", 503
 
-    email = (request.args.get("e") or "local@test").strip().lower()
-    exp = str(int(time.time()) + 3600)
+    email = (request.args.get("e") or DEMO_ACCESS_EMAIL).strip().lower()
+    exp = str(int(time.time()) + DEMO_SESSION_TTL_SECONDS)
+    role = DEMO_ACCESS_ROLE
+    unlimited = role == UNLIMITED_ACCESS_ROLE
+    dl_hour = str(DEFAULT_DOWNLOADS_PER_HOUR)
+    dl_day = str(DEFAULT_DOWNLOADS_PER_DAY)
+    zip_day = str(DEFAULT_ZIPS_PER_DAY)
+    payload = f"{email}|{exp}|{role}|{dl_hour}|{dl_day}|{zip_day}|{int(unlimited)}"
     sig = hmac.new(
         ACCESS_HANDOFF_SECRET.encode("utf-8"),
-        f"{email}|{exp}".encode("utf-8"),
+        payload.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
 
-    target = url_for("access_session", e=email, exp=exp, sig=sig, _external=True)
+    target = url_for(
+        "access_session",
+        e=email,
+        exp=exp,
+        sig=sig,
+        role=role,
+        dl_hour=dl_hour,
+        dl_day=dl_day,
+        zip_day=zip_day,
+        unlimited=int(unlimited),
+        _external=True,
+    )
     return redirect(target)
+
+
+@app.route("/demo/signin")
+def demo_signin():
+    """
+    One-click Tool Hub sign-in for conference demos (DEMO_MODE=true).
+
+    Does not require FLASK_DEBUG. Turn DEMO_MODE off after the event.
+    Optional query: ?e=demo@your.org
+    """
+    return _demo_signin_redirect()
+
+
+@app.route("/dev/magiclink")
+def dev_magiclink():
+    """Backward-compatible alias for demo sign-in."""
+    return _demo_signin_redirect()
 
 
 @app.route("/access/logout")

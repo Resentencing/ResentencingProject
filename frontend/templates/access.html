@@ -25,27 +25,30 @@
     .btn-primary:hover { background: #1d4ed8; }
     .btn-secondary { background: #e2e8f0; color: #1e293b; }
     .btn-secondary:hover { background: #cbd5e1; }
+    .demo-box { margin-top: 1.5rem; padding: 1rem 1.25rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; }
+    .demo-box h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+    .demo-box p { margin: 0.35rem 0; font-size: 0.95rem; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Tool Hub Access Required</h1>
     <p>This area uses a <strong>magic link</strong> tied to your email. When you are approved, you receive a one-time-style URL that sets your browser session and sends you into the Tool Hub (archive search, downloads, and related tools).</p>
-    <p><strong>Already approved?</strong> Open the access link from your email (it looks like <code>/access/session?e=…&amp;sig=…</code>). Do not bookmark the session page:use the message we sent you, or ask for a fresh link if it expired.</p>
+    <p><strong>Already approved?</strong> Open the access link from your email (it looks like <code>/access/session?e=…&amp;sig=…</code>). Do not bookmark the session page: use the message we sent you, or ask for a fresh link if it expired.</p>
     <p>If you need access, use <strong>Request access</strong> below or email <strong>{{ contact_email }}</strong>.</p>
     <div class="actions">
       <a class="btn btn-primary" href="{{ access_request_url }}" target="_blank" rel="noopener noreferrer">Request access</a>
       <button type="button" class="btn btn-secondary" id="access-back-btn">Back</button>
     </div>
-    {% if debug_enabled %}
-      <hr>
-      <h2>Local dev sign-in</h2>
-      <p>This is only shown when <code>FLASK_DEBUG=true</code>.</p>
-      <p>
-        <a href="{{ url_for('dev_magiclink') }}">
-          Sign in locally (dev)
-        </a>
-      </p>
+    {% if demo_enabled %}
+      <div class="demo-box" role="region" aria-label="Demo sign-in">
+        <h2>Demo sign-in</h2>
+        <p>For conference or staff demos only. Opens Tool Hub without the approval email.</p>
+        <p>Signed in as <code>{{ demo_email }}</code>. Turn off <code>DEMO_MODE</code> on the server after the event.</p>
+        <p style="margin-top: 0.75rem;">
+          <a class="btn btn-primary" href="{{ url_for('demo_signin') }}">Enter Tool Hub (demo)</a>
+        </p>
+      </div>
     {% endif %}
   </div>
   <script>

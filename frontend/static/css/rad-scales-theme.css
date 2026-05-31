@@ -68,7 +68,8 @@ body.rad-app {
 }
 
 body.rad-app .wp-site-blocks {
-  overflow-x: clip;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body.rad-app main.wp-block-group {
@@ -2335,41 +2336,6 @@ body.rad-app .rad-content-page table.rad-table--cost-summary tbody tr:nth-child(
   filter: brightness(0.98);
 }
 
-@media (max-width: 720px) {
-  body.rad-app .rad-content-page table.rad-table--comparison thead {
-    display: none;
-  }
-
-  body.rad-app .rad-content-page table.rad-table--comparison tbody tr {
-    display: block;
-    margin-bottom: 1rem;
-    border: 1px solid var(--rf-border);
-    border-radius: var(--rf-radius-lg);
-    overflow: hidden;
-  }
-
-  body.rad-app .rad-content-page table.rad-table--comparison tbody td {
-    display: block;
-    padding: 0.65rem 1rem;
-    border-bottom: 1px solid var(--rf-border);
-  }
-
-  body.rad-app .rad-content-page table.rad-table--comparison tbody td:last-child {
-    border-bottom: none;
-  }
-
-  body.rad-app .rad-content-page table.rad-table--comparison tbody td::before {
-    content: attr(data-label);
-    display: block;
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--rf-muted);
-    margin-bottom: 0.25rem;
-  }
-}
-
 .rad-topic-grid--4 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -2758,5 +2724,221 @@ body.rad-app details.rad-accordion > div {
 
   .rad-chart-card .visualization-button {
     flex: 1 1 100%;
+  }
+}
+
+/* =============================================================================
+   Mobile — site-wide readability, padding, and tables
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  :root {
+    --rf-pad-x: clamp(1rem, 4.5vw, 1.5rem);
+  }
+
+  .rad-page-shell,
+  .rad-page-hero-band .rad-page-shell,
+  .rad-page-hero__inner,
+  .rad-content-page__inner,
+  .rad-layout-wide,
+  body.rad-app .rad-site-header .wp-block-group.alignwide.is-layout-flex {
+    padding-left: max(var(--rf-pad-x), env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(var(--rf-pad-x), env(safe-area-inset-right, 0px)) !important;
+  }
+
+  body.rad-app main.wp-block-group.is-layout-flow {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .rad-page-title {
+    font-size: clamp(1.45rem, 6vw, 1.85rem);
+    hyphens: auto;
+  }
+
+  .rad-page-lead,
+  .rad-section-intro,
+  .rad-content-page p,
+  .rad-content-page li,
+  .rad-content-page td,
+  .rad-content-page th,
+  .rad-text-secondary {
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+  }
+
+  body.rad-app .rad-page-section > .rad-section-title,
+  body.rad-app .rad-content-page .rad-page-section > .rad-section-title {
+    padding-left: 0.75rem;
+    font-size: clamp(1.2rem, 5vw, 1.45rem);
+  }
+
+  body.rad-app .rad-content-page .rad-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  /* Wide tables without card labels: scroll inside wrap */
+  body.rad-app .rad-content-page table.rad-table:not(.rad-table--comparison):not(.rad-table--cost-summary):not(.rad-table--two-col) {
+    min-width: 34rem;
+  }
+
+  /* Stack multi-column tables as cards */
+  body.rad-app .rad-content-page table.rad-table--comparison thead,
+  body.rad-app .rad-content-page table.rad-table--two-col thead {
+    display: none;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--comparison tbody tr,
+  body.rad-app .rad-content-page table.rad-table--two-col tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid var(--rf-border);
+    border-radius: var(--rf-radius-lg);
+    overflow: hidden;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--comparison tbody td,
+  body.rad-app .rad-content-page table.rad-table--two-col tbody td {
+    display: block;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--rf-border);
+  }
+
+  body.rad-app .rad-content-page table.rad-table--comparison tbody td:last-child,
+  body.rad-app .rad-content-page table.rad-table--two-col tbody td:last-child {
+    border-bottom: none;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--comparison tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rf-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--two-col tbody td:first-child::before {
+    content: "Individual level (letter or case)";
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rf-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--two-col tbody td:last-child::before {
+    content: "Systemic data (all cases)";
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rf-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  /* Cost summary table */
+  body.rad-app .rad-content-page table.rad-table--cost-summary thead {
+    display: none;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--cost-summary tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid var(--rf-border);
+    border-radius: var(--rf-radius-lg);
+    overflow: hidden;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--cost-summary tbody th[scope="row"] {
+    display: block;
+    padding: 0.75rem 1rem;
+    background: #f1f5f9;
+    border-bottom: 1px solid var(--rf-border);
+    font-size: 0.8125rem;
+    color: var(--rf-ink);
+  }
+
+  body.rad-app .rad-content-page table.rad-table--cost-summary tbody td {
+    display: block;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--rf-border);
+  }
+
+  body.rad-app .rad-content-page table.rad-table--cost-summary tbody td:last-child {
+    border-bottom: none;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--cost-summary tbody td.rad-col-tone--public::before {
+    content: "Unallocated";
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rf-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--cost-summary tbody td.rad-col-tone--compare::before {
+    content: "Marginal rate";
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rf-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  body.rad-app .rad-content-page table.rad-table--cost-summary tbody td.rad-col-tone--guide::before {
+    content: "Per capita";
+    display: block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rf-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  .rad-chart-card {
+    padding: clamp(0.85rem, 3vw, 1.25rem);
+  }
+
+  .rad-toolhub-shell {
+    padding-left: max(var(--rf-pad-x), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--rf-pad-x), env(safe-area-inset-right, 0px));
+  }
+
+  .rad-home-hero__shell,
+  .rad-home-below__shell {
+    padding-left: max(var(--rf-pad-x), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--rf-pad-x), env(safe-area-inset-right, 0px));
+  }
+
+  .rad-toolhub-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rad-toolhub-table {
+    min-width: 32rem;
+  }
+
+  img,
+  video,
+  iframe,
+  .wp-block-image img {
+    max-width: 100%;
+    height: auto;
   }
 }

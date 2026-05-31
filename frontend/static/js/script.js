@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const visualizationButtons = document.querySelectorAll(".visualization-button");
+  const visualizationButtons = document.querySelectorAll(".visualization-button[data-dataset]");
   const visualizationButtonRow = visualizationButtons.length > 0 ? visualizationButtons[0].parentElement : null;
   const loadingMessage = document.getElementById("loadingMessage");
   const chartCanvas = document.getElementById("publicDashboardChart");
@@ -7,6 +7,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let dashboardChart = null;
   let professorChart = null;
+  let currentDashboardDataset = null;
+  let currentDashboardRows = null;
+  let dashboardShowAll = false;
+
+  const CHART_TOP_LIMITS = {
+    letters_by_county: 20,
+    years_reduced: 20,
+    action_taken: 20,
+    race_distribution: 12,
+    ethnicity_distribution: 12,
+    isl_dsl_outcome: 6,
+  };
+
+  function chartSupportsShowAll(dataset) {
+    return Object.prototype.hasOwnProperty.call(CHART_TOP_LIMITS, dataset);
+  }
+
+  function chartTopLimit(dataset) {
+    return CHART_TOP_LIMITS[dataset] || 20;
+  }
+
+  function applyTopN(entries, topN) {
+    if (topN == null) return entries;
+    return entries.slice(0, topN);
+  }
 
   function setLoading(isLoading) {
     if (!loadingMessage) return;
@@ -144,15 +169,33 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/"/g, "&quot;");
   }
 
+  function renderImpactStats(posterData) {
+    const stages = posterData?.stages || [];
+    const impact = posterData?.impact || {};
+    const byLabel = (label) => {
+      const stage = stages.find((s) => String(s.label || "").toLowerCase() === label.toLowerCase());
+      return stage ? Number(stage.value || 0) : 0;
+    };
+
+    const statLettersSent = document.getElementById("stat-letters-sent");
+    const statResentenced = document.getElementById("stat-cases-resentenced");
+    const statYearsReduced = document.getElementById("stat-years-reduced");
+    if (!statLettersSent && !statResentenced && !statYearsReduced) return;
+
+    if (statLettersSent) statLettersSent.textContent = formatNumber(byLabel("Letters sent"));
+    if (statResentenced) statResentenced.textContent = formatNumber(byLabel("Resentenced"));
+    if (statYearsReduced) statYearsReduced.textContent = formatNumber(impact.total_years_reduced_success || 0);
+  }
+
   function renderSummaryCards(summary) {
     const statLetters = document.getElementById("stat-total-letters");
     const statIndividuals = document.getElementById("stat-total-individuals");
     const statCounties = document.getElementById("stat-total-counties");
-    if (!statLetters || !statIndividuals || !statCounties) return;
-
-    statLetters.textContent = formatNumber(summary?.total_letters || 0);
-    statIndividuals.textContent = formatNumber(summary?.total_individuals || 0);
-    statCounties.textContent = formatNumber(summary?.total_counties || 0);
+    if (statLetters && statIndividuals && statCounties) {
+      statLetters.textContent = formatNumber(summary?.total_letters || 0);
+      statIndividuals.textContent = formatNumber(summary?.total_individuals || 0);
+      statCounties.textContent = formatNumber(summary?.total_counties || 0);
+    }
 
     const logCoverageEl = document.getElementById("rad-log-coverage");
     const logCoverageBody = document.getElementById("rad-log-coverage-body");
@@ -286,7 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return response.json();
   }
 
-  function aggregateYearsReduced(rows) {
+  function aggregateYearsReduced(rows, topN = 20) {
     const totals = {};
     rows.forEach((row) => {
       const county = (row.county || "Unknown").toString().trim() || "Unknown";
@@ -294,20 +337,22 @@ document.addEventListener("DOMContentLoaded", () => {
       totals[county] = (totals[county] || 0) + years;
     });
 
-    return Object.entries(totals)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20);
+    return applyTopN(
+      Object.entries(totals).sort((a, b) => b[1] - a[1]),
+      topN
+    );
   }
 
-  function aggregateLettersByCounty(rows) {
+  function aggregateLettersByCounty(rows, topN = 20) {
     const counts = {};
     rows.forEach((row) => {
       const county = (row.county || "Unknown").toString().trim() || "Unknown";
       counts[county] = (counts[county] || 0) + 1;
     });
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 20);
+    return applyTopN(
+      Object.entries(counts).sort((a, b) => b[1] - a[1]),
+      topN
+    );
   }
 
   function aggregateSentenceTypes(rows) {
@@ -325,9 +370,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const v = (row?.[key] || "Unknown").toString().trim() || "Unknown";
       counts[v] = (counts[v] || 0) + 1;
     });
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, topN);
+    return applyTopN(
+      Object.entries(counts).sort((a, b) => b[1] - a[1]),
+      topN
+    );
   }
 
   function isSuccessfulAction(actionTaken) {
@@ -353,14 +399,16 @@ document.addEventListener("DOMContentLoaded", () => {
       grouped[fieldValue].Total += 1;
     });
 
-    const sorted = Object.entries(grouped)
-      .sort((a, b) => b[1].Total - a[1].Total)
-      .slice(0, topN);
+    const sorted = applyTopN(
+      Object.entries(grouped).sort((a, b) => b[1].Total - a[1].Total),
+      topN
+    );
 
     return {
       labels: sorted.map(([k]) => k),
       successful: sorted.map(([, v]) => v["Favorable outcome"]),
       other: sorted.map(([, v]) => v["Other / unknown"]),
+      totalCategories: Object.keys(grouped).length,
     };
   }
 
@@ -377,9 +425,69 @@ document.addEventListener("DOMContentLoaded", () => {
     return Object.entries(counts).sort((a, b) => Number(a[0]) - Number(b[0]));
   }
 
-  function drawChart(dataset, rows) {
+  function setChartCanvasHeight(barCount, horizontal) {
+    const wrap = chartCanvas?.closest(".rad-chart-canvas-wrap");
+    if (!wrap || !chartCanvas) return;
+    const base = 360;
+    if (!horizontal) {
+      wrap.style.minHeight = `${base}px`;
+      chartCanvas.style.height = `${base}px`;
+      return;
+    }
+    const perBar = barCount > 35 ? 20 : 22;
+    const height = Math.min(Math.max(base, barCount * perBar + 72), 1800);
+    wrap.style.minHeight = `${height}px`;
+    chartCanvas.style.height = `${height}px`;
+  }
+
+  function horizontalCategoryTickOptions(labelCount) {
+    return {
+      autoSkip: false,
+      includeBounds: true,
+      padding: 2,
+      font: { size: labelCount > 35 ? 10 : 11 },
+      callback: function (value) {
+        return this.getLabelForValue ? this.getLabelForValue(value) : String(value);
+      },
+    };
+  }
+
+  function chartDetailUnit(dataset) {
+    if (dataset === "letters_by_county" || dataset === "years_reduced") return "counties";
+    if (dataset === "action_taken") return "outcome categories";
+    if (dataset === "race_distribution") return "race categories";
+    if (dataset === "ethnicity_distribution") return "ethnicity categories";
+    if (dataset === "isl_dsl_outcome") return "sentence types";
+    return "categories";
+  }
+
+  function updateChartDetailBar(dataset, { shown, total, showAll }) {
+    const bar = document.getElementById("rad-chart-detail-bar");
+    const note = document.getElementById("rad-chart-detail-note");
+    const btn = document.getElementById("rad-chart-show-all-btn");
+    if (!bar || !note || !btn) return;
+
+    if (!chartSupportsShowAll(dataset) || total <= chartTopLimit(dataset)) {
+      bar.hidden = true;
+      return;
+    }
+
+    bar.hidden = false;
+    const unit = chartDetailUnit(dataset);
+    note.textContent = showAll
+      ? `Showing all ${formatNumber(total)} ${unit}.`
+      : `Showing top ${formatNumber(shown)} of ${formatNumber(total)} ${unit}.`;
+    btn.textContent = showAll ? `Show top ${chartTopLimit(dataset)}` : "Show all";
+    btn.setAttribute("aria-pressed", showAll ? "true" : "false");
+  }
+
+  function drawChart(dataset, rows, options = {}) {
     if (!chartCanvas || typeof Chart === "undefined") return;
     setPosterImpactBadges(null, false);
+
+    const showAll = options.showAll === true;
+    const limit = showAll ? null : chartTopLimit(dataset);
+    let totalCategories = 0;
 
     const ctx = chartCanvas.getContext("2d");
     if (dashboardChart) {
@@ -532,18 +640,23 @@ document.addEventListener("DOMContentLoaded", () => {
           },
         },
       });
+      updateChartDetailBar(dataset, { shown: 0, total: 0, showAll });
       return;
     }
 
     if (dataset === "letters_by_county") {
-      const aggregated = aggregateLettersByCounty(rows);
+      const full = aggregateLettersByCounty(rows, null);
+      totalCategories = full.length;
+      const aggregated = showAll ? full : aggregateLettersByCounty(rows, limit);
       labels = aggregated.map((entry) => entry[0]);
       data = aggregated.map((entry) => entry[1]);
       chartLabel = "Letters";
       chartType = "bar";
       horizontal = true;
     } else if (dataset === "years_reduced") {
-      const aggregated = aggregateYearsReduced(rows);
+      const full = aggregateYearsReduced(rows, null);
+      totalCategories = full.length;
+      const aggregated = showAll ? full : aggregateYearsReduced(rows, limit);
       labels = aggregated.map((entry) => entry[0]);
       data = aggregated.map((entry) => Number(entry[1].toFixed(2)));
       chartLabel = "Total Years Reduced";
@@ -563,22 +676,27 @@ document.addEventListener("DOMContentLoaded", () => {
       chartType = "bar";
       horizontal = false;
     } else if (dataset === "action_taken") {
-      const aggregated = aggregateCategoryCounts(rows, "action_taken", 20);
+      const full = aggregateCategoryCounts(rows, "action_taken", null);
+      totalCategories = full.length;
+      const aggregated = showAll ? full : aggregateCategoryCounts(rows, "action_taken", limit);
       labels = aggregated.map((entry) => entry[0]);
       data = aggregated.map((entry) => entry[1]);
       chartLabel = "Cases";
       chartType = "bar";
       horizontal = true;
     } else if (dataset === "race_distribution") {
-      const outcome = aggregateOutcomeByField(rows, "race", 12);
-      labels = outcome.labels;
+      const outcome = aggregateOutcomeByField(rows, "race", null);
+      totalCategories = outcome.totalCategories;
+      const limited = aggregateOutcomeByField(rows, "race", limit);
+      const view = showAll ? outcome : limited;
+      labels = view.labels;
       chartType = "bar";
       horizontal = true;
       stacked = true;
       datasets = [
         {
           label: "Favorable outcome",
-          data: outcome.successful,
+          data: view.successful,
           backgroundColor: "rgba(16, 185, 129, 0.88)",
           borderColor: "#ffffff",
           borderWidth: 1,
@@ -586,7 +704,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         {
           label: "Other / unknown",
-          data: outcome.other,
+          data: view.other,
           backgroundColor: "rgba(148, 163, 184, 0.95)",
           borderColor: "#ffffff",
           borderWidth: 1,
@@ -594,15 +712,18 @@ document.addEventListener("DOMContentLoaded", () => {
         },
       ];
     } else if (dataset === "ethnicity_distribution") {
-      const outcome = aggregateOutcomeByField(rows, "ethnicity", 12);
-      labels = outcome.labels;
+      const outcome = aggregateOutcomeByField(rows, "ethnicity", null);
+      totalCategories = outcome.totalCategories;
+      const limited = aggregateOutcomeByField(rows, "ethnicity", limit);
+      const view = showAll ? outcome : limited;
+      labels = view.labels;
       chartType = "bar";
       horizontal = true;
       stacked = true;
       datasets = [
         {
           label: "Favorable outcome",
-          data: outcome.successful,
+          data: view.successful,
           backgroundColor: "rgba(16, 185, 129, 0.88)",
           borderColor: "#ffffff",
           borderWidth: 1,
@@ -610,7 +731,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         {
           label: "Other / unknown",
-          data: outcome.other,
+          data: view.other,
           backgroundColor: "rgba(148, 163, 184, 0.95)",
           borderColor: "#ffffff",
           borderWidth: 1,
@@ -618,15 +739,18 @@ document.addEventListener("DOMContentLoaded", () => {
         },
       ];
     } else if (dataset === "isl_dsl_outcome") {
-      const outcome = aggregateOutcomeByField(rows, "isl_dsl", 6);
-      labels = outcome.labels;
+      const outcome = aggregateOutcomeByField(rows, "isl_dsl", null);
+      totalCategories = outcome.totalCategories;
+      const limited = aggregateOutcomeByField(rows, "isl_dsl", limit);
+      const view = showAll ? outcome : limited;
+      labels = view.labels;
       chartType = "bar";
       horizontal = false;
       stacked = true;
       datasets = [
         {
           label: "Favorable outcome",
-          data: outcome.successful,
+          data: view.successful,
           backgroundColor: "rgba(16, 185, 129, 0.88)",
           borderColor: "#ffffff",
           borderWidth: 1,
@@ -634,7 +758,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         {
           label: "Other / unknown",
-          data: outcome.other,
+          data: view.other,
           backgroundColor: "rgba(148, 163, 184, 0.95)",
           borderColor: "#ffffff",
           borderWidth: 1,
@@ -666,8 +790,16 @@ document.addEventListener("DOMContentLoaded", () => {
         loadingMessage.style.display = "block";
         loadingMessage.textContent = "No data available for this chart.";
       }
+      updateChartDetailBar(dataset, { shown: 0, total: 0, showAll });
       return;
     }
+
+    setChartCanvasHeight(labels.length, horizontal);
+    updateChartDetailBar(dataset, {
+      shown: labels.length,
+      total: totalCategories,
+      showAll,
+    });
 
     dashboardChart = new Chart(ctx, {
       type: chartType,
@@ -690,6 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 x: {
                   stacked,
                   ticks: {
+                    autoSkip: horizontal,
                     callback: function (value) {
                       if (horizontal) return formatNumber(value);
                       return this.getLabelForValue ? this.getLabelForValue(value) : String(value);
@@ -698,12 +831,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 },
                 y: {
                   stacked,
-                  ticks: {
-                    callback: function (value) {
-                      if (!horizontal) return formatNumber(value);
-                      return this.getLabelForValue ? this.getLabelForValue(value) : String(value);
-                    },
-                  },
+                  ticks: horizontal
+                    ? horizontalCategoryTickOptions(labels.length)
+                    : {
+                        callback: function (value) {
+                          return formatNumber(value);
+                        },
+                      },
                 },
               },
         plugins: {
@@ -1103,9 +1237,13 @@ document.addEventListener("DOMContentLoaded", () => {
     await refreshProfessorChart();
   }
 
-  async function loadDashboard(dataset) {
+  async function loadDashboard(dataset, { preserveShowAll = false } = {}) {
     try {
       setLoading(true);
+      if (!preserveShowAll) {
+        dashboardShowAll = false;
+      }
+      currentDashboardDataset = dataset;
       if (visualizationButtonRow) {
         visualizationButtonRow.classList.toggle("poster-focus-mode", dataset === "poster_view");
         const exitBtn = ensurePosterExitButton();
@@ -1115,11 +1253,16 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (chartCanvas) {
-        const [primaryRows, summary] = await Promise.all([
-          dataset === "poster_view" ? fetchPosterView() : fetchDataset(dataset),
+        const posterPromise = fetchPosterView();
+        const primaryPromise = dataset === "poster_view" ? posterPromise : fetchDataset(dataset);
+        const [primaryRows, summary, posterData] = await Promise.all([
+          primaryPromise,
           fetchDashboardSummary(),
+          posterPromise,
         ]);
-        drawChart(dataset, primaryRows);
+        currentDashboardRows = primaryRows;
+        drawChart(dataset, primaryRows, { showAll: dashboardShowAll });
+        renderImpactStats(posterData);
         renderSummaryCards(summary);
       } else if (fallbackImage) {
         const timestamp = Date.now();
@@ -1144,6 +1287,15 @@ document.addEventListener("DOMContentLoaded", () => {
         loadDashboard(dataset);
       });
     });
+
+    const showAllBtn = document.getElementById("rad-chart-show-all-btn");
+    if (showAllBtn) {
+      showAllBtn.addEventListener("click", () => {
+        if (!currentDashboardDataset || currentDashboardRows == null) return;
+        dashboardShowAll = !dashboardShowAll;
+        drawChart(currentDashboardDataset, currentDashboardRows, { showAll: dashboardShowAll });
+      });
+    }
 
     loadDashboard("letters_by_county");
   }

@@ -1,5 +1,6 @@
 {% extends "page_base.html" %}
 {% from "includes/rad_page_macros.html" import rad_page_open, rad_page_header_end, rad_page_close, rad_section, rad_section_end %}
+{% from "includes/rad_icons.html" import icon_mail, icon_courthouse, icon_calendar, icon_document, icon_people, icon_map_pin %}
 {% block title %}System Trends Viewer | RAD{% endblock %}
 {% block head_extra %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,20 +16,69 @@
     <p class="rad-page-lead">See patterns across many cases. Aggregate views with no personally identifying details. No login required.</p>
 {{ rad_page_header_end() }}
       {{ rad_section(flush=true, aria_label='Charts and statistics') }}
-    <p class="rad-dashboard-lead">Aggregate views for policy and research. Outcome labels follow the project reporting codebook (considered &rarr; letters sent &rarr; resentenced).</p>
     <div id="data-visualization-container" class="rad-chart-card">
-      <div class="rad-stat-grid">
-        <div class="rad-stat-card" title="Case-level records extracted from resentencing letter PDFs. Higher than individuals because some people have multiple letters or cases on file.">
-          <div class="rad-stat-label">Letter records</div>
-          <div id="stat-total-letters" class="rad-stat-value">--</div>
-        </div>
-        <div class="rad-stat-card" title="Distinct people approximated from CDCR, case number, name, or PDF when those fields differ.">
-          <div class="rad-stat-label">Individuals (approx.)</div>
-          <div id="stat-total-individuals" class="rad-stat-value">--</div>
-        </div>
-        <div class="rad-stat-card" title="Count of distinct county values among letter records.">
-          <div class="rad-stat-label">Counties</div>
-          <div id="stat-total-counties" class="rad-stat-value">--</div>
+      <div class="rad-trends-stats">
+        <div class="rad-trends-kpi-stack">
+          <article class="rad-trends-kpi rad-tone rad-tone--approved rad-trends-kpi--tip" tabindex="0">
+            <div class="rad-trends-kpi__body">
+              <p class="rad-trends-kpi__label">Letters sent to court</p>
+              <p id="stat-letters-sent" class="rad-trends-kpi__value">--</p>
+            </div>
+            <div class="rad-trends-kpi__icon" aria-hidden="true">{{ icon_mail() }}</div>
+            <p class="rad-trends-kpi__tip" role="tooltip">
+              <strong>Letters sent to court</strong> counts letter records that have a court response in our database (the Action Taken field is filled in). It means the case moved past referral—not necessarily the exact mail date.
+            </p>
+          </article>
+          <article class="rad-trends-kpi rad-tone rad-tone--public rad-trends-kpi--tip" tabindex="0">
+            <div class="rad-trends-kpi__body">
+              <p class="rad-trends-kpi__label">Cases resentenced</p>
+              <p id="stat-cases-resentenced" class="rad-trends-kpi__value">--</p>
+            </div>
+            <div class="rad-trends-kpi__icon" aria-hidden="true">{{ icon_courthouse() }}</div>
+            <p class="rad-trends-kpi__tip" role="tooltip">
+              <strong>What is a “case” here?</strong> One tracked letter event in our database (not always one person). <strong>Cases resentenced</strong> is the smaller group where Action Taken shows a favorable court outcome—resentenced, released, granted, approved, or recalled. Most letter records never reach this stage; 649 is not everyone considered.
+            </p>
+          </article>
+          <article class="rad-trends-kpi rad-tone rad-tone--guide rad-trends-kpi--tip" tabindex="0">
+            <div class="rad-trends-kpi__body">
+              <p class="rad-trends-kpi__label">Years reduced</p>
+              <p id="stat-years-reduced" class="rad-trends-kpi__value">--</p>
+            </div>
+            <div class="rad-trends-kpi__icon" aria-hidden="true">{{ icon_calendar() }}</div>
+            <p class="rad-trends-kpi__tip" role="tooltip">
+              <strong>Years reduced</strong> is the total sentence time removed across favorable outcomes only (same resentenced/released/grant group). Records with blank or unknown reduction are excluded.
+            </p>
+          </article>
+          <article class="rad-trends-kpi rad-tone rad-tone--approved rad-trends-kpi--tip" tabindex="0">
+            <div class="rad-trends-kpi__body">
+              <p class="rad-trends-kpi__label">Letter records</p>
+              <p id="stat-total-letters" class="rad-trends-kpi__value">--</p>
+            </div>
+            <div class="rad-trends-kpi__icon" aria-hidden="true">{{ icon_document() }}</div>
+            <p class="rad-trends-kpi__tip" role="tooltip">
+              <strong>Letter records</strong> are case-level rows extracted from resentencing letter PDFs in our database. The count can exceed individuals because some people have more than one letter or case on file.
+            </p>
+          </article>
+          <article class="rad-trends-kpi rad-tone rad-tone--compare rad-trends-kpi--tip" tabindex="0">
+            <div class="rad-trends-kpi__body">
+              <p class="rad-trends-kpi__label">Individuals (approx.)</p>
+              <p id="stat-total-individuals" class="rad-trends-kpi__value">--</p>
+            </div>
+            <div class="rad-trends-kpi__icon" aria-hidden="true">{{ icon_people() }}</div>
+            <p class="rad-trends-kpi__tip" role="tooltip">
+              <strong>Individuals (approx.)</strong> deduplicates letter records into distinct people using CDCR number, case number, name, or PDF when those fields differ. It is an estimate, not a legal identity count.
+            </p>
+          </article>
+          <article class="rad-trends-kpi rad-tone rad-tone--public rad-trends-kpi--tip" tabindex="0">
+            <div class="rad-trends-kpi__body">
+              <p class="rad-trends-kpi__label">Counties</p>
+              <p id="stat-total-counties" class="rad-trends-kpi__value">--</p>
+            </div>
+            <div class="rad-trends-kpi__icon" aria-hidden="true">{{ icon_map_pin() }}</div>
+            <p class="rad-trends-kpi__tip" role="tooltip">
+              <strong>Counties</strong> is the number of distinct county values among letter records—where cases in the dataset are attributed geographically.
+            </p>
+          </article>
         </div>
       </div>
       <p id="rad-log-coverage" class="rad-data-freshness" aria-live="polite">
@@ -48,6 +98,10 @@
         <button class="visualization-button" data-dataset="race_distribution">Race Distribution</button>
         <button class="visualization-button" data-dataset="ethnicity_distribution">Ethnicity Distribution</button>
         <button class="visualization-button" data-dataset="isl_dsl_outcome">Sentence Type by Outcome</button>
+      </div>
+      <div class="rad-chart-detail-bar" id="rad-chart-detail-bar" hidden>
+        <p id="rad-chart-detail-note" class="rad-chart-detail-note"></p>
+        <button type="button" id="rad-chart-show-all-btn" class="visualization-button">Show all</button>
       </div>
       <div class="rad-chart-canvas-wrap">
         <div id="loadingMessage">Loading...</div>

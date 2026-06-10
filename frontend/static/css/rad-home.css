@@ -73,45 +73,11 @@ body.rad-app.rad-app--home .wp-site-blocks > main {
   margin: 0 0 0.75rem;
 }
 
-.rad-home-hero__tagline {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1.45;
-  color: #334155;
-  margin: 0 0 0.65rem;
-}
-
-.rad-home-hero__lead {
+.rad-home-hero__intro {
   font-size: 0.9375rem;
-  line-height: 1.55;
+  line-height: 1.6;
   color: #475569;
-  margin: 0 0 0.85rem;
-}
-
-.rad-home-hero__more {
-  margin: 0 0 1.1rem;
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.rad-home-hero__more summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--rf-accent);
-  list-style: none;
-}
-
-.rad-home-hero__more summary::-webkit-details-marker {
-  display: none;
-}
-
-.rad-home-hero__more[open] summary {
-  margin-bottom: 0.5rem;
-}
-
-.rad-home-hero__more p {
-  margin: 0;
-  line-height: 1.55;
+  margin: 0.75rem 0 1.1rem;
 }
 
 .rad-home-hero__cta {
@@ -178,35 +144,18 @@ body.rad-app.rad-app--home .rad-button--outline:hover {
   align-items: flex-start;
   padding: 1rem 0.95rem 0.85rem;
   background: #ffffff !important;
-  border: 1px solid rgba(126, 184, 217, 0.35) !important;
-  border-top: 3px solid var(--rf-border) !important;
-  border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--rf-card-border, #e2e8f0) !important;
+  border-radius: var(--rf-radius-lg);
+  box-shadow: var(--rf-shadow-sm);
   text-decoration: none !important;
   color: inherit;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-height: 0;
 }
 
 .rad-home-tool-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 28px rgba(30, 58, 95, 0.12);
-}
-
-.rad-home-tool-card.rad-tone--public {
-  border-top-color: var(--rad-public-border) !important;
-}
-
-.rad-home-tool-card.rad-tone--approved {
-  border-top-color: var(--rad-approved-border) !important;
-}
-
-.rad-home-tool-card.rad-tone--compare {
-  border-top-color: var(--rad-compare-border) !important;
-}
-
-.rad-home-tool-card.rad-tone--guide {
-  border-top-color: var(--rad-guide-border) !important;
+  border-color: var(--rf-border-strong) !important;
+  box-shadow: var(--rf-shadow-md);
 }
 
 .rad-home-tool-card__icon-wrap {
@@ -217,34 +166,10 @@ body.rad-app.rad-app--home .rad-button--outline:hover {
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 50%;
-  background: linear-gradient(145deg, #ffffff 0%, #eef6fc 100%);
-  border: 1px solid rgba(126, 184, 217, 0.5);
+  background: #f8fafc;
+  border: 1px solid var(--rf-card-border, #e2e8f0);
   color: var(--rf-accent);
   margin-bottom: 0.6rem;
-}
-
-.rad-home-tool-card.rad-tone--public .rad-home-tool-card__icon-wrap {
-  background: linear-gradient(145deg, #ffffff 0%, var(--rad-public-bg) 100%);
-  border-color: var(--rad-public-border);
-  color: var(--rad-public-ink);
-}
-
-.rad-home-tool-card.rad-tone--approved .rad-home-tool-card__icon-wrap {
-  background: linear-gradient(145deg, #ffffff 0%, var(--rad-approved-bg) 100%);
-  border-color: var(--rad-approved-border);
-  color: var(--rad-approved-ink);
-}
-
-.rad-home-tool-card.rad-tone--compare .rad-home-tool-card__icon-wrap {
-  background: linear-gradient(145deg, #ffffff 0%, var(--rad-compare-bg) 100%);
-  border-color: var(--rad-compare-border);
-  color: var(--rad-compare-ink);
-}
-
-.rad-home-tool-card.rad-tone--guide .rad-home-tool-card__icon-wrap {
-  background: linear-gradient(145deg, #ffffff 0%, var(--rad-guide-bg) 100%);
-  border-color: var(--rad-guide-border);
-  color: var(--rad-guide-ink);
 }
 
 .rad-home-tool-card__icon-wrap .rad-icon {
@@ -271,43 +196,12 @@ body.rad-app.rad-app--home .rad-button--outline:hover {
   box-shadow: 0 2px 6px rgba(30, 58, 95, 0.2);
 }
 
-.rad-home-tool-card.rad-tone--public .rad-home-tool-card__num {
-  background: var(--rad-public-ink);
-}
-
-.rad-home-tool-card.rad-tone--approved .rad-home-tool-card__num {
-  background: var(--rad-approved-ink);
-}
-
-.rad-home-tool-card.rad-tone--compare .rad-home-tool-card__num {
-  background: var(--rad-compare-ink);
-}
-
-.rad-home-tool-card.rad-tone--guide .rad-home-tool-card__num {
-  background: var(--rad-guide-ink);
-}
-
 .rad-home-tool-card__title {
   font-size: 0.9375rem;
   font-weight: 700;
   line-height: 1.3;
   margin: 0 0 0.15rem;
-}
-
-.rad-home-tool-card.rad-tone--public .rad-home-tool-card__title {
-  color: var(--rad-public-ink);
-}
-
-.rad-home-tool-card.rad-tone--approved .rad-home-tool-card__title {
-  color: var(--rad-approved-ink);
-}
-
-.rad-home-tool-card.rad-tone--compare .rad-home-tool-card__title {
-  color: var(--rad-compare-ink);
-}
-
-.rad-home-tool-card.rad-tone--guide .rad-home-tool-card__title {
-  color: var(--rad-guide-ink);
+  color: var(--rf-ink);
 }
 
 .rad-home-tool-card__badge {
@@ -351,7 +245,7 @@ body.rad-app.rad-app--home .rad-button--outline:hover {
 }
 
 .rad-home-tool-card:hover .rad-home-tool-card__guide {
-  color: var(--rad-public-ink);
+  color: var(--rf-accent-hover);
 }
 
 /* Below hero */
@@ -390,18 +284,6 @@ a.rad-home-stat:hover {
   box-shadow: 0 12px 28px rgba(30, 58, 95, 0.12);
 }
 
-a.rad-home-stat.rad-tone--public:hover {
-  border-color: var(--rad-public-border) !important;
-}
-
-a.rad-home-stat.rad-tone--approved:hover {
-  border-color: var(--rad-approved-border) !important;
-}
-
-a.rad-home-stat.rad-tone--guide:hover {
-  border-color: var(--rad-guide-border) !important;
-}
-
 a.rad-home-stat:focus-visible {
   outline: 2px solid var(--rf-accent);
   outline-offset: 3px;
@@ -414,6 +296,7 @@ a.rad-home-stat:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 0.25rem;
+  color: var(--rf-muted);
 }
 
 .rad-home-stat__value {

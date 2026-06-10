@@ -93,17 +93,17 @@ body.rad-app .rad-content-page .rad-page-section > .rad-section-title {
   border-left: 4px solid var(--rf-gold);
 }
 
-/* Topic & tool cards */
+/* Topic cards — neutral (no gold accent stripe) */
 .rad-topic-card__icon {
-  background: linear-gradient(145deg, var(--rf-gold-light) 0%, #ffffff 100%) !important;
-  border: 2px solid var(--rf-gold-mid) !important;
+  background: #f8fafc !important;
+  border: 1px solid var(--rf-card-border, #e2e8f0) !important;
   color: var(--rf-accent) !important;
-  box-shadow: 0 2px 8px rgba(197, 160, 40, 0.2);
+  box-shadow: none !important;
 }
 
 .rad-topic-card:hover,
 a.rad-topic-card:hover {
-  border-color: var(--rf-gold) !important;
+  border-color: var(--rf-border-strong) !important;
 }
 
 /* Tables — institutional header */
